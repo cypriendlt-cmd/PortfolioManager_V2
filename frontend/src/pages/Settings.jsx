@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, Cloud, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, Cloud, ExternalLink, AlertCircle, CheckCircle, Brain } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
 import './Settings.css'
+
+const OPENAI_KEY_STORAGE = 'pm_openai_api_key'
 
 const THEME_META = {
   ocean: { label: 'Océan', colors: ['#0a1628', '#3b82f6', '#f0f4f8'] },
@@ -36,6 +38,8 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [editClientId, setEditClientId] = useState(clientId)
   const [clientIdSaved, setClientIdSaved] = useState(false)
+  const [openaiKey, setOpenaiKey] = useState(() => localStorage.getItem(OPENAI_KEY_STORAGE) || '')
+  const [openaiSaved, setOpenaiSaved] = useState(false)
 
   const handleSave = () => {
     setSaved(true)
@@ -255,6 +259,54 @@ export default function Settings() {
             <option value="GBP">GBP (£)</option>
           </select>
         </div>
+      </Section>
+
+      {/* OpenAI API */}
+      <Section title="IA — Clé OpenAI" icon={Brain}>
+        <p className="text-sm text-muted mb-16">
+          Ajoutez votre clé API OpenAI pour activer les analyses IA en temps réel sur la page Insights.
+          Sans clé, des données de démonstration seront affichées.
+        </p>
+        <div className="form-group">
+          <label className="form-label">Clé API OpenAI</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="sk-..."
+            value={openaiKey}
+            onChange={e => setOpenaiKey(e.target.value)}
+          />
+        </div>
+        <div className="gc-actions">
+          <button className="btn btn-primary" onClick={() => {
+            localStorage.setItem(OPENAI_KEY_STORAGE, openaiKey.trim())
+            setOpenaiSaved(true)
+            setTimeout(() => setOpenaiSaved(false), 2000)
+          }}>
+            {openaiSaved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder la clé'}
+          </button>
+          {openaiKey && (
+            <button className="btn btn-ghost" onClick={() => {
+              setOpenaiKey('')
+              localStorage.removeItem(OPENAI_KEY_STORAGE)
+            }}>
+              Supprimer la clé
+            </button>
+          )}
+        </div>
+        <div className="gc-status mt-16">
+          <div className={`gc-status-item ${openaiKey ? 'gc-ok' : 'gc-warn'}`}>
+            {openaiKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Clé OpenAI {openaiKey ? 'configurée' : 'non configurée — mode démo actif'}</span>
+          </div>
+        </div>
+        <p className="text-xs text-muted mt-12">
+          Votre clé est stockée localement dans votre navigateur. Elle n'est jamais envoyée à nos serveurs.
+          <br />
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="gc-link" style={{ marginTop: 4 }}>
+            Obtenir une clé API OpenAI <ExternalLink size={14} />
+          </a>
+        </p>
       </Section>
 
       {/* Binance API */}

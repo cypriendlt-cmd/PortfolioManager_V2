@@ -1,8 +1,56 @@
 import { useState, useEffect } from 'react'
-import { Brain, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle } from 'lucide-react'
-import { getInsights } from '../services/insights'
+import { Brain, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, Settings } from 'lucide-react'
 import { getFearGreed } from '../services/market'
+import { Link } from 'react-router-dom'
 import './Insights.css'
+
+const OPENAI_KEY_STORAGE = 'pm_openai_api_key'
+
+async function fetchOpenAIInsights() {
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE)
+  if (!key) return null
+
+  const prompt = `Tu es un analyste financier expert. Donne un résumé concis du marché aujourd'hui pour :
+1. Le marché crypto (Bitcoin, Ethereum, altcoins majeurs)
+2. Le marché actions (focus Europe, CAC 40, indices monde)
+
+Pour chaque marché, donne :
+- Un résumé en 2-3 phrases
+- Un sentiment : "bullish", "bearish" ou "neutral"
+- 4 points clés
+
+Réponds UNIQUEMENT en JSON valide, format :
+{
+  "crypto": { "summary": "...", "sentiment": "bullish|bearish|neutral", "keyPoints": ["...", "...", "...", "..."] },
+  "stocks": { "summary": "...", "sentiment": "bullish|bearish|neutral", "keyPoints": ["...", "...", "...", "..."] }
+}`
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1000,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `OpenAI API error: ${res.status}`)
+  }
+
+  const data = await res.json()
+  const content = data.choices?.[0]?.message?.content || ''
+  // Extract JSON from response (handle markdown code blocks)
+  const jsonMatch = content.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Invalid response format')
+  return JSON.parse(jsonMatch[0])
+}
 
 const DEMO_INSIGHTS = {
   crypto: {
@@ -100,16 +148,25 @@ export default function Insights() {
   const [fearGreed, setFearGreed] = useState(null)
   const [error, setError] = useState(null)
 
+  const hasOpenAIKey = !!localStorage.getItem(OPENAI_KEY_STORAGE)
+
   const loadData = async () => {
     setLoading(true)
     setError(null)
     try {
       const [insightsRes, fearGreedRes] = await Promise.allSettled([
-        getInsights(),
+        fetchOpenAIInsights(),
         getFearGreed(),
       ])
 
-      setInsights(insightsRes.status === 'fulfilled' ? insightsRes.value.data : DEMO_INSIGHTS)
+      if (insightsRes.status === 'fulfilled' && insightsRes.value) {
+        setInsights(insightsRes.value)
+      } else {
+        setInsights(DEMO_INSIGHTS)
+        if (insightsRes.status === 'rejected') {
+          setError(insightsRes.reason?.message || 'Erreur OpenAI')
+        }
+      }
       setFearGreed(fearGreedRes.status === 'fulfilled' ? fearGreedRes.value.data : DEMO_FEAR_GREED)
     } catch {
       setInsights(DEMO_INSIGHTS)
@@ -135,6 +192,30 @@ export default function Insights() {
           Actualiser
         </button>
       </div>
+
+      {!hasOpenAIKey && (
+        <div className="card mb-24" style={{ background: 'var(--accent-light)', borderColor: 'var(--accent)' }}>
+          <div className="flex items-center gap-12">
+            <Brain size={20} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <p className="text-sm" style={{ color: 'var(--text-primary)', margin: 0 }}>
+              <strong>Mode démo :</strong> Ajoutez votre clé API OpenAI dans les{' '}
+              <Link to="/settings" style={{ color: 'var(--accent)', fontWeight: 600 }}>Paramètres</Link>{' '}
+              pour activer les analyses IA en temps réel.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="card mb-24" style={{ background: 'var(--danger-light, rgba(239,68,68,0.1))', borderColor: 'var(--danger)' }}>
+          <div className="flex items-center gap-12">
+            <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+            <p className="text-sm" style={{ color: 'var(--text-primary)', margin: 0 }}>
+              <strong>Erreur OpenAI :</strong> {error}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Fear & Greed */}
       <div className="card mb-24">
