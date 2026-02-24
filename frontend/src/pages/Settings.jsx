@@ -9,10 +9,10 @@ const OPENAI_KEY_STORAGE = 'pm_openai_api_key'
 const CORS_PROXY_KEY = 'pm_cors_proxy_url'
 
 const THEME_META = {
-  ocean: { label: 'Océan', colors: ['#0a1628', '#3b82f6', '#f0f4f8'] },
-  sunset: { label: 'Coucher de soleil', colors: ['#1a0f00', '#f59e0b', '#fef7ed'] },
-  forest: { label: 'Forêt', colors: ['#0a1a0f', '#10b981', '#f0faf4'] },
-  lavender: { label: 'Lavande', colors: ['#1a0f28', '#8b5cf6', '#f5f0ff'] },
+  crimson: { label: 'Crimson', colors: ['#0f0a0a', '#dc2626', '#faf5f5'] },
+  rose: { label: 'Rosé', colors: ['#120a0e', '#e11d48', '#fdf2f8'] },
+  burgundy: { label: 'Burgundy', colors: ['#0d0808', '#a21c2d', '#faf6f6'] },
+  ember: { label: 'Ember', colors: ['#0f0a05', '#ea580c', '#fff7ed'] },
 }
 
 function Section({ title, icon: Icon, children }) {

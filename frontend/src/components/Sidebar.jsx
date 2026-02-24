@@ -27,10 +27,10 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   const location = useLocation()
 
   const themeColors = {
-    ocean: '#3b82f6',
-    sunset: '#f59e0b',
-    forest: '#10b981',
-    lavender: '#8b5cf6',
+    crimson: '#dc2626',
+    rose: '#e11d48',
+    burgundy: '#a21c2d',
+    ember: '#ea580c',
   }
 
   return (

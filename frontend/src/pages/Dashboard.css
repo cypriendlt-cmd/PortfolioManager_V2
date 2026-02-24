@@ -76,8 +76,8 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
-  transition: background 0.2s;
+  border-radius: 12px;
+  transition: background 0.2s ease;
 }
 
 .activity-item:hover {
@@ -87,7 +87,7 @@
 .activity-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -143,5 +143,39 @@
 
   .dashboard-pie-row {
     flex-direction: column;
+  }
+
+  .dashboard-gauges {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-total {
+    font-size: 1.75rem;
+  }
+
+  .dashboard-gauges {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 320px) {
+  .dashboard-total {
+    font-size: 1.5rem;
+  }
+
+  .activity-item {
+    padding: 8px 8px;
+    gap: 8px;
+  }
+
+  .activity-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dashboard-gauges {
+    gap: 12px;
   }
 }

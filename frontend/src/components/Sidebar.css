@@ -35,7 +35,7 @@
 .sidebar-logo-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -61,7 +61,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   flex-shrink: 0;
 }
 
@@ -93,7 +93,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
@@ -186,6 +186,8 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 99;
 }
 
@@ -209,5 +211,29 @@
 
   .sidebar-mobile-overlay {
     display: block;
+  }
+}
+
+@media (max-width: 320px) {
+  .sidebar {
+    width: 100% !important;
+  }
+
+  .sidebar-header {
+    padding: 16px 12px;
+    min-height: 60px;
+  }
+
+  .sidebar-nav {
+    padding: 8px 6px;
+  }
+
+  .sidebar-link {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+
+  .sidebar-footer {
+    padding: 12px;
   }
 }

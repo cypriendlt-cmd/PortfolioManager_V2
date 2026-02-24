@@ -57,13 +57,28 @@
   padding: 8px 12px;
   background: var(--bg-secondary);
   border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.insights-points li:hover {
+  background: var(--bg-card-hover);
 }
 
 .insights-points li::before {
-  content: '→';
+  content: '\2192';
   color: var(--accent);
   font-weight: 600;
   flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .insights-gauges-row {
+    gap: 16px;
+  }
+
+  .insights-gauge-label {
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 600px) {
@@ -74,5 +89,50 @@
   .insights-gauge-divider {
     width: 100%;
     height: 1px;
+  }
+}
+
+@media (max-width: 480px) {
+  .insights-fg-legend {
+    gap: 8px 16px;
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+
+  .insights-fg-item {
+    font-size: 0.75rem;
+  }
+
+  .insights-points li {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 320px) {
+  .insights-gauges-row {
+    gap: 12px;
+  }
+
+  .insights-gauge-label {
+    font-size: 0.75rem;
+  }
+
+  .insights-fg-legend {
+    gap: 6px 12px;
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+
+  .insights-fg-item {
+    font-size: 0.7rem;
+    gap: 6px;
+  }
+
+  .insights-points li {
+    font-size: 0.75rem;
+    padding: 6px 8px;
+    border-radius: 6px;
   }
 }

@@ -2,10 +2,10 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const ThemeContext = createContext(null)
 
-const THEMES = ['ocean', 'sunset', 'forest', 'lavender']
+const THEMES = ['crimson', 'rose', 'burgundy', 'ember']
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('pm-theme') || 'ocean')
+  const [theme, setTheme] = useState(() => localStorage.getItem('pm-theme') || 'crimson')
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem('pm-dark-mode')
     return stored !== null ? JSON.parse(stored) : true

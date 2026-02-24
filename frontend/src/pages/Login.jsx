@@ -5,10 +5,10 @@ import { useAuth } from '../context/AuthContext'
 import './Login.css'
 
 const THEME_META = {
-  ocean: { label: 'Océan', accent: '#3b82f6' },
-  sunset: { label: 'Coucher de soleil', accent: '#f59e0b' },
-  forest: { label: 'Forêt', accent: '#10b981' },
-  lavender: { label: 'Lavande', accent: '#8b5cf6' },
+  crimson: { label: 'Crimson', accent: '#dc2626' },
+  rose: { label: 'Rosé', accent: '#e11d48' },
+  burgundy: { label: 'Burgundy', accent: '#a21c2d' },
+  ember: { label: 'Ember', accent: '#ea580c' },
 }
 
 export default function Login() {

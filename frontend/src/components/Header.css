@@ -9,7 +9,9 @@
   height: 64px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.25s ease;
 }
 
 .header-left {
@@ -23,10 +25,10 @@
   background: none;
   border: none;
   color: var(--text-secondary);
-  padding: 6px;
-  border-radius: 8px;
+  padding: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .header-menu-btn:hover {
@@ -52,9 +54,9 @@
   gap: 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 14px;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   color: var(--text-muted);
 }
 
@@ -84,7 +86,7 @@
   padding: 8px;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   display: flex;
   align-items: center;
 }
@@ -92,6 +94,7 @@
 .header-icon-btn:hover {
   color: var(--accent);
   border-color: var(--accent);
+  background: var(--accent-light);
 }
 
 .header-notif-dot {
@@ -116,5 +119,20 @@
 
   .header-search {
     display: none;
+  }
+}
+
+@media (max-width: 320px) {
+  .header {
+    padding: 0 10px;
+    height: 56px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .header-icon-btn {
+    padding: 6px;
   }
 }
