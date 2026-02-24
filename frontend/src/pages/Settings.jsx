@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
 import './Settings.css'
 
 const OPENAI_KEY_STORAGE = 'pm_openai_api_key'
+const CORS_PROXY_KEY = 'pm_cors_proxy_url'
 
 const THEME_META = {
   ocean: { label: 'Océan', colors: ['#0a1628', '#3b82f6', '#f0f4f8'] },
@@ -38,6 +39,9 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [openaiKey, setOpenaiKey] = useState(() => localStorage.getItem(OPENAI_KEY_STORAGE) || '')
   const [openaiSaved, setOpenaiSaved] = useState(false)
+  const [corsProxy, setCorsProxy] = useState(() => localStorage.getItem(CORS_PROXY_KEY) || '')
+  const [corsProxySaved, setCorsProxySaved] = useState(false)
+  const [corsProxyTest, setCorsProxyTest] = useState(null) // null | 'testing' | 'ok' | 'error'
 
   const handleSave = () => {
     setSaved(true)
@@ -86,6 +90,96 @@ export default function Settings() {
             {driveConnected ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
             <span>Google Drive {driveConnected ? 'synchronisé' : driveError || 'en attente'}</span>
           </div>
+        </div>
+      </Section>
+
+      {/* CORS Proxy for stock prices */}
+      <Section title="Proxy CORS (prix bourse)" icon={Server}>
+        <p className="text-sm text-muted mb-16">
+          Pour récupérer les prix des actions/ETF (Yahoo Finance), un proxy CORS est nécessaire.
+          Déployez un Cloudflare Worker gratuit (100k req/jour) avec le fichier <code>cors-proxy/worker.js</code> du repo.
+        </p>
+        <div className="gc-steps">
+          <div className="gc-step">
+            <div className="gc-step-number">1</div>
+            <div className="gc-step-content">
+              <div className="settings-label">Créer un Worker Cloudflare</div>
+              <div className="settings-hint">Allez sur Cloudflare Dashboard → Workers & Pages → Create</div>
+              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="gc-link">
+                Ouvrir Cloudflare Dashboard <ExternalLink size={14} />
+              </a>
+            </div>
+          </div>
+          <div className="gc-step">
+            <div className="gc-step-number">2</div>
+            <div className="gc-step-content">
+              <div className="settings-label">Copier le code du Worker</div>
+              <div className="settings-hint">
+                Collez le contenu de <code>cors-proxy/worker.js</code> dans l'éditeur et déployez.
+              </div>
+              <a href="https://github.com/cypriendlt-cmd/PortfolioManager_V2/blob/master/cors-proxy/worker.js" target="_blank" rel="noopener noreferrer" className="gc-link">
+                Voir le code du Worker <ExternalLink size={14} />
+              </a>
+            </div>
+          </div>
+          <div className="gc-step">
+            <div className="gc-step-number">3</div>
+            <div className="gc-step-content">
+              <div className="settings-label">Coller l'URL du Worker ci-dessous</div>
+              <div className="settings-hint">
+                Ex: <code>https://portfolio-cors-proxy.votre-compte.workers.dev</code>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="form-group mt-16">
+          <label className="form-label">URL du proxy CORS</label>
+          <input
+            className="form-input"
+            type="text"
+            placeholder="https://portfolio-cors-proxy.xxx.workers.dev"
+            value={corsProxy}
+            onChange={e => setCorsProxy(e.target.value)}
+          />
+        </div>
+        <div className="gc-actions">
+          <button className="btn btn-primary" onClick={() => {
+            const url = corsProxy.trim().replace(/\/$/, '')
+            localStorage.setItem(CORS_PROXY_KEY, url)
+            setCorsProxySaved(true)
+            setTimeout(() => setCorsProxySaved(false), 2000)
+          }}>
+            {corsProxySaved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder'}
+          </button>
+          <button className="btn btn-secondary" onClick={async () => {
+            const url = corsProxy.trim().replace(/\/$/, '')
+            if (!url) { setCorsProxyTest('error'); return }
+            setCorsProxyTest('testing')
+            try {
+              const res = await fetch(`${url}?url=${encodeURIComponent('https://query2.finance.yahoo.com/v1/finance/search?q=FR0011871128&quotesCount=1&newsCount=0')}`, { signal: AbortSignal.timeout(10000) })
+              const data = await res.json()
+              setCorsProxyTest(data.quotes ? 'ok' : 'error')
+            } catch {
+              setCorsProxyTest('error')
+            }
+          }}>
+            Tester la connexion
+          </button>
+        </div>
+        <div className="gc-status mt-16">
+          <div className={`gc-status-item ${corsProxy ? 'gc-ok' : 'gc-warn'}`}>
+            {corsProxy ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Proxy {corsProxy ? 'configuré' : 'non configuré — les prix bourse ne seront pas disponibles'}</span>
+          </div>
+          {corsProxyTest === 'testing' && (
+            <div className="gc-status-item gc-warn"><AlertCircle size={16} /><span>Test en cours...</span></div>
+          )}
+          {corsProxyTest === 'ok' && (
+            <div className="gc-status-item gc-ok"><CheckCircle size={16} /><span>Proxy fonctionnel — Yahoo Finance accessible</span></div>
+          )}
+          {corsProxyTest === 'error' && (
+            <div className="gc-status-item gc-error"><AlertCircle size={16} /><span>Echec du test — vérifiez l'URL du Worker</span></div>
+          )}
         </div>
       </Section>
 

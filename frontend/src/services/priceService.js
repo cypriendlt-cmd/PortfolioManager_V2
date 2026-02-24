@@ -1,23 +1,25 @@
 /**
  * priceService.js
  * Client-side price fetching for stocks (Yahoo Finance) and crypto (CoinGecko).
- * Runs entirely in the browser — no server required.
  *
- * STOCKS flow (Yahoo Finance via CORS proxy):
- *   1. Search ISIN via Yahoo Finance search API → get Yahoo ticker (e.g. "PSP5.PA")
- *   2. Fetch chart data → get OHLC, current price, previous close
+ * STOCKS: Yahoo Finance search (ISIN → ticker) + chart API (OHLC)
+ * CRYPTO: CoinGecko /coins/markets (CORS-friendly)
  *
- * CRYPTO flow (CoinGecko - CORS-friendly, no proxy needed):
- *   CoinGecko /coins/markets endpoint
+ * For Yahoo Finance (no CORS), uses proxy with fallback chain.
  */
 
-const CORS_PROXY = 'https://api.allorigins.win/get?url='
-const YAHOO_BASE = 'https://query2.finance.yahoo.com'
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3'
+const YAHOO_BASE = 'https://query2.finance.yahoo.com'
 const CACHE_KEY_CRYPTO = 'pm_prices_crypto'
 const CACHE_KEY_STOCKS = 'pm_prices_stocks'
-const CACHE_KEY_TICKERS = 'pm_yahoo_tickers' // ISIN → Yahoo ticker mapping
+const CACHE_KEY_TICKERS = 'pm_yahoo_tickers'
 const CACHE_TTL_MS = 5 * 60 * 1000
+
+// Proxy configuration — set your Cloudflare Worker URL in Settings or here
+const CF_WORKER_KEY = 'pm_cors_proxy_url'
+function getProxyUrl() {
+  return localStorage.getItem(CF_WORKER_KEY) || ''
+}
 
 // ---------------------------------------------------------------------------
 // Cache helpers
@@ -44,36 +46,71 @@ function readCacheNoExpiry(key) {
   } catch { return null }
 }
 
-/** Fetch JSON via CORS proxy (allorigins wraps content in {contents: "..."}) */
-async function proxiedFetch(url, timeoutMs = 15000) {
-  const proxied = `${CORS_PROXY}${encodeURIComponent(url)}`
-  const res = await fetch(proxied, { signal: AbortSignal.timeout(timeoutMs) })
-  if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`)
-  const wrapper = await res.json()
-  const text = wrapper.contents || ''
-  if (!text) throw new Error('Empty proxy response')
-  return JSON.parse(text)
-}
-
 // ---------------------------------------------------------------------------
-// STOCKS — Yahoo Finance via CORS proxy
+// Proxied fetch with fallback chain
 // ---------------------------------------------------------------------------
 
 /**
- * Search Yahoo Finance for an ISIN to get the Yahoo ticker symbol.
- * Returns { name, symbol (Yahoo ticker), exchange } or null.
+ * Fetch a URL through CORS proxy.
+ * Tries: 1) Cloudflare Worker  2) allorigins /raw  3) direct (may fail CORS)
+ */
+async function proxiedFetchJSON(url, timeoutMs = 12000) {
+  const errors = []
+
+  // 1) Cloudflare Worker proxy (best option if configured)
+  const cfProxy = getProxyUrl()
+  if (cfProxy) {
+    try {
+      const proxyUrl = `${cfProxy}?url=${encodeURIComponent(url)}`
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(timeoutMs) })
+      if (res.ok) return await res.json()
+      errors.push(`CF Worker: HTTP ${res.status}`)
+    } catch (e) {
+      errors.push(`CF Worker: ${e.message}`)
+    }
+  }
+
+  // 2) allorigins /raw (public, free, supports CORS)
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(timeoutMs) })
+    if (res.ok) {
+      const text = await res.text()
+      return JSON.parse(text)
+    }
+    errors.push(`allorigins: HTTP ${res.status}`)
+  } catch (e) {
+    errors.push(`allorigins: ${e.message}`)
+  }
+
+  // 3) Direct fetch (works if the API supports CORS or same-origin)
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
+    if (res.ok) return await res.json()
+    errors.push(`direct: HTTP ${res.status}`)
+  } catch (e) {
+    errors.push(`direct: ${e.message}`)
+  }
+
+  throw new Error(`All proxies failed for ${url}: ${errors.join(' | ')}`)
+}
+
+// ---------------------------------------------------------------------------
+// STOCKS — Yahoo Finance
+// ---------------------------------------------------------------------------
+
+/**
+ * Search Yahoo Finance for an ISIN → returns { name, symbol, exchange } or null.
  */
 export async function searchISIN(isin) {
-  // Check ticker cache first (ISIN→ticker doesn't change)
   const tickerCache = readCacheNoExpiry(CACHE_KEY_TICKERS) || {}
   if (tickerCache[isin]) return tickerCache[isin]
 
   const searchUrl = `${YAHOO_BASE}/v1/finance/search?q=${encodeURIComponent(isin)}&quotesCount=5&newsCount=0`
-  const data = await proxiedFetch(searchUrl)
+  const data = await proxiedFetchJSON(searchUrl)
 
   if (!data.quotes || data.quotes.length === 0) return null
 
-  // Prefer Paris exchange, then any European exchange
   const quotes = data.quotes.filter(q => q.isYahooFinance)
   const match =
     quotes.find(q => q.exchange === 'PAR') ||
@@ -84,25 +121,22 @@ export async function searchISIN(isin) {
 
   const result = {
     name: match.shortname || match.longname || isin,
-    symbol: match.symbol, // e.g. "PSP5.PA"
+    symbol: match.symbol,
     exchange: match.exchDisp || match.exchange,
     type: match.typeDisp || match.quoteType,
   }
 
-  // Cache the mapping
   tickerCache[isin] = result
   writeCache(CACHE_KEY_TICKERS, tickerCache)
-
   return result
 }
 
 /**
- * Fetch OHLC price data from Yahoo Finance chart API.
- * Returns { currentPrice, openPrice, previousClose, dayHigh, dayLow, name, volume }
+ * Fetch OHLC from Yahoo Finance chart API.
  */
 async function fetchYahooChart(yahooSymbol) {
   const chartUrl = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=2d`
-  const data = await proxiedFetch(chartUrl)
+  const data = await proxiedFetchJSON(chartUrl)
 
   if (!data.chart?.result?.[0]) throw new Error('No chart data')
 
@@ -126,7 +160,6 @@ async function fetchYahooChart(yahooSymbol) {
 
 /**
  * Full stock price fetch: search ISIN → Yahoo ticker → chart data.
- * Falls back to cached price on error.
  */
 export async function fetchStockPrice(isin) {
   const cacheAll = readCacheNoExpiry(CACHE_KEY_STOCKS) || {}
@@ -159,7 +192,6 @@ export async function fetchStockPrice(isin) {
 
 /**
  * Batch fetch stock prices for multiple ISINs.
- * Returns a map: { [isin]: priceData }
  */
 export async function fetchStockPrices(isins) {
   const results = {}
@@ -170,7 +202,6 @@ export async function fetchStockPrices(isins) {
       console.warn(`Failed to fetch price for ${isin}:`, err.message)
       results[isin] = null
     }
-    // Delay between requests to be polite to the proxy
     if (isins.indexOf(isin) < isins.length - 1) {
       await new Promise(r => setTimeout(r, 800))
     }
@@ -182,10 +213,6 @@ export async function fetchStockPrices(isins) {
 // CRYPTO — CoinGecko (CORS-friendly, no proxy needed)
 // ---------------------------------------------------------------------------
 
-/**
- * Search CoinGecko for a coin by query string.
- * Returns array of { id, name, symbol, thumb, marketCapRank }
- */
 export async function searchCoinGecko(query) {
   const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
@@ -200,10 +227,6 @@ export async function searchCoinGecko(query) {
   }))
 }
 
-/**
- * Fetch market data for a list of CoinGecko coin IDs.
- * Returns a map: { [coinId]: { currentPrice, change24h, high24h, low24h, ... } }
- */
 export async function fetchCryptoPrices(coinIds) {
   if (!coinIds || coinIds.length === 0) return {}
 
