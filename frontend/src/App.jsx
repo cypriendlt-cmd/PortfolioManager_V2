@@ -25,7 +25,10 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  // Allow access in demo mode (no user) so the app works without backend
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
   return children
 }
 
@@ -33,6 +36,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Settings accessible without auth for Google Cloud config */}
+      <Route path="/settings" element={
+        <Layout>
+          <Settings />
+        </Layout>
+      } />
       <Route path="/*" element={
         <ProtectedRoute>
           <Layout>
@@ -44,7 +53,6 @@ export default function App() {
               <Route path="/fundraising" element={<Fundraising />} />
               <Route path="/objectives" element={<Objectives />} />
               <Route path="/insights" element={<Insights />} />
-              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
