@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null)
 
+const GOOGLE_CLIENT_ID = '841928728121-neh3pudtmd1ig4au7lmglm6qf0uv1uff.apps.googleusercontent.com'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
-const STORAGE_KEY = 'pm_google_client_id'
 const TOKEN_KEY = 'pm_google_token'
 const USER_KEY = 'pm_google_user'
 
@@ -16,14 +16,16 @@ function getStoredUser() {
   }
 }
 
+// Keep legacy setting support for any existing stored client ID
+const STORAGE_KEY = 'pm_google_client_id'
 function getStoredClientId() {
-  return localStorage.getItem(STORAGE_KEY) || ''
+  return localStorage.getItem(STORAGE_KEY) || GOOGLE_CLIENT_ID
 }
 
 function waitForGoogleScripts() {
   return new Promise((resolve) => {
     const check = () => {
-      if (window.google?.accounts?.oauth2 && window.gapi) {
+      if (window.gapi) {
         resolve()
       } else {
         setTimeout(check, 100)
@@ -37,7 +39,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState(null)
-  const [clientId, setClientId] = useState(getStoredClientId)
+  const [clientId] = useState(GOOGLE_CLIENT_ID)
   const [gapiReady, setGapiReady] = useState(false)
   const [error, setError] = useState(null)
 
@@ -56,6 +58,43 @@ export function AuthProvider({ children }) {
     initGapi().catch(console.error)
   }, [initGapi])
 
+  const fetchUserInfo = useCallback(async (token) => {
+    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error('Failed to fetch user info')
+    return res.json()
+  }, [])
+
+  // Handle the OAuth redirect callback (token in URL hash)
+  const handleOAuthCallback = useCallback(async () => {
+    const hash = window.location.hash
+    if (!hash) return false
+
+    const params = new URLSearchParams(hash.slice(1))
+    const token = params.get('access_token')
+    const hashError = params.get('error')
+
+    // Clean up the URL regardless
+    window.history.replaceState(null, '', window.location.pathname)
+
+    if (hashError || !token) return false
+
+    setAccessToken(token)
+    sessionStorage.setItem(TOKEN_KEY, token)
+    if (window.gapi?.client) window.gapi.client.setToken({ access_token: token })
+
+    try {
+      const info = await fetchUserInfo(token)
+      const userData = { name: info.name, email: info.email, avatar: info.picture }
+      setUser(userData)
+      localStorage.setItem(USER_KEY, JSON.stringify(userData))
+    } catch (e) {
+      console.error('User info fetch failed', e)
+    }
+    return true
+  }, [fetchUserInfo])
+
   // Try to restore session on mount
   useEffect(() => {
     if (!gapiReady) return
@@ -72,32 +111,26 @@ export function AuthProvider({ children }) {
       return
     }
 
-    if (storedUser) {
+    if (storedUser && window.google?.accounts?.oauth2) {
       // User data persisted but token gone (new tab / page reload).
-      // Attempt a silent token refresh — no popup, no user interaction.
+      // Attempt a silent token refresh using the popup-less token client.
       const id = getStoredClientId()
-      if (!id) {
-        setLoading(false)
-        return
-      }
 
       let settled = false
       const settle = () => {
         if (!settled) { settled = true; setLoading(false) }
       }
 
-      // Fallback: if Google doesn't call the callback within 5 s, give up silently.
       const timer = setTimeout(settle, 5000)
 
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: id,
         scope: SCOPES,
         hint: storedUser.email,
-        prompt: '',          // empty string = let Google decide (usually silent when session exists)
+        prompt: '',
         callback: async (response) => {
           clearTimeout(timer)
           if (response.error) {
-            // Silent refresh failed → user must log in manually
             localStorage.removeItem(USER_KEY)
             settle()
             return
@@ -117,55 +150,23 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [gapiReady])
 
-  const fetchUserInfo = useCallback(async (token) => {
-    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) throw new Error('Failed to fetch user info')
-    return res.json()
-  }, [])
-
+  // Redirect-based OAuth login — no popup, no COOP issues
   const login = useCallback(() => {
-    const id = clientId || getStoredClientId()
-    if (!id) {
-      setError('Veuillez configurer votre Google Client ID dans les Paramètres.')
-      return
-    }
     setError(null)
-
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: id,
+    const redirectUri = window.location.origin + window.location.pathname
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: 'token',
       scope: SCOPES,
-      callback: async (response) => {
-        if (response.error) {
-          setError(`Erreur OAuth: ${response.error}`)
-          return
-        }
-        const token = response.access_token
-        setAccessToken(token)
-        sessionStorage.setItem(TOKEN_KEY, token)
-        window.gapi.client.setToken({ access_token: token })
-
-        try {
-          const info = await fetchUserInfo(token)
-          const userData = {
-            name: info.name,
-            email: info.email,
-            avatar: info.picture,
-          }
-          setUser(userData)
-          localStorage.setItem(USER_KEY, JSON.stringify(userData))
-        } catch (e) {
-          console.error('User info fetch failed', e)
-        }
-      },
+      include_granted_scopes: 'true',
     })
-    tokenClient.requestAccessToken()
-  }, [clientId, fetchUserInfo])
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
+  }, [])
 
   const logout = useCallback(() => {
     if (accessToken) {
-      window.google.accounts.oauth2.revoke(accessToken, () => {})
+      window.google?.accounts?.oauth2?.revoke(accessToken, () => {})
     }
     window.gapi?.client?.setToken?.(null)
     setUser(null)
@@ -174,15 +175,15 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(USER_KEY)
   }, [accessToken])
 
+  // Keep for Settings compatibility (no-op now since ID is hard-coded)
   const updateClientId = useCallback((newId) => {
-    setClientId(newId)
     localStorage.setItem(STORAGE_KEY, newId)
   }, [])
 
   return (
     <AuthContext.Provider value={{
       user, loading, accessToken, clientId, gapiReady, error,
-      login, logout, updateClientId,
+      login, logout, updateClientId, handleOAuthCallback,
     }}>
       {children}
     </AuthContext.Provider>
