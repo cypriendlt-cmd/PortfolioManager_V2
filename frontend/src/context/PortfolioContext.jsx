@@ -87,13 +87,61 @@ export function PortfolioProvider({ children }) {
 
   // CRYPTO CRUD
   const addCrypto = (item) => updateAndSave(p => ({
-    ...p, crypto: [...p.crypto, { ...item, id: Date.now().toString() }]
+    ...p, crypto: [...p.crypto, {
+      ...item,
+      id: Date.now().toString(),
+      movements: [{
+        date: item.buyDate || new Date().toISOString().slice(0, 10),
+        type: 'buy',
+        quantity: parseFloat(item.quantity) || 0,
+        price: parseFloat(item.buyPrice) || 0,
+        fees: 0,
+      }]
+    }]
   }))
   const updateCrypto = (id, item) => updateAndSave(p => ({
     ...p, crypto: p.crypto.map(c => c.id === id ? { ...c, ...item } : c)
   }))
   const deleteCrypto = (id) => updateAndSave(p => ({
     ...p, crypto: p.crypto.filter(c => c.id !== id)
+  }))
+  const addCryptoMovement = (cryptoId, movement) => updateAndSave(p => ({
+    ...p,
+    crypto: p.crypto.map(item => {
+      if (item.id !== cryptoId) return item
+      const movements = [...(item.movements || []), movement]
+      let totalQty = 0, totalCost = 0
+      for (const mv of movements) {
+        if (mv.type === 'buy') {
+          totalQty += mv.quantity
+          totalCost += mv.quantity * mv.price + (mv.fees || 0)
+        } else if (mv.type === 'sell') {
+          totalQty -= mv.quantity
+        }
+      }
+      totalQty = Math.max(totalQty, 0)
+      const avgPrice = totalQty > 0 ? totalCost / totalQty : item.buyPrice
+      return { ...item, movements, quantity: totalQty, buyPrice: Math.round(avgPrice * 100) / 100 }
+    })
+  }))
+  const deleteCryptoMovement = (cryptoId, movementIndex) => updateAndSave(p => ({
+    ...p,
+    crypto: p.crypto.map(item => {
+      if (item.id !== cryptoId) return item
+      const movements = (item.movements || []).filter((_, i) => i !== movementIndex)
+      let totalQty = 0, totalCost = 0
+      for (const mv of movements) {
+        if (mv.type === 'buy') {
+          totalQty += mv.quantity
+          totalCost += mv.quantity * mv.price + (mv.fees || 0)
+        } else if (mv.type === 'sell') {
+          totalQty -= mv.quantity
+        }
+      }
+      totalQty = Math.max(totalQty, 0)
+      const avgPrice = totalQty > 0 ? totalCost / totalQty : item.buyPrice
+      return { ...item, movements, quantity: totalQty, buyPrice: Math.round(avgPrice * 100) / 100 }
+    })
   }))
 
   // PEA CRUD
@@ -261,7 +309,7 @@ export function PortfolioProvider({ children }) {
     <PortfolioContext.Provider value={{
       portfolio, loading, totals, rates,
       driveConnected, driveError,
-      addCrypto, updateCrypto, deleteCrypto,
+      addCrypto, updateCrypto, deleteCrypto, addCryptoMovement, deleteCryptoMovement,
       addPea, updatePea, deletePea, addPeaMovement, deletePeaMovement,
       addLivret, updateLivret, deleteLivret, addLivretMovement, deleteLivretMovement,
       addFundraising, deleteFundraising,

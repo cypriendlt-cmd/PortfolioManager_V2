@@ -1,15 +1,43 @@
-import { useState, useCallback } from 'react'
-import { Plus, RefreshCw, TrendingUp, TrendingDown, Trash2, X, Loader2 } from 'lucide-react'
+import { useState, useCallback, useMemo } from 'react'
+import {
+  Plus, X, Trash2, RefreshCw, Loader2,
+  TrendingUp, TrendingDown, ChevronDown, ChevronUp,
+  ArrowUpRight, ArrowDownLeft,
+} from 'lucide-react'
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
+} from 'recharts'
 import { usePortfolio } from '../context/PortfolioContext'
 import { usePriceRefresh } from '../hooks/usePriceRefresh'
 import { searchCoinGecko } from '../services/priceService'
 import './Crypto.css'
 
 const fmt = (n) => n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n) : '—'
-const fmtQty = (n) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 6 }).format(n)
+const fmtQty = (n) => n != null ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 6 }).format(n) : '—'
 const fmtPct = (n) => n != null ? `${n >= 0 ? '+' : ''}${n.toFixed(2)}%` : '—'
 const fmtTime = (d) => d ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d) : null
+const fmtDate = (d) => d ? new Intl.DateTimeFormat('fr-FR').format(new Date(d)) : '—'
 
+/* ===== Chart data builder ===== */
+function buildChartData(asset) {
+  const movements = [...(asset.movements || [])].sort((a, b) => a.date.localeCompare(b.date))
+  if (movements.length === 0) return []
+  let cumQty = 0, cumCost = 0
+  const points = []
+  for (const mv of movements) {
+    if (mv.type === 'buy') { cumQty += mv.quantity; cumCost += mv.quantity * mv.price + (mv.fees || 0) }
+    else { cumQty = Math.max(cumQty - mv.quantity, 0) }
+    points.push({ date: mv.date, invested: Math.round(cumCost * 100) / 100, value: Math.round(cumQty * (asset.currentPrice || mv.price) * 100) / 100 })
+  }
+  const today = new Date().toISOString().slice(0, 10)
+  if (points[points.length - 1]?.date !== today) {
+    points.push({ date: today, invested: Math.round(cumCost * 100) / 100, value: Math.round(cumQty * (asset.currentPrice || asset.buyPrice) * 100) / 100 })
+  }
+  return points
+}
+
+/* ===== Add Crypto Modal ===== */
 function AddCryptoModal({ onClose, onAdd }) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
@@ -122,7 +150,7 @@ function AddCryptoModal({ onClose, onAdd }) {
               value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
           </div>
           <div className="form-group">
-            <label className="form-label">Prix d'achat (€)</label>
+            <label className="form-label">Prix d'achat (EUR)</label>
             <input className="form-input" type="number" step="any" placeholder="30000" required
               value={form.buyPrice} onChange={e => setForm({ ...form, buyPrice: e.target.value })} />
           </div>
@@ -141,10 +169,234 @@ function AddCryptoModal({ onClose, onAdd }) {
   )
 }
 
+/* ===== Movement Form ===== */
+function MovementForm({ assetId, onAdd }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [type, setType] = useState('buy')
+  const [quantity, setQuantity] = useState('')
+  const [price, setPrice] = useState('')
+  const [fees, setFees] = useState('')
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const qty = parseFloat(quantity)
+    const px = parseFloat(price)
+    if (!qty || qty <= 0 || !px || px <= 0) return
+    onAdd(assetId, { date, type, quantity: qty, price: px, fees: parseFloat(fees) || 0 })
+    setQuantity('')
+    setPrice('')
+    setFees('')
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="crypto-movement-form">
+      <input type="date" className="form-input" style={{ width: 140 }} value={date} onChange={e => setDate(e.target.value)} />
+      <div className="crypto-type-toggle">
+        <button type="button" className={type === 'buy' ? 'active-buy' : ''} onClick={() => setType('buy')}>
+          <ArrowDownLeft size={12} />Achat
+        </button>
+        <button type="button" className={type === 'sell' ? 'active-sell' : ''} onClick={() => setType('sell')}>
+          <ArrowUpRight size={12} />Vente
+        </button>
+      </div>
+      <input type="number" className="form-input" style={{ width: 100 }} step="any" min="0.000001" placeholder="Qte" required value={quantity} onChange={e => setQuantity(e.target.value)} />
+      <input type="number" className="form-input" style={{ width: 100 }} step="0.01" min="0.01" placeholder="Prix" required value={price} onChange={e => setPrice(e.target.value)} />
+      <input type="number" className="form-input" style={{ width: 80 }} step="0.01" min="0" placeholder="Frais" value={fees} onChange={e => setFees(e.target.value)} />
+      <button type="submit" className="btn btn-primary btn-sm"><Plus size={14} /> Ajouter</button>
+    </form>
+  )
+}
+
+/* ===== Performance Chart ===== */
+function PerformanceChart({ asset }) {
+  const data = useMemo(() => buildChartData(asset), [asset])
+
+  if (data.length < 2) {
+    return <div className="crypto-chart-empty">Pas assez de donnees pour afficher le graphique (min. 2 points)</div>
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+        <YAxis tick={{ fontSize: 11 }} stroke="var(--text-muted)" tickFormatter={v => `${v} \u20AC`} />
+        <Tooltip
+          contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, fontSize: '0.8rem' }}
+          formatter={(value) => [fmt(value)]}
+          labelFormatter={(label) => fmtDate(label)}
+        />
+        <Line type="monotone" dataKey="invested" name="Investissement" stroke="var(--accent)" strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="value" name="Valeur" stroke="var(--success)" strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
+/* ===== Accordion Card ===== */
+function CryptoCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDeleteMovement }) {
+  const current = asset.currentPrice || asset.buyPrice
+  const totalValue = current * asset.quantity
+  const totalInvested = asset.buyPrice * asset.quantity
+  const gain = totalValue - totalInvested
+  const gainPct = totalInvested > 0 ? (gain / totalInvested) * 100 : 0
+  const movements = asset.movements || []
+  const borderClass = gain > 0 ? 'crypto-card--positive' : gain < 0 ? 'crypto-card--negative' : 'crypto-card--neutral'
+
+  return (
+    <div className={`crypto-card ${borderClass}`}>
+      {/* Collapsed header */}
+      <div className="crypto-card-header" onClick={onToggle}>
+        <div className="crypto-card-left">
+          {asset.coinImage
+            ? <img src={asset.coinImage} alt={asset.symbol} className="crypto-card-img" />
+            : <div className="crypto-icon">{(asset.symbol || '?')[0]}</div>
+          }
+          <div>
+            <span className="crypto-card-name">{asset.name || 'Sans nom'}</span>
+            <span className="crypto-card-symbol">{asset.symbol}</span>
+          </div>
+        </div>
+        <div className="crypto-card-middle">
+          <span>{fmtQty(asset.quantity)} x {fmt(current)}</span>
+        </div>
+        <div className="crypto-card-right">
+          <span className={`badge ${gain >= 0 ? 'badge-success' : 'badge-danger'}`}>
+            {gain >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+            {fmt(gain)} ({fmtPct(gainPct)})
+          </span>
+          <div className="crypto-card-chevron">
+            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Summary stats — always visible */}
+      <div className="crypto-card-summary">
+        <div className="crypto-summary-item">
+          <span className="crypto-summary-label">Investi</span>
+          <span className="crypto-summary-value">{fmt(totalInvested)}</span>
+        </div>
+        <div className="crypto-summary-item">
+          <span className="crypto-summary-label">Valeur actuelle</span>
+          <span className="crypto-summary-value font-semibold">{fmt(totalValue)}</span>
+        </div>
+        <div className="crypto-summary-item">
+          <span className="crypto-summary-label">+/- value</span>
+          <span className={`crypto-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
+            {gain >= 0 ? '+' : ''}{fmt(gain)}
+          </span>
+        </div>
+        <div className="crypto-summary-item">
+          <span className="crypto-summary-label">Performance</span>
+          <span className={`crypto-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
+            {fmtPct(gainPct)}
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded body */}
+      <div className={`crypto-card-body ${isExpanded ? 'crypto-card-body--open' : ''}`}>
+        <div className="crypto-card-body-inner">
+          {/* Market Data */}
+          <div>
+            <h4 className="crypto-section-title">Donnees de marche</h4>
+            <div className="crypto-market-grid">
+              <div className="crypto-market-box">
+                <div className="crypto-market-box-label">Var. 24h</div>
+                <div className={`crypto-market-box-value ${asset.change24h >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {fmtPct(asset.change24h)}
+                </div>
+              </div>
+              <div className="crypto-market-box">
+                <div className="crypto-market-box-label">Haut 24h</div>
+                <div className="crypto-market-box-value">{fmt(asset.high24h)}</div>
+              </div>
+              <div className="crypto-market-box">
+                <div className="crypto-market-box-label">Bas 24h</div>
+                <div className="crypto-market-box-value">{fmt(asset.low24h)}</div>
+              </div>
+              <div className="crypto-market-box">
+                <div className="crypto-market-box-label">Volume</div>
+                <div className="crypto-market-box-value">{asset.volume ? fmt(asset.volume) : '—'}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Movements */}
+          <div>
+            <h4 className="crypto-section-title">Historique des mouvements</h4>
+            {movements.length === 0 && (
+              <p className="text-sm text-muted" style={{ marginBottom: 8 }}>Aucun mouvement enregistre.</p>
+            )}
+            {movements.length > 0 && (
+              <div className="crypto-movements-table-wrap">
+                <table className="crypto-movements-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Quantite</th>
+                      <th>Prix</th>
+                      <th>Frais</th>
+                      <th>Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movements.map((mv, idx) => (
+                      <tr key={idx}>
+                        <td>{fmtDate(mv.date)}</td>
+                        <td>
+                          <span className={`badge ${mv.type === 'buy' ? 'badge-success' : 'badge-danger'}`}>
+                            {mv.type === 'buy' ? <ArrowDownLeft size={10} /> : <ArrowUpRight size={10} />}
+                            {mv.type === 'buy' ? 'Achat' : 'Vente'}
+                          </span>
+                        </td>
+                        <td className="font-mono">{fmtQty(mv.quantity)}</td>
+                        <td className="font-mono">{fmt(mv.price)}</td>
+                        <td className="font-mono text-muted">{mv.fees ? fmt(mv.fees) : '—'}</td>
+                        <td className="font-mono font-semibold">{fmt(mv.quantity * mv.price + (mv.fees || 0))}</td>
+                        <td>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
+                            <Trash2 size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <MovementForm assetId={asset.id} onAdd={onAddMovement} />
+          </div>
+
+          {/* Chart */}
+          <div>
+            <h4 className="crypto-section-title">Evolution investissement vs valeur</h4>
+            <div className="crypto-chart-container">
+              <PerformanceChart asset={asset} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete button */}
+      <div className="crypto-card-actions">
+        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => onDelete(asset.id)}>
+          <Trash2 size={14} /> Supprimer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ===== Main Page ===== */
 export default function Crypto() {
-  const { portfolio, totals, addCrypto, deleteCrypto, pricesLastUpdated } = usePortfolio()
+  const { portfolio, totals, addCrypto, deleteCrypto, addCryptoMovement, deleteCryptoMovement, pricesLastUpdated } = usePortfolio()
   const { isRefreshing, refreshNow } = usePriceRefresh()
   const [showModal, setShowModal] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
 
   const totalInvested = portfolio.crypto.reduce((s, c) => s + c.buyPrice * c.quantity, 0)
   const totalGain = totals.crypto - totalInvested
@@ -179,7 +431,7 @@ export default function Crypto() {
               title="Forcer la mise à jour des prix"
             >
               <RefreshCw size={16} />
-              Rafraîchir
+              Rafraichir
             </button>
             <button className="btn btn-primary" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Ajouter
@@ -188,88 +440,27 @@ export default function Crypto() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Actif</th>
-                <th>Quantite</th>
-                <th>PRU</th>
-                <th>Prix actuel</th>
-                <th>Var. 24h</th>
-                <th>Haut 24h</th>
-                <th>Bas 24h</th>
-                <th>Gain/Perte €</th>
-                <th>Perf. %</th>
-                <th>Valeur totale</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {portfolio.crypto.length === 0 && (
-                <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px 0' }}>
-                    Aucune crypto. Cliquez sur "Ajouter" pour commencer.
-                  </td>
-                </tr>
-              )}
-              {portfolio.crypto.map(c => {
-                const current = c.currentPrice || c.buyPrice
-                const value = current * c.quantity
-                const gain = (current - c.buyPrice) * c.quantity
-                const gainPct = ((current - c.buyPrice) / c.buyPrice) * 100
-                return (
-                  <tr key={c.id}>
-                    <td>
-                      <div className="crypto-asset">
-                        {c.coinImage
-                          ? <img src={c.coinImage} alt={c.symbol} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                          : <div className="crypto-icon">{(c.symbol || '?')[0]}</div>
-                        }
-                        <div>
-                          <div className="font-semibold">{c.name}</div>
-                          <div className="text-xs text-muted">{c.symbol}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="font-mono">{fmtQty(c.quantity)}</td>
-                    <td className="font-mono">{fmt(c.buyPrice)}</td>
-                    <td className="font-mono font-semibold">
-                      {fmt(current)}
-                    </td>
-                    <td>
-                      {c.change24h != null && (
-                        <span className={`badge ${c.change24h >= 0 ? 'badge-success' : 'badge-danger'}`}>
-                          {c.change24h >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                          {fmtPct(c.change24h)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="font-mono text-muted">{fmt(c.high24h)}</td>
-                    <td className="font-mono text-muted">{fmt(c.low24h)}</td>
-                    <td className={`font-mono font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {gain >= 0 ? '+' : ''}{fmt(gain)}
-                    </td>
-                    <td>
-                      <span className={`badge ${gainPct >= 0 ? 'badge-success' : 'badge-danger'}`}>
-                        {gainPct >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                        {fmtPct(gainPct)}
-                      </span>
-                    </td>
-                    <td className="font-mono font-semibold">{fmt(value)}</td>
-                    <td>
-                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteCrypto(c.id)}>
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* Accordion cards */}
+      <div className="crypto-cards-list">
+        {portfolio.crypto.length === 0 && (
+          <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '48px 24px' }}>
+            <p style={{ fontSize: '1.1rem', marginBottom: 12 }}>Aucune crypto en portefeuille</p>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <Plus size={16} /> Ajouter une crypto
+            </button>
+          </div>
+        )}
+        {portfolio.crypto.map(c => (
+          <CryptoCard
+            key={c.id}
+            asset={c}
+            isExpanded={expandedId === c.id}
+            onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
+            onDelete={deleteCrypto}
+            onAddMovement={addCryptoMovement}
+            onDeleteMovement={deleteCryptoMovement}
+          />
+        ))}
       </div>
 
       {showModal && <AddCryptoModal onClose={() => setShowModal(false)} onAdd={addCrypto} />}
