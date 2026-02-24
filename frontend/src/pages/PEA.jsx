@@ -6,7 +6,7 @@ import { searchISIN } from '../services/priceService'
 
 const fmt = (n) => n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n) : '—'
 const fmtPct = (n) => n != null ? `${n >= 0 ? '+' : ''}${n.toFixed(2)}%` : '—'
-const fmtTime = (d) => d ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(d) : null
+const fmtTime = (d) => d ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d) : null
 
 function AddPeaModal({ onClose, onAdd }) {
   const [form, setForm] = useState({ isin: '', name: '', quantity: '', buyPrice: '', buyDate: '' })
@@ -140,13 +140,10 @@ export default function PEA() {
               className="btn btn-secondary"
               onClick={refreshNow}
               disabled={isRefreshing}
-              title="Rafraichir les prix"
+              title="Forcer la mise à jour des prix"
             >
-              {isRefreshing
-                ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                : <RefreshCw size={16} />
-              }
-              {isRefreshing ? 'Mise a jour...' : 'Rafraichir'}
+              <RefreshCw size={16} />
+              Rafraîchir
             </button>
             <button className="btn btn-primary" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Ajouter
@@ -199,7 +196,6 @@ export default function PEA() {
                     <td className="font-mono">{fmt(p.buyPrice)}</td>
                     <td className="font-mono font-semibold">
                       {fmt(current)}
-                      {isRefreshing && <Loader2 size={10} style={{ animation: 'spin 1s linear infinite', opacity: 0.4, marginLeft: 4, display: 'inline' }} />}
                     </td>
                     <td className="font-mono text-muted">{fmt(p.openPrice)}</td>
                     <td className="font-mono text-muted">{fmt(p.previousClose)}</td>
