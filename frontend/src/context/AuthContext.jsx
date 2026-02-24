@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const AuthContext = createContext(null)
 
 const GOOGLE_CLIENT_ID = '841928728121-neh3pudtmd1ig4au7lmglm6qf0uv1uff.apps.googleusercontent.com'
+const REDIRECT_URI = 'https://cypriendt-cmd.github.io/PortfolioManager_V2/login'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
 const TOKEN_KEY = 'pm_google_token'
 const USER_KEY = 'pm_google_user'
@@ -153,7 +154,7 @@ export function AuthProvider({ children }) {
   // Redirect-based OAuth login — no popup, no COOP issues
   const login = useCallback(() => {
     setError(null)
-    const redirectUri = window.location.origin + window.location.pathname
+    const redirectUri = REDIRECT_URI
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
