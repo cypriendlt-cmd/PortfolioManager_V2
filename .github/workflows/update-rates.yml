@@ -1,0 +1,70 @@
+name: Update Livret Rates
+
+on:
+  # Run on Feb 1 and Aug 1 at 10:00 UTC (rates officially change these dates)
+  schedule:
+    - cron: '0 10 1 2 *'   # Feb 1 at 10:00 UTC
+    - cron: '0 10 1 8 *'   # Aug 1 at 10:00 UTC
+  # Also allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-rates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Scrape current rates
+        id: scrape
+        run: node scripts/update-rates.mjs
+
+      - name: Create PR if rates changed
+        if: steps.scrape.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          BRANCH="auto/update-rates-${DATE}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+          git add frontend/src/services/rateProvider.js
+          git commit -m "Update livret rates (${DATE})
+
+          ${{ steps.scrape.outputs.summary }}
+
+          Auto-scraped from service-public.gouv.fr"
+
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "Mise à jour des taux livrets — ${DATE}" \
+            --body "$(cat <<'EOF'
+          ## Mise à jour automatique des taux
+
+          ${{ steps.scrape.outputs.summary }}
+
+          Taux scrapés depuis [service-public.gouv.fr](https://www.service-public.gouv.fr/).
+
+          **Vérifiez les taux avant de merger.**
+
+          🤖 PR générée automatiquement
+          EOF
+          )" \
+            --base master \
+            --head "$BRANCH"
+
+      - name: Log no changes
+        if: steps.scrape.outputs.has_updates != 'true'
+        run: echo "No rate changes detected, skipping PR creation."
