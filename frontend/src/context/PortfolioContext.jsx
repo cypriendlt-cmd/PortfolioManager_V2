@@ -98,13 +98,63 @@ export function PortfolioProvider({ children }) {
 
   // PEA CRUD
   const addPea = (item) => updateAndSave(p => ({
-    ...p, pea: [...p.pea, { ...item, id: Date.now().toString() }]
+    ...p, pea: [...p.pea, {
+      ...item,
+      id: Date.now().toString(),
+      movements: [{
+        date: item.buyDate || new Date().toISOString().slice(0, 10),
+        type: 'buy',
+        quantity: parseInt(item.quantity) || 0,
+        price: parseFloat(item.buyPrice) || 0,
+        fees: 0,
+      }]
+    }]
   }))
   const updatePea = (id, item) => updateAndSave(p => ({
     ...p, pea: p.pea.map(x => x.id === id ? { ...x, ...item } : x)
   }))
   const deletePea = (id) => updateAndSave(p => ({
     ...p, pea: p.pea.filter(x => x.id !== id)
+  }))
+
+  const addPeaMovement = (peaId, movement) => updateAndSave(p => ({
+    ...p,
+    pea: p.pea.map(item => {
+      if (item.id !== peaId) return item
+      const movements = [...(item.movements || []), movement]
+      let totalQty = 0, totalCost = 0
+      for (const mv of movements) {
+        if (mv.type === 'buy') {
+          totalQty += mv.quantity
+          totalCost += mv.quantity * mv.price + (mv.fees || 0)
+        } else if (mv.type === 'sell') {
+          totalQty -= mv.quantity
+        }
+      }
+      totalQty = Math.max(totalQty, 0)
+      const avgPrice = totalQty > 0 ? totalCost / totalQty : item.buyPrice
+      return { ...item, movements, quantity: totalQty, buyPrice: Math.round(avgPrice * 100) / 100 }
+    })
+  }))
+
+  const deletePeaMovement = (peaId, movementIndex) => updateAndSave(p => ({
+    ...p,
+    pea: p.pea.map(item => {
+      if (item.id !== peaId) return item
+      const movements = (item.movements || []).filter((_, i) => i !== movementIndex)
+      let totalQty = 0, totalCost = 0
+      for (const mv of movements) {
+        if (mv.type === 'buy') {
+          totalQty += mv.quantity
+          totalCost += mv.quantity * mv.price + (mv.fees || 0)
+        } else if (mv.type === 'sell') {
+          totalQty -= mv.quantity
+        }
+      }
+      totalQty = Math.max(totalQty, 0)
+      const avgPrice = totalQty > 0 ? totalCost / totalQty : item.buyPrice
+      return { ...item, movements, quantity: totalQty, buyPrice: Math.round(avgPrice * 100) / 100 }
+    })
   }))
 
   // LIVRETS CRUD
@@ -212,7 +262,7 @@ export function PortfolioProvider({ children }) {
       portfolio, loading, totals, rates,
       driveConnected, driveError,
       addCrypto, updateCrypto, deleteCrypto,
-      addPea, updatePea, deletePea,
+      addPea, updatePea, deletePea, addPeaMovement, deletePeaMovement,
       addLivret, updateLivret, deleteLivret, addLivretMovement, deleteLivretMovement,
       addFundraising, deleteFundraising,
       addObjective, updateObjective, deleteObjective,

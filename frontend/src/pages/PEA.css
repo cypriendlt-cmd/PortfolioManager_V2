@@ -1,0 +1,325 @@
+/* ===== PEA PAGE ===== */
+
+/* Accordion card */
+.pea-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.pea-card:hover {
+  box-shadow: var(--shadow);
+  border-color: var(--border-strong);
+}
+
+.pea-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+
+.pea-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pea-card-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pea-card-isin {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.pea-card-middle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pea-card-middle .pea-total-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pea-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pea-card-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.pea-card-chevron:hover {
+  background: var(--border);
+}
+
+/* Left border performance indicator */
+.pea-card--positive {
+  border-left: 4px solid var(--success);
+}
+
+.pea-card--negative {
+  border-left: 4px solid var(--danger);
+}
+
+.pea-card--neutral {
+  border-left: 4px solid var(--border-strong);
+}
+
+/* Expanded body */
+.pea-card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.pea-card-body--open {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.pea-card-body-inner {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+/* Market data grid */
+.pea-market-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.pea-market-box {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+.pea-market-box-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.pea-market-box-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Movements section */
+.pea-movements-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.pea-movements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.pea-movements-table thead {
+  background: var(--bg-secondary);
+}
+
+.pea-movements-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pea-movements-table td {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.pea-movements-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.pea-movements-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+/* Movement form inline */
+.pea-movement-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pea-movement-form .form-input {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  width: auto;
+}
+
+.pea-type-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.pea-type-toggle button {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.pea-type-toggle button.active-buy {
+  background: var(--success);
+  color: #fff;
+}
+
+.pea-type-toggle button.active-sell {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Chart section */
+.pea-chart-container {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.pea-chart-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.pea-chart-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Badge type buy/sell */
+.pea-badge-buy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.pea-badge-sell {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pea-card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .pea-card-middle {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .pea-market-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pea-movement-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pea-movement-form .form-input {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .pea-market-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
