@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import { usePriceRefreshManager } from './hooks/usePriceRefresh'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Crypto from './pages/Crypto'
@@ -10,6 +11,15 @@ import Objectives from './pages/Objectives'
 import Insights from './pages/Insights'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+
+/**
+ * Inner component that lives inside PortfolioProvider so it can access the context.
+ * Starts the global 60s price refresh loop.
+ */
+function PriceRefreshManager({ children }) {
+  usePriceRefreshManager(60000)
+  return children
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -29,7 +39,7 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  return children
+  return <PriceRefreshManager>{children}</PriceRefreshManager>
 }
 
 export default function App() {

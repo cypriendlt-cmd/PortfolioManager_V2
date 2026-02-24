@@ -20,6 +20,10 @@ export function PortfolioProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const [driveConnected, setDriveConnected] = useState(false)
   const [driveError, setDriveError] = useState(null)
+  const [pricesLastUpdated, setPricesLastUpdated] = useState(null)
+  const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
+  const [priceRefreshError, setPriceRefreshError] = useState(null)
+  const manualRefreshRef = useRef(null)
   const saveTimer = useRef(null)
 
   const fetchPortfolio = useCallback(async () => {
@@ -121,6 +125,47 @@ export function PortfolioProvider({ children }) {
     ...p, fundraising: p.fundraising.filter(x => x.id !== id)
   }))
 
+  // PRICE UPDATE (ephemeral — not saved to Drive)
+  // cryptoPrices: { [coingeckoId]: { currentPrice, change24h, high24h, low24h, ... } }
+  // stockPrices:  { [isin]: { currentPrice, openPrice, previousClose, dayHigh, dayLow, name, ... } }
+  const updatePrices = useCallback((cryptoPrices, stockPrices) => {
+    setPortfolio(prev => {
+      const updatedCrypto = prev.crypto.map(c => {
+        const coinId = c.coingeckoId || c.coinId || c.id_coingecko
+        const data = coinId ? cryptoPrices[coinId] : null
+        if (!data) return c
+        return {
+          ...c,
+          currentPrice: data.currentPrice ?? c.currentPrice,
+          change24h: data.change24h,
+          high24h: data.high24h,
+          low24h: data.low24h,
+          marketCap: data.marketCap,
+          volume: data.volume,
+          coinImage: data.image || c.coinImage,
+        }
+      })
+
+      const updatedPea = prev.pea.map(p => {
+        const data = p.isin ? stockPrices[p.isin] : null
+        if (!data) return p
+        return {
+          ...p,
+          currentPrice: data.currentPrice ?? p.currentPrice,
+          openPrice: data.openPrice,
+          previousClose: data.previousClose,
+          dayHigh: data.dayHigh,
+          dayLow: data.dayLow,
+          // Update name from live data if we didn't have one
+          name: p.name || data.name || p.name,
+        }
+      })
+
+      return { ...prev, crypto: updatedCrypto, pea: updatedPea }
+    })
+    setPricesLastUpdated(new Date())
+  }, [])
+
   // OBJECTIVES CRUD
   const addObjective = (item) => updateAndSave(p => ({
     ...p, objectives: [...p.objectives, { ...item, id: Date.now().toString() }]
@@ -151,6 +196,10 @@ export function PortfolioProvider({ children }) {
       addFundraising, deleteFundraising,
       addObjective, updateObjective, deleteObjective,
       fetchPortfolio,
+      updatePrices, pricesLastUpdated,
+      isRefreshingPrices, setIsRefreshingPrices,
+      priceRefreshError, setPriceRefreshError,
+      manualRefreshRef,
     }}>
       {children}
     </PortfolioContext.Provider>
