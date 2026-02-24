@@ -68,5 +68,12 @@ describe('rateProvider', () => {
     it('returns empty array for unknown type', () => {
       expect(getRateHistory('unknown')).toEqual([]);
     });
+
+    it('entries are ordered by date', () => {
+      const history = getRateHistory('livret-a');
+      for (let i = 1; i < history.length; i++) {
+        expect(history[i].from > history[i - 1].from).toBe(true);
+      }
+    });
   });
 });

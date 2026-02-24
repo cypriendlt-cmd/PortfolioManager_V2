@@ -30,6 +30,14 @@ describe('getQuinzaineStart', () => {
   it('feb 1 → feb 1', () => {
     expect(getQuinzaineStart('2024-02-01')).toBe('2024-02-01');
   });
+
+  it('feb 28 → feb 16', () => {
+    expect(getQuinzaineStart('2024-02-28')).toBe('2024-02-16');
+  });
+
+  it('jan 20 → jan 16', () => {
+    expect(getQuinzaineStart('2024-01-20')).toBe('2024-01-16');
+  });
 });
 
 describe('getNextQuinzaineStart', () => {
@@ -108,6 +116,20 @@ describe('calculateEffectiveBalance', () => {
     const movements = [{ date: '2024-01-05', amount: -20000 }];
     expect(calculateEffectiveBalance(10000, movements, '2024-01-01')).toBe(0);
   });
+
+  it('zero initial balance with deposit', () => {
+    const movements = [{ date: '2024-01-05', amount: 5000 }];
+    expect(calculateEffectiveBalance(0, movements, '2024-01-16')).toBe(5000);
+  });
+
+  it('deposit and withdrawal in same quinzaine', () => {
+    const movements = [
+      { date: '2024-01-05', amount: 5000 },
+      { date: '2024-01-12', amount: -2000 },
+    ];
+    // At Q2 (Jan 16): deposit effective (+5000), withdrawal effective from Q1 start (-2000)
+    expect(calculateEffectiveBalance(10000, movements, '2024-01-16')).toBe(13000);
+  });
 });
 
 // ---- Interest YTD ----
@@ -181,6 +203,106 @@ describe('calculateInterestAnnualEstimate', () => {
     const annual = calculateInterestAnnualEstimate(livret);
     expect(annual.annual).toBeGreaterThanOrEqual(ytd.ytd);
     expect(annual.byQuinzaine).toHaveLength(24);
+
+    vi.useRealTimers();
+  });
+});
+
+// ---- Interest with real rates (rate change mid-year) ----
+
+describe('calculateInterestYTD with actual rates', () => {
+  it('uses actual livret-a rate from rateProvider when no customRate', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2024, 2, 31)); // March 31, 2024
+
+    const livret = {
+      type: 'livret-a',
+      balance: 10000,
+      movements: [],
+      // no customRate: should use rateProvider (3.0% for all of 2024)
+    };
+
+    const result = calculateInterestYTD(livret);
+    expect(result.byQuinzaine).toHaveLength(6);
+    for (const q of result.byQuinzaine) {
+      expect(q.rate).toBe(3.0);
+    }
+
+    vi.useRealTimers();
+  });
+
+  it('empty movements array produces same as no movements', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2024, 0, 31)); // Jan 31
+
+    const livret = {
+      type: 'livret-a',
+      balance: 10000,
+      movements: [],
+      customRate: 3.0,
+    };
+
+    const result = calculateInterestYTD(livret);
+    expect(result.byQuinzaine).toHaveLength(2);
+    expect(result.ytd).toBe(25.0); // 2 * 12.50
+
+    vi.useRealTimers();
+  });
+
+  it('zero balance earns zero interest', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2024, 0, 31));
+
+    const livret = {
+      type: 'livret-a',
+      balance: 0,
+      movements: [],
+      customRate: 3.0,
+    };
+
+    const result = calculateInterestYTD(livret);
+    expect(result.ytd).toBe(0);
+
+    vi.useRealTimers();
+  });
+});
+
+// ---- Real-world case: deposit + withdrawal ----
+
+describe('real-world: 10000 start, +5000 Mar 10, -2000 Jul 20, rate 3.0% full 2024', () => {
+  it('computes correct annual interest with movements', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2024, 11, 31)); // Dec 31, 2024
+
+    // current balance = 10000 + 5000 - 2000 = 13000
+    const livret = {
+      type: 'livret-a',
+      balance: 13000,
+      movements: [
+        { date: '2024-03-10', amount: 5000 },
+        { date: '2024-07-20', amount: -2000 },
+      ],
+      customRate: 3.0,
+    };
+
+    const result = calculateInterestYTD(livret);
+    expect(result.byQuinzaine).toHaveLength(24);
+
+    // Q1-Q5 (Jan1-Mar15): 10000 * 3/100/24 = 12.50 each → 62.50
+    for (let i = 0; i < 5; i++) {
+      expect(result.byQuinzaine[i].balance).toBe(10000);
+    }
+    // Q6-Q13 (Mar16-Jul15): 15000 * 3/100/24 = 18.75 each → 8 * 18.75 = 150.00
+    for (let i = 5; i < 13; i++) {
+      expect(result.byQuinzaine[i].balance).toBe(15000);
+    }
+    // Q14-Q24 (Jul16-Dec31): 13000 * 3/100/24 = 16.25 each → 11 * 16.25 = 178.75
+    for (let i = 13; i < 24; i++) {
+      expect(result.byQuinzaine[i].balance).toBe(13000);
+    }
+
+    // Total: 62.50 + 150.00 + 178.75 = 391.25
+    expect(result.ytd).toBe(391.25);
 
     vi.useRealTimers();
   });
