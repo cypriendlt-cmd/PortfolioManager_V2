@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const AuthContext = createContext(null)
 
 const GOOGLE_CLIENT_ID = '841928728121-neh3pudtmd1ig4au7lmglm6qf0uv1uff.apps.googleusercontent.com'
-const REDIRECT_URI = 'https://cypriendlt-cmd.github.io/PortfolioManager_V2/login'
+const REDIRECT_URI = 'https://cypriendlt-cmd.github.io/PortfolioManager_V2/'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
 const TOKEN_KEY = 'pm_google_token'
 const USER_KEY = 'pm_google_user'
@@ -96,9 +96,15 @@ export function AuthProvider({ children }) {
     return true
   }, [fetchUserInfo])
 
-  // Try to restore session on mount
+  // Try to restore session on mount (or handle OAuth redirect callback)
   useEffect(() => {
     if (!gapiReady) return
+
+    // Handle OAuth redirect callback: token arrives in URL hash
+    if (window.location.hash.includes('access_token')) {
+      handleOAuthCallback().then(() => setLoading(false))
+      return
+    }
 
     const storedToken = sessionStorage.getItem(TOKEN_KEY)
     const storedUser = getStoredUser()
