@@ -15,10 +15,11 @@ const CACHE_KEY_STOCKS = 'pm_prices_stocks'
 const CACHE_KEY_TICKERS = 'pm_yahoo_tickers'
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-// Proxy configuration — set your Cloudflare Worker URL in Settings or here
+// Proxy configuration
 const CF_WORKER_KEY = 'pm_cors_proxy_url'
+const DEFAULT_PROXY = 'https://portfolio-cors-proxy.cypriendlt.workers.dev'
 function getProxyUrl() {
-  return localStorage.getItem(CF_WORKER_KEY) || ''
+  return localStorage.getItem(CF_WORKER_KEY) || DEFAULT_PROXY
 }
 
 // ---------------------------------------------------------------------------

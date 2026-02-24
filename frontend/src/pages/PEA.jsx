@@ -198,10 +198,8 @@ export default function PEA() {
                     <td className="font-mono">{p.quantity}</td>
                     <td className="font-mono">{fmt(p.buyPrice)}</td>
                     <td className="font-mono font-semibold">
-                      {isRefreshing
-                        ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite', opacity: 0.5 }} />
-                        : fmt(current)
-                      }
+                      {fmt(current)}
+                      {isRefreshing && <Loader2 size={10} style={{ animation: 'spin 1s linear infinite', opacity: 0.4, marginLeft: 4, display: 'inline' }} />}
                     </td>
                     <td className="font-mono text-muted">{fmt(p.openPrice)}</td>
                     <td className="font-mono text-muted">{fmt(p.previousClose)}</td>

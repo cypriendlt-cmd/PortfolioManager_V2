@@ -240,10 +240,8 @@ export default function Crypto() {
                     <td className="font-mono">{fmtQty(c.quantity)}</td>
                     <td className="font-mono">{fmt(c.buyPrice)}</td>
                     <td className="font-mono font-semibold">
-                      {isRefreshing
-                        ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite', opacity: 0.5 }} />
-                        : fmt(current)
-                      }
+                      {fmt(current)}
+                      {isRefreshing && <Loader2 size={10} style={{ animation: 'spin 1s linear infinite', opacity: 0.4, marginLeft: 4, display: 'inline' }} />}
                     </td>
                     <td>
                       {c.change24h != null && (
