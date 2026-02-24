@@ -1,5 +1,6 @@
 // Historical official rates for French regulated savings accounts (livrets).
 // Rates are in percent (e.g. 2.4 means 2.4% annual).
+// Sources: economie.gouv.fr, service-public.fr, arrêtés ministériels.
 
 const RATE_HISTORY = {
   'livret-a': [
@@ -8,6 +9,8 @@ const RATE_HISTORY = {
     { rate: 2.0, from: '2022-08-01' },
     { rate: 3.0, from: '2023-02-01' },
     { rate: 2.4, from: '2025-02-01' },
+    { rate: 1.7, from: '2025-08-01' },
+    { rate: 1.5, from: '2026-02-01' },
   ],
   'ldds': [
     { rate: 0.5, from: '2020-02-01' },
@@ -15,6 +18,8 @@ const RATE_HISTORY = {
     { rate: 2.0, from: '2022-08-01' },
     { rate: 3.0, from: '2023-02-01' },
     { rate: 2.4, from: '2025-02-01' },
+    { rate: 1.7, from: '2025-08-01' },
+    { rate: 1.5, from: '2026-02-01' },
   ],
   'lep': [
     { rate: 1.0, from: '2020-02-01' },
@@ -22,18 +27,24 @@ const RATE_HISTORY = {
     { rate: 4.6, from: '2022-08-01' },
     { rate: 6.1, from: '2023-02-01' },
     { rate: 5.0, from: '2023-08-01' },
-    { rate: 4.0, from: '2024-08-01' },
+    { rate: 4.0, from: '2024-02-01' },
     { rate: 3.5, from: '2025-02-01' },
+    { rate: 2.7, from: '2025-08-01' },
+    { rate: 2.5, from: '2026-02-01' },
   ],
   'cel': [
     { rate: 0.25, from: '2020-02-01' },
     { rate: 0.75, from: '2022-02-01' },
     { rate: 2.0, from: '2023-02-01' },
+    { rate: 1.5, from: '2025-02-01' },
+    { rate: 1.0, from: '2026-02-01' },
   ],
   'pel': [
     { rate: 1.0, from: '2020-01-01' },
     { rate: 2.0, from: '2023-01-01' },
     { rate: 2.25, from: '2024-01-01' },
+    { rate: 1.75, from: '2025-01-01' },
+    { rate: 2.0, from: '2026-01-01' },
   ],
 };
 
