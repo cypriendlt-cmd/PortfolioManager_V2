@@ -226,6 +226,30 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
         </div>
       </div>
 
+      {/* Summary stats — always visible */}
+      <div className="pea-card-summary">
+        <div className="pea-summary-item">
+          <span className="pea-summary-label">Investi</span>
+          <span className="pea-summary-value">{fmt(totalInvested)}</span>
+        </div>
+        <div className="pea-summary-item">
+          <span className="pea-summary-label">Valeur actuelle</span>
+          <span className="pea-summary-value font-semibold">{fmt(totalValue)}</span>
+        </div>
+        <div className="pea-summary-item">
+          <span className="pea-summary-label">+/- value</span>
+          <span className={`pea-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
+            {gain >= 0 ? '+' : ''}{fmt(gain)}
+          </span>
+        </div>
+        <div className="pea-summary-item">
+          <span className="pea-summary-label">Performance</span>
+          <span className={`pea-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
+            {fmtPct(gainPct)}
+          </span>
+        </div>
+      </div>
+
       {/* Expanded body */}
       <div className={`pea-card-body ${isExpanded ? 'pea-card-body--open' : ''}`}>
         <div className="pea-card-body-inner">

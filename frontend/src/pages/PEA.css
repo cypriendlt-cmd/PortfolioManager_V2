@@ -100,6 +100,43 @@
   border-left: 4px solid var(--border-strong);
 }
 
+/* Summary stats — always visible */
+.pea-card-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 0 20px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+  padding-top: 12px;
+}
+
+.pea-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.pea-summary-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pea-summary-value {
+  font-size: 0.95rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+@media (max-width: 600px) {
+  .pea-card-summary {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
 /* Expanded body */
 .pea-card-body {
   max-height: 0;
