@@ -1,14 +1,23 @@
 /**
  * priceService.js
- * Client-side price fetching for stocks (via Boursorama + CORS proxy) and crypto (CoinGecko).
- * Runs entirely in the browser - no server required.
+ * Client-side price fetching for stocks (Yahoo Finance) and crypto (CoinGecko).
+ * Runs entirely in the browser — no server required.
+ *
+ * STOCKS flow (Yahoo Finance via CORS proxy):
+ *   1. Search ISIN via Yahoo Finance search API → get Yahoo ticker (e.g. "PSP5.PA")
+ *   2. Fetch chart data → get OHLC, current price, previous close
+ *
+ * CRYPTO flow (CoinGecko - CORS-friendly, no proxy needed):
+ *   CoinGecko /coins/markets endpoint
  */
 
-const CORS_PROXY = 'https://api.allorigins.win/raw?url='
+const CORS_PROXY = 'https://api.allorigins.win/get?url='
+const YAHOO_BASE = 'https://query2.finance.yahoo.com'
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3'
 const CACHE_KEY_CRYPTO = 'pm_prices_crypto'
 const CACHE_KEY_STOCKS = 'pm_prices_stocks'
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache TTL
+const CACHE_KEY_TICKERS = 'pm_yahoo_tickers' // ISIN → Yahoo ticker mapping
+const CACHE_TTL_MS = 5 * 60 * 1000
 
 // ---------------------------------------------------------------------------
 // Cache helpers
@@ -20,170 +29,126 @@ function readCache(key) {
     const { ts, data } = JSON.parse(raw)
     if (Date.now() - ts > CACHE_TTL_MS) return null
     return data
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 function writeCache(key, data) {
-  try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }))
-  } catch {
-    // ignore storage errors
-  }
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })) } catch {}
 }
 
 function readCacheNoExpiry(key) {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return null
-    const { data } = JSON.parse(raw)
-    return data
-  } catch {
-    return null
-  }
+    return JSON.parse(raw).data
+  } catch { return null }
+}
+
+/** Fetch JSON via CORS proxy (allorigins wraps content in {contents: "..."}) */
+async function proxiedFetch(url, timeoutMs = 15000) {
+  const proxied = `${CORS_PROXY}${encodeURIComponent(url)}`
+  const res = await fetch(proxied, { signal: AbortSignal.timeout(timeoutMs) })
+  if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`)
+  const wrapper = await res.json()
+  const text = wrapper.contents || ''
+  if (!text) throw new Error('Empty proxy response')
+  return JSON.parse(text)
 }
 
 // ---------------------------------------------------------------------------
-// STOCKS — Boursorama via CORS proxy
+// STOCKS — Yahoo Finance via CORS proxy
 // ---------------------------------------------------------------------------
 
 /**
- * Search Boursorama for an ISIN via their AJAX suggest endpoint.
- * Returns { name, symbol, boursoramaPath } or null.
+ * Search Yahoo Finance for an ISIN to get the Yahoo ticker symbol.
+ * Returns { name, symbol (Yahoo ticker), exchange } or null.
  */
 export async function searchISIN(isin) {
-  const searchUrl = `https://www.boursorama.com/recherche/ajax/?query=${encodeURIComponent(isin)}`
-  const proxied = `${CORS_PROXY}${encodeURIComponent(searchUrl)}`
+  // Check ticker cache first (ISIN→ticker doesn't change)
+  const tickerCache = readCacheNoExpiry(CACHE_KEY_TICKERS) || {}
+  if (tickerCache[isin]) return tickerCache[isin]
 
-  const res = await fetch(proxied, { signal: AbortSignal.timeout(10000) })
-  if (!res.ok) throw new Error(`Boursorama search HTTP ${res.status}`)
-  const text = await res.text()
+  const searchUrl = `${YAHOO_BASE}/v1/finance/search?q=${encodeURIComponent(isin)}&quotesCount=5&newsCount=0`
+  const data = await proxiedFetch(searchUrl)
 
-  // Boursorama returns JSON array of results
-  let results
-  try {
-    results = JSON.parse(text)
-  } catch {
-    throw new Error('Invalid JSON from Boursorama search')
+  if (!data.quotes || data.quotes.length === 0) return null
+
+  // Prefer Paris exchange, then any European exchange
+  const quotes = data.quotes.filter(q => q.isYahooFinance)
+  const match =
+    quotes.find(q => q.exchange === 'PAR') ||
+    quotes.find(q => ['PAR', 'AMS', 'BRU', 'MIL', 'ETR', 'FRA', 'MAD', 'LSE'].includes(q.exchange)) ||
+    quotes[0]
+
+  if (!match) return null
+
+  const result = {
+    name: match.shortname || match.longname || isin,
+    symbol: match.symbol, // e.g. "PSP5.PA"
+    exchange: match.exchDisp || match.exchange,
+    type: match.typeDisp || match.quoteType,
   }
 
-  // Results is an array; find the one whose sedol/isin matches or take the first
-  if (!Array.isArray(results) || results.length === 0) return null
+  // Cache the mapping
+  tickerCache[isin] = result
+  writeCache(CACHE_KEY_TICKERS, tickerCache)
 
-  const match = results.find(r => r.isin && r.isin.toUpperCase() === isin.toUpperCase()) || results[0]
-
-  return {
-    name: match.label || match.name || isin,
-    symbol: match.symbol || match.ticker || '',
-    boursoramaPath: match.linkQuote || match.link || `/cours/${match.symbol || ''}`,
-  }
+  return result
 }
 
 /**
- * Fetch stock price data from Boursorama by scraping the quote page.
- * Returns { currentPrice, openPrice, previousClose, dayHigh, dayLow, name, lastUpdated } or null.
+ * Fetch OHLC price data from Yahoo Finance chart API.
+ * Returns { currentPrice, openPrice, previousClose, dayHigh, dayLow, name, volume }
  */
-export async function fetchStockPriceBoursorama(boursoramaPath) {
-  const pageUrl = `https://www.boursorama.com${boursoramaPath}`
-  const proxied = `${CORS_PROXY}${encodeURIComponent(pageUrl)}`
+async function fetchYahooChart(yahooSymbol) {
+  const chartUrl = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=2d`
+  const data = await proxiedFetch(chartUrl)
 
-  const res = await fetch(proxied, { signal: AbortSignal.timeout(15000) })
-  if (!res.ok) throw new Error(`Boursorama page HTTP ${res.status}`)
-  const html = await res.text()
+  if (!data.chart?.result?.[0]) throw new Error('No chart data')
 
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-
-  // Try to extract structured data (JSON-LD or meta tags) first
-  let currentPrice = null
-  let name = null
-
-  // Boursorama uses data attributes and specific class names
-  // Try multiple selectors as the site structure may vary
-  const priceSelectors = [
-    '[class*="c-faceplate__price"]',
-    '[class*="l-instrument__price"]',
-    '[data-ist-price]',
-    '.c-instrument__data .c-instrument__value',
-  ]
-
-  for (const sel of priceSelectors) {
-    const el = doc.querySelector(sel)
-    if (el) {
-      const txt = el.textContent.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '')
-      const val = parseFloat(txt)
-      if (!isNaN(val) && val > 0) { currentPrice = val; break }
-    }
-  }
-
-  // Try JSON-LD
-  const scripts = doc.querySelectorAll('script[type="application/ld+json"]')
-  for (const s of scripts) {
-    try {
-      const json = JSON.parse(s.textContent)
-      if (json.price) { currentPrice = currentPrice ?? parseFloat(json.price); }
-      if (json.name) { name = json.name }
-    } catch { /* ignore */ }
-  }
-
-  // Name from title
-  if (!name) {
-    const title = doc.querySelector('title')
-    if (title) name = title.textContent.split('|')[0].trim()
-  }
-
-  // Try to get OHLC data from the page
-  let openPrice = null, previousClose = null, dayHigh = null, dayLow = null
-
-  const rows = doc.querySelectorAll('table tr, [class*="c-table"] tr')
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td, th')
-    if (cells.length >= 2) {
-      const label = cells[0].textContent.toLowerCase()
-      const val = parseFloat(cells[1].textContent.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, ''))
-      if (!isNaN(val)) {
-        if (label.includes('ouv') || label.includes('open')) openPrice = val
-        if (label.includes('clôt') || label.includes('veille') || label.includes('close')) previousClose = val
-        if (label.includes('haut') || label.includes('high')) dayHigh = val
-        if (label.includes('bas') || label.includes('low')) dayLow = val
-      }
-    }
-  })
-
-  if (!currentPrice) return null
+  const r = data.chart.result[0]
+  const meta = r.meta || {}
+  const quote = r.indicators?.quote?.[0] || {}
+  const last = (quote.open?.length || 1) - 1
 
   return {
-    currentPrice,
-    openPrice: openPrice || currentPrice,
-    previousClose: previousClose || currentPrice,
-    dayHigh: dayHigh || currentPrice,
-    dayLow: dayLow || currentPrice,
-    name,
+    name: meta.shortName || meta.longName || yahooSymbol,
+    currentPrice: meta.regularMarketPrice || quote.close?.[last] || null,
+    openPrice: quote.open?.[last] ?? null,
+    dayHigh: quote.high?.[last] ?? null,
+    dayLow: quote.low?.[last] ?? null,
+    previousClose: meta.chartPreviousClose ?? (last > 0 ? quote.close?.[last - 1] : null),
+    volume: quote.volume?.[last] ?? null,
+    currency: meta.currency || 'EUR',
     lastUpdated: new Date().toISOString(),
   }
 }
 
 /**
- * Full stock price fetch: search ISIN -> scrape quote page.
+ * Full stock price fetch: search ISIN → Yahoo ticker → chart data.
  * Falls back to cached price on error.
  */
 export async function fetchStockPrice(isin) {
   const cacheAll = readCacheNoExpiry(CACHE_KEY_STOCKS) || {}
   try {
     const searchResult = await searchISIN(isin)
-    if (!searchResult) throw new Error(`ISIN ${isin} not found on Boursorama`)
+    if (!searchResult?.symbol) throw new Error(`ISIN ${isin} not found`)
 
-    const priceData = await fetchStockPriceBoursorama(searchResult.boursoramaPath)
-    if (!priceData) throw new Error(`Could not parse price for ${isin}`)
+    const priceData = await fetchYahooChart(searchResult.symbol)
+    if (!priceData?.currentPrice) throw new Error(`No price for ${isin}`)
 
-    const result = { ...priceData, name: priceData.name || searchResult.name, isin }
-    // Update cache
+    const result = {
+      ...priceData,
+      name: searchResult.name || priceData.name,
+      isin,
+      yahooSymbol: searchResult.symbol,
+      exchange: searchResult.exchange,
+    }
+
     cacheAll[isin] = { ...result, cachedAt: Date.now() }
     writeCache(CACHE_KEY_STOCKS, cacheAll)
     return result
   } catch (err) {
-    // Return stale cache if available
     if (cacheAll[isin]) {
       console.warn(`Using stale cache for ${isin}:`, err.message)
       return { ...cacheAll[isin], stale: true }
@@ -198,7 +163,6 @@ export async function fetchStockPrice(isin) {
  */
 export async function fetchStockPrices(isins) {
   const results = {}
-  // Sequential to avoid hammering the CORS proxy
   for (const isin of isins) {
     try {
       results[isin] = await fetchStockPrice(isin)
@@ -206,8 +170,10 @@ export async function fetchStockPrices(isins) {
       console.warn(`Failed to fetch price for ${isin}:`, err.message)
       results[isin] = null
     }
-    // Small delay between requests to be polite to the proxy
-    await new Promise(r => setTimeout(r, 500))
+    // Delay between requests to be polite to the proxy
+    if (isins.indexOf(isin) < isins.length - 1) {
+      await new Promise(r => setTimeout(r, 800))
+    }
   }
   return results
 }
@@ -218,7 +184,7 @@ export async function fetchStockPrices(isins) {
 
 /**
  * Search CoinGecko for a coin by query string.
- * Returns array of { id, name, symbol, thumb }
+ * Returns array of { id, name, symbol, thumb, marketCapRank }
  */
 export async function searchCoinGecko(query) {
   const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`
@@ -236,7 +202,7 @@ export async function searchCoinGecko(query) {
 
 /**
  * Fetch market data for a list of CoinGecko coin IDs.
- * Returns a map: { [coinId]: { currentPrice, change24h, high24h, low24h, marketCap, volume, name, symbol, image, lastUpdated } }
+ * Returns a map: { [coinId]: { currentPrice, change24h, high24h, low24h, ... } }
  */
 export async function fetchCryptoPrices(coinIds) {
   if (!coinIds || coinIds.length === 0) return {}
@@ -244,10 +210,7 @@ export async function fetchCryptoPrices(coinIds) {
   const cached = readCache(CACHE_KEY_CRYPTO)
   const cachedAll = readCacheNoExpiry(CACHE_KEY_CRYPTO) || {}
 
-  // Check if all IDs are in valid cache
-  if (cached && coinIds.every(id => cached[id])) {
-    return cached
-  }
+  if (cached && coinIds.every(id => cached[id])) return cached
 
   try {
     const ids = coinIds.join(',')
@@ -258,7 +221,6 @@ export async function fetchCryptoPrices(coinIds) {
       console.warn('CoinGecko rate limit hit, using cache')
       return cachedAll
     }
-
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`)
 
     const data = await res.json()
@@ -278,13 +240,11 @@ export async function fetchCryptoPrices(coinIds) {
       }
     }
 
-    // Merge with existing cache (keep data for IDs not in this batch)
     const merged = { ...cachedAll, ...result }
     writeCache(CACHE_KEY_CRYPTO, merged)
     return result
   } catch (err) {
     console.warn('CoinGecko fetch failed, using stale cache:', err.message)
-    // Return stale data for requested IDs
     const stale = {}
     for (const id of coinIds) {
       if (cachedAll[id]) stale[id] = { ...cachedAll[id], stale: true }
@@ -293,16 +253,10 @@ export async function fetchCryptoPrices(coinIds) {
   }
 }
 
-/**
- * Get cached crypto prices without triggering a fetch (for instant display on load).
- */
 export function getCachedCryptoPrices() {
   return readCacheNoExpiry(CACHE_KEY_CRYPTO) || {}
 }
 
-/**
- * Get cached stock prices without triggering a fetch.
- */
 export function getCachedStockPrices() {
   return readCacheNoExpiry(CACHE_KEY_STOCKS) || {}
 }
