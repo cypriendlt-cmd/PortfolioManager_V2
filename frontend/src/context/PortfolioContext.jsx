@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from './AuthContext'
 import { loadPortfolioFromDrive, savePortfolioToDrive } from '../services/googleDrive'
+import { getAllCurrentRates } from '../services/rateProvider'
 
 const PortfolioContext = createContext(null)
 
@@ -11,8 +12,6 @@ const EMPTY_PORTFOLIO = {
   fundraising: [],
   objectives: [],
 }
-
-const RATES = { 'livret-a': 2.4, 'ldds': 2.4, 'lep': 3.5, 'cel': 2.0, 'pel': 2.25 }
 
 export function PortfolioProvider({ children }) {
   const { user, accessToken, gapiReady } = useAuth()
@@ -25,6 +24,8 @@ export function PortfolioProvider({ children }) {
   const [priceRefreshError, setPriceRefreshError] = useState(null)
   const manualRefreshRef = useRef(null)
   const saveTimer = useRef(null)
+
+  const rates = useMemo(() => getAllCurrentRates(), [])
 
   const fetchPortfolio = useCallback(async () => {
     if (!user || !accessToken || !gapiReady) return
@@ -108,13 +109,33 @@ export function PortfolioProvider({ children }) {
 
   // LIVRETS CRUD
   const addLivret = (item) => updateAndSave(p => ({
-    ...p, livrets: [...p.livrets, { ...item, id: Date.now().toString() }]
+    ...p, livrets: [...p.livrets, { ...item, id: Date.now().toString(), movements: item.movements || [] }]
   }))
   const updateLivret = (id, item) => updateAndSave(p => ({
     ...p, livrets: p.livrets.map(x => x.id === id ? { ...x, ...item } : x)
   }))
   const deleteLivret = (id) => updateAndSave(p => ({
     ...p, livrets: p.livrets.filter(x => x.id !== id)
+  }))
+  const addLivretMovement = (livretId, movement) => updateAndSave(p => ({
+    ...p,
+    livrets: p.livrets.map(l => {
+      if (l.id !== livretId) return l
+      const movements = [...(l.movements || []), movement]
+      const newBalance = l.balance + movement.amount
+      return { ...l, movements, balance: Math.max(newBalance, 0) }
+    })
+  }))
+  const deleteLivretMovement = (livretId, movementIndex) => updateAndSave(p => ({
+    ...p,
+    livrets: p.livrets.map(l => {
+      if (l.id !== livretId) return l
+      const removed = l.movements[movementIndex]
+      if (!removed) return l
+      const movements = l.movements.filter((_, i) => i !== movementIndex)
+      const newBalance = l.balance - removed.amount
+      return { ...l, movements, balance: Math.max(newBalance, 0) }
+    })
   }))
 
   // FUNDRAISING CRUD
@@ -188,11 +209,11 @@ export function PortfolioProvider({ children }) {
 
   return (
     <PortfolioContext.Provider value={{
-      portfolio, loading, totals, rates: RATES,
+      portfolio, loading, totals, rates,
       driveConnected, driveError,
       addCrypto, updateCrypto, deleteCrypto,
       addPea, updatePea, deletePea,
-      addLivret, updateLivret, deleteLivret,
+      addLivret, updateLivret, deleteLivret, addLivretMovement, deleteLivretMovement,
       addFundraising, deleteFundraising,
       addObjective, updateObjective, deleteObjective,
       fetchPortfolio,
