@@ -7,6 +7,15 @@ const STORAGE_KEY = 'pm_google_client_id'
 const TOKEN_KEY = 'pm_google_token'
 const USER_KEY = 'pm_google_user'
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 function getStoredClientId() {
   return localStorage.getItem(STORAGE_KEY) || ''
 }
@@ -49,13 +58,62 @@ export function AuthProvider({ children }) {
 
   // Try to restore session on mount
   useEffect(() => {
+    if (!gapiReady) return
+
     const storedToken = sessionStorage.getItem(TOKEN_KEY)
-    const storedUser = sessionStorage.getItem(USER_KEY)
+    const storedUser = getStoredUser()
+
     if (storedToken && storedUser) {
+      // Same-tab session still alive
       setAccessToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      setUser(storedUser)
       window.gapi?.client?.setToken?.({ access_token: storedToken })
+      setLoading(false)
+      return
     }
+
+    if (storedUser) {
+      // User data persisted but token gone (new tab / page reload).
+      // Attempt a silent token refresh — no popup, no user interaction.
+      const id = getStoredClientId()
+      if (!id) {
+        setLoading(false)
+        return
+      }
+
+      let settled = false
+      const settle = () => {
+        if (!settled) { settled = true; setLoading(false) }
+      }
+
+      // Fallback: if Google doesn't call the callback within 5 s, give up silently.
+      const timer = setTimeout(settle, 5000)
+
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: id,
+        scope: SCOPES,
+        hint: storedUser.email,
+        prompt: '',          // empty string = let Google decide (usually silent when session exists)
+        callback: async (response) => {
+          clearTimeout(timer)
+          if (response.error) {
+            // Silent refresh failed → user must log in manually
+            localStorage.removeItem(USER_KEY)
+            settle()
+            return
+          }
+          const token = response.access_token
+          setAccessToken(token)
+          sessionStorage.setItem(TOKEN_KEY, token)
+          window.gapi.client.setToken({ access_token: token })
+          setUser(storedUser)
+          settle()
+        },
+      })
+      tokenClient.requestAccessToken({ prompt: '' })
+      return
+    }
+
     setLoading(false)
   }, [gapiReady])
 
@@ -96,7 +154,7 @@ export function AuthProvider({ children }) {
             avatar: info.picture,
           }
           setUser(userData)
-          sessionStorage.setItem(USER_KEY, JSON.stringify(userData))
+          localStorage.setItem(USER_KEY, JSON.stringify(userData))
         } catch (e) {
           console.error('User info fetch failed', e)
         }
@@ -113,7 +171,7 @@ export function AuthProvider({ children }) {
     setUser(null)
     setAccessToken(null)
     sessionStorage.removeItem(TOKEN_KEY)
-    sessionStorage.removeItem(USER_KEY)
+    localStorage.removeItem(USER_KEY)
   }, [accessToken])
 
   const updateClientId = useCallback((newId) => {
