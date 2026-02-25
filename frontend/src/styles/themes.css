@@ -1,13 +1,13 @@
 /* ===== CRIMSON THEME (default) ===== */
 [data-theme="crimson"][data-mode="dark"],
 [data-theme="crimson"] {
-  --bg-primary: #0f0a0a;
-  --bg-secondary: #1a1010;
-  --bg-card: #251515;
-  --bg-card-hover: #2e1c1c;
-  --text-primary: #f0e4e4;
-  --text-secondary: #c89a9a;
-  --text-muted: #8a6060;
+  --bg-primary: #0f1729;
+  --bg-secondary: #1a2332;
+  --bg-card: #1e293b;
+  --bg-card-hover: #243347;
+  --text-primary: #f0e8e8;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --accent: #dc2626;
   --accent-hover: #b91c1c;
   --accent-light: rgba(220, 38, 38, 0.15);
@@ -17,24 +17,24 @@
   --danger-light: rgba(244, 63, 94, 0.15);
   --warning: #f59e0b;
   --warning-light: rgba(245, 158, 11, 0.15);
-  --border: rgba(220, 38, 38, 0.2);
+  --border: rgba(148, 163, 184, 0.12);
   --border-strong: rgba(220, 38, 38, 0.4);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.55);
   --gradient-accent: linear-gradient(135deg, #dc2626, #991b1b);
-  --gradient-card: linear-gradient(135deg, #251515, #1a1010);
+  --gradient-card: linear-gradient(135deg, #1e293b, #1a2332);
   --sidebar-width: 240px;
 }
 
 [data-theme="crimson"][data-mode="light"] {
-  --bg-primary: #faf5f5;
-  --bg-secondary: #f5e8e8;
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #e2e8f0;
   --bg-card: #ffffff;
-  --bg-card-hover: #fdf8f8;
-  --text-primary: #1a0a0a;
-  --text-secondary: #7a3030;
-  --text-muted: #b07070;
+  --bg-card-hover: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   --accent: #b91c1c;
   --accent-hover: #991b1b;
   --accent-light: rgba(185, 28, 28, 0.1);
@@ -44,13 +44,13 @@
   --danger-light: rgba(225, 29, 72, 0.1);
   --warning: #d97706;
   --warning-light: rgba(217, 119, 6, 0.1);
-  --border: rgba(185, 28, 28, 0.15);
+  --border: rgba(15, 23, 42, 0.1);
   --border-strong: rgba(185, 28, 28, 0.3);
-  --shadow: 0 4px 24px rgba(15, 10, 10, 0.1);
-  --shadow-sm: 0 2px 8px rgba(15, 10, 10, 0.08);
-  --shadow-lg: 0 8px 40px rgba(15, 10, 10, 0.15);
+  --shadow: 0 4px 24px rgba(15, 23, 42, 0.1);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 40px rgba(15, 23, 42, 0.15);
   --gradient-accent: linear-gradient(135deg, #b91c1c, #991b1b);
-  --gradient-card: linear-gradient(135deg, #ffffff, #faf5f5);
+  --gradient-card: linear-gradient(135deg, #ffffff, #f1f5f9);
   --sidebar-width: 240px;
 }
 

@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/PortfolioManager_V2/',
+  // './' = relative paths → works on GitHub Pages AND Live Server
+  base: './',
   server: {
     port: 3000,
     proxy: {

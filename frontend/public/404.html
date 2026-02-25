@@ -4,9 +4,13 @@
     <meta charset="utf-8">
     <title>Portfolio Manager</title>
     <script>
-      // Redirect all paths to index.html for SPA routing
-      var path = window.location.pathname;
-      window.location.replace(window.location.origin + '/PortfolioManager_V2/' + '?p=' + encodeURIComponent(path));
+      // With HashRouter, just redirect to the same directory's index.html
+      // The hash fragment (#/route) is never sent to the server,
+      // so GitHub Pages won't 404 on client-side routes.
+      // This 404.html only catches direct access to non-existent files.
+      var loc = window.location;
+      var basePath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/') + 1);
+      loc.replace(basePath + (loc.hash || ''));
     </script>
   </head>
   <body></body>
