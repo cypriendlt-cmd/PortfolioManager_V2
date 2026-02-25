@@ -36,7 +36,10 @@ app.use(helmet({
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:5173',
   'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'https://cypriendlt-cmd.github.io',
   config.frontend.url,
 ].filter(Boolean);
 
@@ -67,7 +70,7 @@ app.use(session({
     secure: !config.server.isDev, // HTTPS only in production
     httpOnly: true,
     maxAge: config.session.maxAge,
-    sameSite: config.server.isDev ? 'lax' : 'strict',
+    sameSite: config.server.isDev ? 'lax' : 'none',
   },
 }));
 
