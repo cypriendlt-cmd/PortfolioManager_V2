@@ -12,6 +12,7 @@ import Insights from './pages/Insights'
 import DCA from './pages/DCA'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import InstallPrompt from './components/InstallPrompt'
 
 /**
  * Inner component that lives inside PortfolioProvider so it can access the context.
@@ -45,6 +46,8 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+    <>
+    <InstallPrompt />
     <Routes>
       <Route path="/login" element={<Login />} />
       {/* Settings accessible without auth for Google Cloud config */}
@@ -71,5 +74,6 @@ export default function App() {
         </ProtectedRoute>
       } />
     </Routes>
+    </>
   )
 }
