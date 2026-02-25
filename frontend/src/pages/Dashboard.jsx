@@ -13,16 +13,18 @@ const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency:
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
-function buildPortfolioHistory(portfolio, totals) {
-  const now = new Date()
-  const months = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    months.push({ year: d.getFullYear(), month: d.getMonth(), label: MONTH_NAMES[d.getMonth()] })
-  }
+const TIME_RANGES = [
+  { key: '7d', label: '7J', days: 7 },
+  { key: '1m', label: '1M', days: 30 },
+  { key: '3m', label: '3M', days: 90 },
+  { key: '6m', label: '6M', days: 180 },
+  { key: '1y', label: '1A', days: 365 },
+  { key: 'all', label: 'Max', days: null },
+]
 
-  // Gather all movements with amounts
+function getAllMovements(portfolio) {
   const allMovements = []
   for (const c of portfolio.crypto) {
     for (const m of (c.movements || [])) {
@@ -48,34 +50,74 @@ function buildPortfolioHistory(portfolio, totals) {
       })
     }
   }
-
-  // Current total is the endpoint; walk backwards by subtracting movements after each month
-  const currentTotal = totals.total
-  // Sort movements newest first
   allMovements.sort((a, b) => b.date - a.date)
+  return allMovements
+}
 
-  // Build from right to left: start with current total, subtract movements going back
-  const result = []
-  let value = currentTotal
-  for (let i = months.length - 1; i >= 0; i--) {
-    const m = months[i]
-    const monthEnd = new Date(m.year, m.month + 1, 0)
-    // If this is the last month, use current value
-    if (i === months.length - 1) {
-      result.unshift({ month: m.label, value: Math.round(value) })
-      continue
+function buildPortfolioHistory(portfolio, totals, rangeKey = '6m') {
+  const now = new Date()
+  const currentTotal = totals.total
+  const allMovements = getAllMovements(portfolio)
+
+  const range = TIME_RANGES.find(r => r.key === rangeKey) || TIME_RANGES[3]
+
+  // Determine date boundaries
+  const oldest = allMovements.length > 0 ? allMovements[allMovements.length - 1].date : now
+  const startDate = range.days ? new Date(now.getTime() - range.days * 86400000) : oldest
+
+  // Build time points based on range
+  const points = []
+  if (range.days && range.days <= 7) {
+    // Daily points
+    for (let i = range.days; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000)
+      points.push({ date: d, label: i === 0 ? "Auj." : DAY_NAMES[d.getDay()] + ' ' + d.getDate() })
     }
-    // Subtract movements that happened after this month's end
-    const nextMonth = months[i + 1]
-    const nextStart = new Date(nextMonth.year, nextMonth.month, 1)
-    const movsInPeriod = allMovements.filter(mv => mv.date >= nextStart && mv.date <= monthEnd === false && mv.date >= nextStart)
-    // Simpler approach: compute cumulative invested at each month boundary
+  } else if (range.days && range.days <= 30) {
+    // Every ~3 days
+    const step = 3
+    for (let i = range.days; i >= 0; i -= step) {
+      const d = new Date(now.getTime() - i * 86400000)
+      points.push({ date: d, label: d.getDate() + ' ' + MONTH_NAMES[d.getMonth()] })
+    }
+    if (points[points.length - 1]?.date.toDateString() !== now.toDateString()) {
+      points.push({ date: now, label: now.getDate() + ' ' + MONTH_NAMES[now.getMonth()] })
+    }
+  } else if (range.days && range.days <= 180) {
+    // Monthly points
+    for (let i = Math.ceil(range.days / 30); i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      if (d >= startDate) points.push({ date: d, label: MONTH_NAMES[d.getMonth()] })
+    }
+    points.push({ date: now, label: MONTH_NAMES[now.getMonth()] })
+  } else {
+    // Yearly / all: quarterly points
+    const totalMonths = range.days ? Math.ceil(range.days / 30) : Math.max(Math.ceil((now - oldest) / (86400000 * 30)), 6)
+    const step = Math.max(1, Math.floor(totalMonths / 12))
+    for (let i = totalMonths; i >= 0; i -= step) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      if (d >= startDate || !range.days) {
+        const lbl = step >= 12 ? MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear() : MONTH_NAMES[d.getMonth()] + (d.getMonth() === 0 ? ' ' + d.getFullYear() : '')
+        points.push({ date: d, label: lbl })
+      }
+    }
+    if (points.length === 0 || points[points.length - 1]?.date.toDateString() !== now.toDateString()) {
+      points.push({ date: now, label: MONTH_NAMES[now.getMonth()] })
+    }
+  }
+
+  // Build values: current total minus net invested after each point
+  const result = points.map((p, i) => {
+    if (i === points.length - 1) return { month: p.label, value: Math.round(currentTotal) }
     const investedAfter = allMovements
-      .filter(mv => mv.date > monthEnd)
+      .filter(mv => mv.date > p.date)
       .reduce((sum, mv) => sum + mv.delta, 0)
-    // Approximate: current total minus net investments after that month, scaled by market changes
-    // Simple heuristic: value at month = currentTotal - net_invested_since_then (rough approximation)
-    result.unshift({ month: m.label, value: Math.round(currentTotal - investedAfter) })
+    return { month: p.label, value: Math.round(currentTotal - investedAfter) }
+  })
+
+  // Deduplicate consecutive labels
+  for (let i = 1; i < result.length; i++) {
+    if (result[i].month === result[i - 1].month) result[i].month = result[i].month + ' '
   }
 
   return result.length > 0 ? result : [{ month: MONTH_NAMES[now.getMonth()], value: Math.round(currentTotal) }]
@@ -200,7 +242,8 @@ export default function Dashboard() {
       .finally(() => setInsightLoading(false))
   }, [])
 
-  const perfData = buildPortfolioHistory(portfolio, totals)
+  const [timeRange, setTimeRange] = useState('6m')
+  const perfData = buildPortfolioHistory(portfolio, totals, timeRange)
   const recentActivities = gatherRecentActivities(portfolio)
 
   const allocationData = [
@@ -323,7 +366,20 @@ export default function Dashboard() {
 
         {/* Performance line chart */}
         <div className="card">
-          <h3 className="mb-16">Performance 6 mois</h3>
+          <div className="perf-chart-header">
+            <h3>Performance</h3>
+            <div className="time-range-selector">
+              {TIME_RANGES.map(r => (
+                <button
+                  key={r.key}
+                  className={`time-range-btn${timeRange === r.key ? ' active' : ''}`}
+                  onClick={() => setTimeRange(r.key)}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

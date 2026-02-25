@@ -130,7 +130,61 @@
   border-left: 3px solid var(--accent);
 }
 
+.perf-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.perf-chart-header h3 {
+  margin: 0;
+}
+
+.time-range-selector {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.05));
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.time-range-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.time-range-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.05);
+}
+
+.time-range-btn.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
 @media (max-width: 768px) {
+  .perf-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .time-range-btn {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+  }
+
   .dashboard-hero {
     flex-direction: column;
     align-items: flex-start;
