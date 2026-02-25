@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import {
   Plus, X, Trash2, RefreshCw, Loader2,
   TrendingUp, TrendingDown, ChevronDown, ChevronUp,
-  ArrowUpRight, ArrowDownLeft,
+  ArrowUpRight, ArrowDownLeft, Pencil,
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
@@ -37,13 +37,24 @@ function buildChartData(asset) {
   return points
 }
 
-/* ===== Add Crypto Modal ===== */
-function AddCryptoModal({ onClose, onAdd }) {
-  const [query, setQuery] = useState('')
+/* ===== Add / Edit Crypto Modal ===== */
+function AddCryptoModal({ onClose, onAdd, editAsset }) {
+  const isEdit = !!editAsset
+
+  // Pre-fill state when editing
+  const [query, setQuery] = useState(isEdit ? editAsset.name : '')
   const [suggestions, setSuggestions] = useState([])
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState(
+    isEdit
+      ? { id: editAsset.coingeckoId, name: editAsset.name, symbol: editAsset.symbol, thumb: editAsset.coinImage }
+      : null
+  )
   const [searching, setSearching] = useState(false)
-  const [form, setForm] = useState({ quantity: '', buyPrice: '', buyDate: '' })
+  const [form, setForm] = useState({
+    quantity: isEdit ? String(editAsset.quantity) : '',
+    buyPrice: isEdit ? String(editAsset.buyPrice) : '',
+    buyDate: isEdit ? (editAsset.buyDate || '') : '',
+  })
 
   const handleSearch = useCallback(async (q) => {
     setQuery(q)
@@ -69,13 +80,14 @@ function AddCryptoModal({ onClose, onAdd }) {
     e.preventDefault()
     if (!selected) return
     onAdd({
+      ...(isEdit ? { id: editAsset.id } : {}),
       name: selected.name,
       symbol: selected.symbol,
       coingeckoId: selected.id,
       coinImage: selected.thumb,
       quantity: parseFloat(form.quantity),
       buyPrice: parseFloat(form.buyPrice),
-      currentPrice: parseFloat(form.buyPrice),
+      currentPrice: isEdit ? editAsset.currentPrice : parseFloat(form.buyPrice),
       buyDate: form.buyDate,
       source: 'manual',
     })
@@ -86,7 +98,7 @@ function AddCryptoModal({ onClose, onAdd }) {
     <div className="modal-overlay">
       <div className="modal">
         <div className="modal-header">
-          <h3 className="modal-title">Ajouter une crypto</h3>
+          <h3 className="modal-title">{isEdit ? 'Modifier la crypto' : 'Ajouter une crypto'}</h3>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -161,7 +173,9 @@ function AddCryptoModal({ onClose, onAdd }) {
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button type="submit" className="btn btn-primary" disabled={!selected}>Ajouter</button>
+            <button type="submit" className="btn btn-primary" disabled={!selected}>
+              {isEdit ? 'Enregistrer' : 'Ajouter'}
+            </button>
           </div>
         </form>
       </div>
@@ -234,7 +248,7 @@ function PerformanceChart({ asset }) {
 }
 
 /* ===== Accordion Card ===== */
-function CryptoCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDeleteMovement }) {
+function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMovement, onDeleteMovement }) {
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
   const totalInvested = asset.buyPrice * asset.quantity
@@ -381,9 +395,19 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDe
         </div>
       </div>
 
-      {/* Delete button */}
+      {/* Card actions: Edit + Delete */}
       <div className="crypto-card-actions">
-        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => onDelete(asset.id)}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={(e) => { e.stopPropagation(); onEdit(asset) }}
+        >
+          <Pencil size={14} /> Modifier
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ color: 'var(--danger)' }}
+          onClick={() => onDelete(asset.id)}
+        >
           <Trash2 size={14} /> Supprimer
         </button>
       </div>
@@ -393,14 +417,40 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDe
 
 /* ===== Main Page ===== */
 export default function Crypto() {
-  const { portfolio, totals, addCrypto, deleteCrypto, addCryptoMovement, deleteCryptoMovement, pricesLastUpdated } = usePortfolio()
+  const { portfolio, totals, addCrypto, updateCrypto, deleteCrypto, addCryptoMovement, deleteCryptoMovement, pricesLastUpdated } = usePortfolio()
   const { isRefreshing, refreshNow } = usePriceRefresh()
   const [showModal, setShowModal] = useState(false)
-  const [expandedId, setExpandedId] = useState(null)
+  const [editAsset, setEditAsset] = useState(null) // asset being edited, or null
 
   const totalInvested = portfolio.crypto.reduce((s, c) => s + c.buyPrice * c.quantity, 0)
   const totalGain = totals.crypto - totalInvested
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0
+
+  const [expandedId, setExpandedId] = useState(null)
+
+  const handleOpenEdit = (asset) => {
+    setEditAsset(asset)
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setEditAsset(null)
+  }
+
+  const handleSubmit = (data) => {
+    if (editAsset) {
+      // Update existing asset — preserve movements and currentPrice
+      updateCrypto({
+        ...editAsset,
+        ...data,
+        currentPrice: editAsset.currentPrice, // keep live price
+        movements: editAsset.movements,
+      })
+    } else {
+      addCrypto(data)
+    }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -433,7 +483,7 @@ export default function Crypto() {
               <RefreshCw size={16} />
               Rafraichir
             </button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button className="btn btn-primary" onClick={() => { setEditAsset(null); setShowModal(true) }}>
               <Plus size={16} /> Ajouter
             </button>
           </div>
@@ -445,7 +495,7 @@ export default function Crypto() {
         {portfolio.crypto.length === 0 && (
           <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '48px 24px' }}>
             <p style={{ fontSize: '1.1rem', marginBottom: 12 }}>Aucune crypto en portefeuille</p>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button className="btn btn-primary" onClick={() => { setEditAsset(null); setShowModal(true) }}>
               <Plus size={16} /> Ajouter une crypto
             </button>
           </div>
@@ -457,13 +507,20 @@ export default function Crypto() {
             isExpanded={expandedId === c.id}
             onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
             onDelete={deleteCrypto}
+            onEdit={handleOpenEdit}
             onAddMovement={addCryptoMovement}
             onDeleteMovement={deleteCryptoMovement}
           />
         ))}
       </div>
 
-      {showModal && <AddCryptoModal onClose={() => setShowModal(false)} onAdd={addCrypto} />}
+      {showModal && (
+        <AddCryptoModal
+          onClose={handleCloseModal}
+          onAdd={handleSubmit}
+          editAsset={editAsset}
+        />
+      )}
     </div>
   )
 }
