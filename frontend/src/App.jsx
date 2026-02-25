@@ -9,6 +9,7 @@ import Livrets from './pages/Livrets'
 import Fundraising from './pages/Fundraising'
 import Objectives from './pages/Objectives'
 import Insights from './pages/Insights'
+import DCA from './pages/DCA'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 
@@ -63,6 +64,7 @@ export default function App() {
               <Route path="/fundraising" element={<Fundraising />} />
               <Route path="/objectives" element={<Objectives />} />
               <Route path="/insights" element={<Insights />} />
+              <Route path="/dca" element={<DCA />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

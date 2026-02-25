@@ -71,6 +71,49 @@
   flex-shrink: 0;
 }
 
+.insights-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.insights-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.insights-analysis-card {
+  border-radius: 16px;
+}
+
+.insights-analysis-content p {
+  font-size: 0.875rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+}
+
+.insights-analysis-content p:last-child {
+  margin-bottom: 0;
+}
+
+.insights-analysis-content p:empty {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .insights-gauges-row {
     gap: 16px;

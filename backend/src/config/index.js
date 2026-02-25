@@ -43,8 +43,10 @@ const config = {
     baseUrl: 'https://api.binance.com',
   },
 
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY || '',
+  ai: {
+    groqApiKey: process.env.GROQ_API_KEY || '',
+    togetherApiKey: process.env.TOGETHER_API_KEY || '',
+    huggingfaceApiKey: process.env.HUGGINGFACE_API_KEY || '',
   },
 
   coingecko: {

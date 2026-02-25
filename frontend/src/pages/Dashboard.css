@@ -126,6 +126,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dashboard-insight-card {
+  border-left: 3px solid var(--accent);
+}
+
 @media (max-width: 768px) {
   .dashboard-hero {
     flex-direction: column;

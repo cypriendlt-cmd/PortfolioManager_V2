@@ -5,7 +5,9 @@ import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
 import './Settings.css'
 
-const OPENAI_KEY_STORAGE = 'pm_openai_api_key'
+const GROQ_KEY_STORAGE = 'pm_groq_api_key'
+const TOGETHER_KEY_STORAGE = 'pm_together_api_key'
+const HF_KEY_STORAGE = 'pm_hf_api_key'
 const CORS_PROXY_KEY = 'pm_cors_proxy_url'
 
 const THEME_META = {
@@ -37,8 +39,10 @@ export default function Settings() {
   const [currency, setCurrency] = useState('EUR')
   const [language, setLanguage] = useState('fr')
   const [saved, setSaved] = useState(false)
-  const [openaiKey, setOpenaiKey] = useState(() => localStorage.getItem(OPENAI_KEY_STORAGE) || '')
-  const [openaiSaved, setOpenaiSaved] = useState(false)
+  const [groqKey, setGroqKey] = useState(() => localStorage.getItem(GROQ_KEY_STORAGE) || '')
+  const [togetherKey, setTogetherKey] = useState(() => localStorage.getItem(TOGETHER_KEY_STORAGE) || '')
+  const [hfKey, setHfKey] = useState(() => localStorage.getItem(HF_KEY_STORAGE) || '')
+  const [aiSaved, setAiSaved] = useState(false)
   const [corsProxy, setCorsProxy] = useState(() => localStorage.getItem(CORS_PROXY_KEY) || '')
   const [corsProxySaved, setCorsProxySaved] = useState(false)
   const [corsProxyTest, setCorsProxyTest] = useState(null) // null | 'testing' | 'ok' | 'error'
@@ -245,51 +249,69 @@ export default function Settings() {
         </div>
       </Section>
 
-      {/* OpenAI API */}
-      <Section title="IA — Clé OpenAI" icon={Brain}>
+      {/* AI Providers */}
+      <Section title="IA — Fournisseurs" icon={Brain}>
         <p className="text-sm text-muted mb-16">
-          Ajoutez votre clé API OpenAI pour activer les analyses IA en temps réel sur la page Insights.
-          Sans clé, des données de démonstration seront affichées.
+          Configurez au moins une cle API pour activer les analyses IA sur la page Insights.
+          Les fournisseurs sont testes dans l'ordre : Groq, Together AI, Hugging Face.
         </p>
         <div className="form-group">
-          <label className="form-label">Clé API OpenAI</label>
+          <label className="form-label">Cle API Groq (recommande)</label>
           <input
             className="form-input"
             type="password"
-            placeholder="sk-..."
-            value={openaiKey}
-            onChange={e => setOpenaiKey(e.target.value)}
+            placeholder="gsk_..."
+            value={groqKey}
+            onChange={e => setGroqKey(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Cle API Together AI</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="..."
+            value={togetherKey}
+            onChange={e => setTogetherKey(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Cle API Hugging Face</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="hf_..."
+            value={hfKey}
+            onChange={e => setHfKey(e.target.value)}
           />
         </div>
         <div className="gc-actions">
           <button className="btn btn-primary" onClick={() => {
-            localStorage.setItem(OPENAI_KEY_STORAGE, openaiKey.trim())
-            setOpenaiSaved(true)
-            setTimeout(() => setOpenaiSaved(false), 2000)
+            localStorage.setItem(GROQ_KEY_STORAGE, groqKey.trim())
+            localStorage.setItem(TOGETHER_KEY_STORAGE, togetherKey.trim())
+            localStorage.setItem(HF_KEY_STORAGE, hfKey.trim())
+            setAiSaved(true)
+            setTimeout(() => setAiSaved(false), 2000)
           }}>
-            {openaiSaved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder la clé'}
+            {aiSaved ? <><Check size={16} /> Sauvegarde</> : 'Sauvegarder les cles'}
           </button>
-          {openaiKey && (
-            <button className="btn btn-ghost" onClick={() => {
-              setOpenaiKey('')
-              localStorage.removeItem(OPENAI_KEY_STORAGE)
-            }}>
-              Supprimer la clé
-            </button>
-          )}
         </div>
         <div className="gc-status mt-16">
-          <div className={`gc-status-item ${openaiKey ? 'gc-ok' : 'gc-warn'}`}>
-            {openaiKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Clé OpenAI {openaiKey ? 'configurée' : 'non configurée — mode démo actif'}</span>
+          <div className={`gc-status-item ${groqKey ? 'gc-ok' : 'gc-warn'}`}>
+            {groqKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Groq {groqKey ? 'configure' : 'non configure'}</span>
+          </div>
+          <div className={`gc-status-item ${togetherKey ? 'gc-ok' : 'gc-warn'}`}>
+            {togetherKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Together AI {togetherKey ? 'configure' : 'non configure'}</span>
+          </div>
+          <div className={`gc-status-item ${hfKey ? 'gc-ok' : 'gc-warn'}`}>
+            {hfKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Hugging Face {hfKey ? 'configure' : 'non configure'}</span>
           </div>
         </div>
         <p className="text-xs text-muted mt-12">
-          Votre clé est stockée localement dans votre navigateur. Elle n'est jamais envoyée à nos serveurs.
-          <br />
-          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="gc-link" style={{ marginTop: 4 }}>
-            Obtenir une clé API OpenAI <ExternalLink size={14} />
-          </a>
+          Vos cles sont stockees localement dans votre navigateur.
         </p>
       </Section>
 

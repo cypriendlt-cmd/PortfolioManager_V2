@@ -3,30 +3,139 @@ import {
   LineChart, Line, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { getInsights } from '../services/insights'
+import { Link } from 'react-router-dom'
 import './Dashboard.css'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
-const PERF_DATA = [
-  { month: 'Août', value: 78000 },
-  { month: 'Sep', value: 82000 },
-  { month: 'Oct', value: 79000 },
-  { month: 'Nov', value: 88000 },
-  { month: 'Déc', value: 91000 },
-  { month: 'Jan', value: 95000 },
-  { month: 'Fév', value: 102000 },
-]
+const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
-const ACTIVITIES = [
-  { type: 'buy', asset: 'Bitcoin', amount: 1500, date: 'Il y a 2h' },
-  { type: 'sell', asset: 'Ethereum', amount: 850, date: 'Hier' },
-  { type: 'deposit', asset: 'Livret A', amount: 500, date: 'Il y a 3j' },
-  { type: 'buy', asset: 'TotalEnergies', amount: 1100, date: 'Il y a 5j' },
-  { type: 'buy', asset: 'Solana', amount: 300, date: 'Il y a 1 sem' },
-]
+function buildPortfolioHistory(portfolio, totals) {
+  const now = new Date()
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: MONTH_NAMES[d.getMonth()] })
+  }
+
+  // Gather all movements with amounts
+  const allMovements = []
+  for (const c of portfolio.crypto) {
+    for (const m of (c.movements || [])) {
+      allMovements.push({
+        date: new Date(m.date),
+        delta: m.type === 'sell' ? -(m.quantity * m.price) : (m.quantity * m.price + (m.fees || 0))
+      })
+    }
+  }
+  for (const p of portfolio.pea) {
+    for (const m of (p.movements || [])) {
+      allMovements.push({
+        date: new Date(m.date),
+        delta: m.type === 'sell' ? -(m.quantity * m.price) : (m.quantity * m.price + (m.fees || 0))
+      })
+    }
+  }
+  for (const l of portfolio.livrets) {
+    for (const m of (l.movements || [])) {
+      allMovements.push({
+        date: new Date(m.date),
+        delta: m.type === 'withdrawal' ? -(m.amount || 0) : (m.amount || 0)
+      })
+    }
+  }
+
+  // Current total is the endpoint; walk backwards by subtracting movements after each month
+  const currentTotal = totals.total
+  // Sort movements newest first
+  allMovements.sort((a, b) => b.date - a.date)
+
+  // Build from right to left: start with current total, subtract movements going back
+  const result = []
+  let value = currentTotal
+  for (let i = months.length - 1; i >= 0; i--) {
+    const m = months[i]
+    const monthEnd = new Date(m.year, m.month + 1, 0)
+    // If this is the last month, use current value
+    if (i === months.length - 1) {
+      result.unshift({ month: m.label, value: Math.round(value) })
+      continue
+    }
+    // Subtract movements that happened after this month's end
+    const nextMonth = months[i + 1]
+    const nextStart = new Date(nextMonth.year, nextMonth.month, 1)
+    const movsInPeriod = allMovements.filter(mv => mv.date >= nextStart && mv.date <= monthEnd === false && mv.date >= nextStart)
+    // Simpler approach: compute cumulative invested at each month boundary
+    const investedAfter = allMovements
+      .filter(mv => mv.date > monthEnd)
+      .reduce((sum, mv) => sum + mv.delta, 0)
+    // Approximate: current total minus net investments after that month, scaled by market changes
+    // Simple heuristic: value at month = currentTotal - net_invested_since_then (rough approximation)
+    result.unshift({ month: m.label, value: Math.round(currentTotal - investedAfter) })
+  }
+
+  return result.length > 0 ? result : [{ month: MONTH_NAMES[now.getMonth()], value: Math.round(currentTotal) }]
+}
+
+function gatherRecentActivities(portfolio) {
+  const activities = []
+
+  for (const c of portfolio.crypto) {
+    for (const m of (c.movements || [])) {
+      activities.push({
+        type: m.type === 'sell' ? 'sell' : 'buy',
+        asset: c.name || c.symbol,
+        amount: m.quantity * m.price,
+        date: new Date(m.date),
+      })
+    }
+  }
+  for (const p of portfolio.pea) {
+    for (const m of (p.movements || [])) {
+      activities.push({
+        type: m.type === 'sell' ? 'sell' : 'buy',
+        asset: p.name || p.symbol,
+        amount: m.quantity * m.price,
+        date: new Date(m.date),
+      })
+    }
+  }
+  for (const l of portfolio.livrets) {
+    for (const m of (l.movements || [])) {
+      activities.push({
+        type: m.type === 'withdrawal' ? 'sell' : 'deposit',
+        asset: l.name,
+        amount: m.amount || 0,
+        date: new Date(m.date),
+      })
+    }
+  }
+
+  activities.sort((a, b) => b.date - a.date)
+
+  return activities.slice(0, 6).map(a => ({
+    ...a,
+    dateLabel: formatRelativeDate(a.date),
+  }))
+}
+
+function formatRelativeDate(date) {
+  const now = new Date()
+  const diffMs = now - date
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffH < 1) return "À l'instant"
+  if (diffH < 24) return `Il y a ${diffH}h`
+  if (diffD === 1) return 'Hier'
+  if (diffD < 7) return `Il y a ${diffD}j`
+  if (diffD < 30) return `Il y a ${Math.floor(diffD / 7)} sem`
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
 
 function GaugeChart({ value, label, color }) {
   const angle = (value / 100) * 180 - 90
@@ -76,6 +185,23 @@ function GaugeChart({ value, label, color }) {
 export default function Dashboard() {
   const { portfolio, totals } = usePortfolio()
   const [fearGreed, setFearGreed] = useState({ crypto: 72, market: 58 })
+  const [insight, setInsight] = useState(null)
+  const [insightLoading, setInsightLoading] = useState(true)
+
+  useEffect(() => {
+    getInsights()
+      .then(res => {
+        const data = res.data
+        if (data && (data.summary || data.content)) {
+          setInsight(data.summary || data.content)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setInsightLoading(false))
+  }, [])
+
+  const perfData = buildPortfolioHistory(portfolio, totals)
+  const recentActivities = gatherRecentActivities(portfolio)
 
   const allocationData = [
     { name: 'Crypto', value: totals.crypto, color: '#3b82f6' },
@@ -99,6 +225,12 @@ export default function Dashboard() {
 
   const totalGain = totals.total - totals.livrets - totals.fundraising - totalInvested
 
+  // Compute real gain percentages for stat cards
+  const cryptoInvested = portfolio.crypto.reduce((sum, c) => sum + c.buyPrice * c.quantity, 0)
+  const cryptoGainPct = cryptoInvested > 0 ? ((totals.crypto - cryptoInvested) / cryptoInvested) * 100 : 0
+  const peaInvested = portfolio.pea.reduce((sum, p) => sum + p.buyPrice * p.quantity, 0)
+  const peaGainPct = peaInvested > 0 ? ((totals.pea - peaInvested) / peaInvested) * 100 : 0
+
   return (
     <div className="dashboard animate-fade-in">
       {/* Hero total */}
@@ -113,7 +245,7 @@ export default function Dashboard() {
         </div>
         <div className="dashboard-hero-chart">
           <ResponsiveContainer width="100%" height={80}>
-            <LineChart data={PERF_DATA}>
+            <LineChart data={perfData}>
               <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -128,7 +260,7 @@ export default function Dashboard() {
             <span className="stat-label" style={{ margin: 0 }}>Total Crypto</span>
           </div>
           <div className="stat-value">{fmt(totals.crypto)}</div>
-          <div className="stat-sub text-success">+34.2% depuis achat</div>
+          <div className={`stat-sub ${cryptoGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{fmtPct(cryptoGainPct)} depuis achat</div>
         </div>
 
         <div className="stat-card">
@@ -137,7 +269,7 @@ export default function Dashboard() {
             <span className="stat-label" style={{ margin: 0 }}>Total PEA</span>
           </div>
           <div className="stat-value">{fmt(totals.pea)}</div>
-          <div className="stat-sub text-success">+18.6% depuis achat</div>
+          <div className={`stat-sub ${peaGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{fmtPct(peaGainPct)} depuis achat</div>
         </div>
 
         <div className="stat-card">
@@ -146,7 +278,7 @@ export default function Dashboard() {
             <span className="stat-label" style={{ margin: 0 }}>Épargne réglementée</span>
           </div>
           <div className="stat-value">{fmt(totals.livrets)}</div>
-          <div className="stat-sub">Taux moyen ~3.2%/an</div>
+          <div className="stat-sub">{portfolio.livrets.length} livret{portfolio.livrets.length > 1 ? 's' : ''}</div>
         </div>
 
         <div className="stat-card">
@@ -193,7 +325,7 @@ export default function Dashboard() {
         <div className="card">
           <h3 className="mb-16">Performance 6 mois</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={PERF_DATA}>
+            <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
@@ -219,14 +351,17 @@ export default function Dashboard() {
         <div className="card">
           <h3 className="mb-16">Activité récente</h3>
           <div className="activity-list">
-            {ACTIVITIES.map((a, i) => (
+            {recentActivities.length === 0 && (
+              <p className="text-muted text-sm">Aucun mouvement enregistré</p>
+            )}
+            {recentActivities.map((a, i) => (
               <div key={i} className="activity-item">
                 <div className={`activity-icon activity-icon--${a.type}`}>
                   {a.type === 'buy' ? <TrendingUp size={14} /> : a.type === 'sell' ? <TrendingDown size={14} /> : <Wallet size={14} />}
                 </div>
                 <div className="activity-info">
                   <span className="activity-asset">{a.asset}</span>
-                  <span className="activity-date text-xs text-muted">{a.date}</span>
+                  <span className="activity-date text-xs text-muted">{a.dateLabel}</span>
                 </div>
                 <span className={`activity-amount ${a.type === 'sell' ? 'text-danger' : 'text-success'}`}>
                   {a.type === 'sell' ? '-' : '+'}{fmt(a.amount)}
@@ -237,8 +372,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Best/Worst performers */}
-      <div className="grid grid-2 mt-24 gap-20">
+      {/* IA Insight + Best/Worst performers */}
+      <div className="grid grid-3 mt-24 gap-20">
+        <div className="card dashboard-insight-card">
+          <div className="flex items-center gap-8 mb-8">
+            <Sparkles size={16} style={{ color: 'var(--accent)' }} />
+            <span className="text-xs font-semibold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>IA Quick Insight</span>
+          </div>
+          {insightLoading ? (
+            <p className="text-muted text-sm">Chargement...</p>
+          ) : insight ? (
+            <>
+              <p className="text-sm" style={{ lineHeight: 1.5 }}>{typeof insight === 'string' ? insight.slice(0, 200) : 'Analyse disponible'}</p>
+              <Link to="/insights" className="text-xs mt-8" style={{ color: 'var(--accent)', display: 'inline-block', marginTop: 8 }}>
+                Voir l'analyse complète →
+              </Link>
+            </>
+          ) : (
+            <p className="text-muted text-sm">Activez l'IA dans les paramètres pour obtenir des insights personnalisés.</p>
+          )}
+        </div>
+
         <div className="card" style={{ borderLeft: '3px solid var(--success)' }}>
           <div className="flex items-center gap-8 mb-8">
             <Award size={16} style={{ color: 'var(--success)' }} />

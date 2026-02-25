@@ -102,4 +102,36 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/insights/providers
+ * Returns available AI providers and which one is active.
+ */
+router.get('/providers', (req, res) => {
+  const aiOrchestrator = require('../services/ai');
+  res.json({
+    providers: aiOrchestrator.getProvidersStatus(),
+    active: aiOrchestrator.getActiveProvider(),
+  });
+});
+
+/**
+ * POST /api/insights/analyze
+ * Analyze a user's portfolio using AI.
+ * Accepts { portfolio } in the request body.
+ */
+router.post('/analyze', async (req, res) => {
+  try {
+    const { portfolio } = req.body;
+    if (!portfolio) {
+      return res.status(400).json({ error: 'Portfolio data is required' });
+    }
+
+    const analysis = await insightsService.analyzePortfolio(portfolio);
+    res.json(analysis);
+  } catch (error) {
+    console.error('[Insights] Analyze error:', error.message);
+    res.status(500).json({ error: 'Failed to analyze portfolio', details: error.message });
+  }
+});
+
 module.exports = router;

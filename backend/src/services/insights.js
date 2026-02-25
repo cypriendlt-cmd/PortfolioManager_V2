@@ -1,83 +1,49 @@
 /**
  * AI Insights service.
  * Generates market summaries and portfolio insights.
- * Uses OpenAI if API key is available, falls back to intelligent mock data.
+ * Uses free-tier AI providers with automatic fallback, or mock data if none configured.
  */
 
-const axios = require('axios');
-const config = require('../config');
+const aiOrchestrator = require('./ai');
+
+const SYSTEM_PROMPT = `Tu es un analyste financier expert spécialisé dans les cryptomonnaies et les marchés boursiers.
+Tu fournis des analyses concises, objectives et éducatives en français.
+Tu rappelles toujours que tes analyses ne constituent pas des conseils d'investissement.`;
 
 /**
  * Generate a daily market summary for crypto and stocks.
- * Uses real OpenAI API if OPENAI_API_KEY is configured, otherwise returns mock data.
  *
  * @param {Object} [marketData] - Optional market context data to include in the prompt
  * @returns {Promise<Object>} Market summary and insights
  */
 async function getDailyInsights(marketData = {}) {
-  if (config.openai.apiKey) {
-    return generateWithOpenAI(marketData);
+  const prompt = buildPrompt(marketData);
+  const fearGreedValue = marketData.fearGreed?.value;
+
+  const result = await aiOrchestrator.generateWithFallback(prompt, {
+    systemPrompt: SYSTEM_PROMPT,
+    maxTokens: 800,
+    temperature: 0.7,
+  });
+
+  // If AI generated content, return it
+  if (result.content) {
+    return {
+      summary: result.content,
+      source: result.provider,
+      model: result.model,
+      generatedAt: new Date().toISOString(),
+      marketContext: { fearGreedValue },
+      disclaimer: 'Ces informations sont à titre éducatif uniquement et ne constituent pas des conseils d\'investissement.',
+    };
   }
+
+  // Fallback to mock
   return generateMockInsights(marketData);
 }
 
 /**
- * Generate insights using OpenAI GPT.
- *
- * @param {Object} marketData - Market context data
- * @returns {Promise<Object>} AI-generated insights
- */
-async function generateWithOpenAI(marketData) {
-  const fearGreedValue = marketData.fearGreed?.value;
-  const prompt = buildPrompt(marketData);
-
-  const response = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
-    {
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `Tu es un analyste financier expert spécialisé dans les cryptomonnaies et les marchés boursiers.
-Tu fournis des analyses concises, objectives et éducatives en français.
-Tu rappelles toujours que tes analyses ne constituent pas des conseils d'investissement.`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      max_tokens: 800,
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${config.openai.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 30000,
-    }
-  );
-
-  const content = response.data.choices[0]?.message?.content || '';
-
-  return {
-    summary: content,
-    source: 'openai',
-    model: 'gpt-4o-mini',
-    generatedAt: new Date().toISOString(),
-    marketContext: {
-      fearGreedValue,
-    },
-    disclaimer: 'Ces informations sont à titre éducatif uniquement et ne constituent pas des conseils d\'investissement.',
-  };
-}
-
-/**
  * Build a prompt for the AI model based on available market data.
- *
- * @param {Object} marketData
- * @returns {string}
  */
 function buildPrompt(marketData) {
   const date = new Date().toLocaleDateString('fr-FR', {
@@ -92,11 +58,9 @@ function buildPrompt(marketData) {
   if (marketData.fearGreed) {
     prompt += `Index Peur & Cupidité Crypto: ${marketData.fearGreed.value}/100 (${marketData.fearGreed.classification})\n`;
   }
-
   if (marketData.btcPrice) {
     prompt += `Prix Bitcoin: ${marketData.btcPrice} EUR\n`;
   }
-
   if (marketData.ethPrice) {
     prompt += `Prix Ethereum: ${marketData.ethPrice} EUR\n`;
   }
@@ -111,11 +75,7 @@ function buildPrompt(marketData) {
 }
 
 /**
- * Generate mock insights when no API key is configured.
- * Returns realistic-looking data for development/demo purposes.
- *
- * @param {Object} marketData - Market context (fear & greed value if available)
- * @returns {Object} Mock insights data
+ * Generate mock insights when no AI provider is available.
  */
 function generateMockInsights(marketData) {
   const fearGreedValue = marketData.fearGreed?.value || 50;
@@ -175,14 +135,92 @@ function generateMockInsights(marketData) {
     source: 'mock',
     model: null,
     generatedAt: new Date().toISOString(),
-    marketContext: {
-      fearGreedValue,
-    },
-    disclaimer: 'Ces informations sont à titre éducatif uniquement et ne constituent pas des conseils d\'investissement. Données simulées - configurez OPENAI_API_KEY pour des insights en temps réel.',
-    note: 'Mode démonstration - configurez OPENAI_API_KEY dans .env pour activer les insights IA réels.',
+    marketContext: { fearGreedValue },
+    disclaimer: 'Ces informations sont à titre éducatif uniquement et ne constituent pas des conseils d\'investissement. Données simulées - configurez une clé API (GROQ_API_KEY, TOGETHER_API_KEY ou HUGGINGFACE_API_KEY) pour des insights IA réels.',
+    note: 'Mode démonstration - configurez une clé API IA dans .env pour activer les insights IA réels.',
+  };
+}
+
+/**
+ * Analyze a user's portfolio using AI with a detailed financial analyst prompt.
+ * @param {Object} portfolioData - The full portfolio data from the frontend
+ * @returns {Promise<Object>} Structured analysis
+ */
+async function analyzePortfolio(portfolioData) {
+  const portfolioJson = JSON.stringify(portfolioData, null, 2);
+
+  const prompt = `Tu es un analyste financier expérimenté travaillant sur les marchés financiers
+(actions, ETF, crypto-actifs, allocation patrimoniale).
+
+À partir des données du portefeuille ci-dessous, tu dois :
+1) Fournir une synthèse claire et factuelle du portefeuille
+2) Analyser la diversification (actifs, classes, zones, risques)
+3) Identifier les sur-expositions et sous-expositions potentielles
+4) Donner des conseils prudents d'amélioration de l'allocation
+5) Expliquer tes recommandations de manière pédagogique
+
+Contraintes :
+- Pas de promesse de rendement
+- Pas de conseil d'investissement personnalisé
+- Ton neutre, professionnel et responsable
+- Raisonnement basé sur la diversification et la gestion du risque
+
+Réponds en JSON valide avec cette structure exacte :
+{
+  "synthesis": "...",
+  "diversification": "...",
+  "overexposures": "...",
+  "recommendations": "..."
+}
+
+Données du portefeuille :
+${portfolioJson}`;
+
+  const result = await aiOrchestrator.generateWithFallback(prompt, {
+    systemPrompt: SYSTEM_PROMPT,
+    maxTokens: 1500,
+    temperature: 0.7,
+  });
+
+  if (result.content) {
+    // Try to parse JSON from the AI response
+    try {
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          synthesis: parsed.synthesis || '',
+          diversification: parsed.diversification || '',
+          overexposures: parsed.overexposures || '',
+          recommendations: parsed.recommendations || '',
+          provider: result.provider,
+          model: result.model,
+          generatedAt: new Date().toISOString(),
+        };
+      }
+    } catch {
+      // If JSON parsing fails, return raw content as synthesis
+    }
+    return {
+      synthesis: result.content,
+      diversification: '',
+      overexposures: '',
+      recommendations: '',
+      provider: result.provider,
+      model: result.model,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  // No AI available
+  return {
+    synthesis: null,
+    provider: 'none',
+    error: result.error || 'No AI providers configured',
   };
 }
 
 module.exports = {
   getDailyInsights,
+  analyzePortfolio,
 };
