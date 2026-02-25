@@ -8,6 +8,7 @@
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
 }
 
 .pea-card:hover {
@@ -123,6 +124,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 .pea-summary-label {
@@ -130,11 +132,16 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .pea-summary-value {
   font-size: 0.95rem;
   font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Expanded body */
@@ -172,6 +179,7 @@
   padding: 10px 14px;
   text-align: center;
   transition: background 0.2s ease;
+  min-width: 0;
 }
 
 .pea-market-box:hover {
@@ -192,6 +200,9 @@
   font-weight: 600;
   color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Movements section */
@@ -228,6 +239,7 @@
   border-top: 1px solid var(--border);
   font-size: 0.8rem;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .pea-movements-table tbody tr {
@@ -241,6 +253,8 @@
 .pea-movements-scroll {
   max-height: 220px;
   overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 10px;
   margin-bottom: 10px;
@@ -259,6 +273,11 @@
   font-size: 0.8rem;
   width: auto;
 }
+
+.pea-form-date { width: 140px; }
+.pea-form-qty { width: 80px; }
+.pea-form-price { width: 100px; }
+.pea-form-fees { width: 80px; }
 
 .pea-type-toggle {
   display: flex;
@@ -337,7 +356,36 @@
   color: var(--danger);
 }
 
-/* Responsive */
+/* ===== Page header card responsive ===== */
+.pea-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pea-header-top > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pea-header-top .stat-value {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.pea-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ===== RESPONSIVE ===== */
+
 @media (max-width: 1024px) {
   .pea-market-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -357,6 +405,24 @@
     justify-content: space-between;
   }
 
+  .pea-card-right {
+    flex-shrink: 1;
+  }
+
+  .pea-card-right .badge {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pea-card-summary {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
   .pea-market-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -366,8 +432,26 @@
     align-items: stretch;
   }
 
-  .pea-movement-form .form-input {
+  .pea-movement-form .form-input,
+  .pea-form-date,
+  .pea-form-qty,
+  .pea-form-price,
+  .pea-form-fees {
+    width: 100% !important;
+  }
+
+  .pea-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pea-header-actions {
     width: 100%;
+    justify-content: flex-start;
+  }
+
+  .pea-header-top .stat-value {
+    font-size: 1.8rem !important;
   }
 }
 
@@ -376,11 +460,42 @@
     padding: 10px 12px;
   }
 
+  .pea-card-left {
+    max-width: 50%;
+  }
+
+  .pea-card-name {
+    font-size: 0.85rem;
+    max-width: 120px;
+  }
+
+  .pea-card-middle {
+    font-size: 0.75rem;
+  }
+
+  .pea-card-middle .pea-total-value {
+    font-size: 0.95rem;
+  }
+
+  .pea-card-right .badge {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    max-width: 140px;
+  }
+
   .pea-card-summary {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     padding: 0 12px 12px;
     padding-top: 10px;
+  }
+
+  .pea-summary-value {
+    font-size: 0.8rem;
+  }
+
+  .pea-summary-label {
+    font-size: 0.6rem;
   }
 
   .pea-card-body-inner {
@@ -394,17 +509,45 @@
     gap: 8px;
   }
 
-  .pea-movements-table {
+  .pea-market-box-value {
     font-size: 0.75rem;
+  }
+
+  /* Hide Fees and Total columns on small screens */
+  .pea-movements-table .pea-col-fees,
+  .pea-movements-table .pea-col-total {
+    display: none;
+  }
+
+  .pea-movements-table {
+    font-size: 0.72rem;
   }
 
   .pea-movements-table th,
   .pea-movements-table td {
-    padding: 6px 8px;
+    padding: 5px 5px;
+  }
+
+  .pea-chart-container {
+    padding: 10px;
+  }
+
+  .pea-header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pea-header-actions .btn {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  .pea-header-top .stat-value {
+    font-size: 1.5rem !important;
   }
 }
 
-@media (max-width: 320px) {
+@media (max-width: 360px) {
   .pea-card {
     border-radius: 10px;
   }
@@ -415,11 +558,18 @@
   }
 
   .pea-card-name {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    max-width: 80px;
   }
 
   .pea-card-middle .pea-total-value {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+  }
+
+  .pea-card-right .badge {
+    font-size: 0.6rem;
+    max-width: 110px;
+    padding: 2px 4px;
   }
 
   .pea-card-summary {
@@ -430,11 +580,11 @@
   }
 
   .pea-summary-label {
-    font-size: 0.65rem;
+    font-size: 0.55rem;
   }
 
   .pea-summary-value {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
 
   .pea-card-body-inner {
@@ -453,17 +603,21 @@
     border-radius: 8px;
   }
 
+  .pea-market-box-value {
+    font-size: 0.7rem;
+  }
+
   .pea-movements-scroll {
     border-radius: 8px;
   }
 
   .pea-movements-table {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
 
   .pea-movements-table th,
   .pea-movements-table td {
-    padding: 5px 6px;
+    padding: 4px 4px;
   }
 
   .pea-chart-container {

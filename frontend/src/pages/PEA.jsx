@@ -149,7 +149,7 @@ function MovementForm({ peaId, onAdd }) {
 
   return (
     <form onSubmit={handleSubmit} className="pea-movement-form">
-      <input type="date" className="form-input" style={{ width: 140 }} value={date} onChange={e => setDate(e.target.value)} />
+      <input type="date" className="form-input pea-form-date" value={date} onChange={e => setDate(e.target.value)} />
       <div className="pea-type-toggle">
         <button type="button" className={type === 'buy' ? 'active-buy' : ''} onClick={() => setType('buy')}>
           <ArrowDownLeft size={12} />Achat
@@ -158,9 +158,9 @@ function MovementForm({ peaId, onAdd }) {
           <ArrowUpRight size={12} />Vente
         </button>
       </div>
-      <input type="number" className="form-input" style={{ width: 80 }} step="1" min="1" placeholder="Qte" required value={quantity} onChange={e => setQuantity(e.target.value)} />
-      <input type="number" className="form-input" style={{ width: 100 }} step="0.01" min="0.01" placeholder="Prix" required value={price} onChange={e => setPrice(e.target.value)} />
-      <input type="number" className="form-input" style={{ width: 80 }} step="0.01" min="0" placeholder="Frais" value={fees} onChange={e => setFees(e.target.value)} />
+      <input type="number" className="form-input pea-form-qty" step="1" min="1" placeholder="Qte" required value={quantity} onChange={e => setQuantity(e.target.value)} />
+      <input type="number" className="form-input pea-form-price" step="0.01" min="0.01" placeholder="Prix" required value={price} onChange={e => setPrice(e.target.value)} />
+      <input type="number" className="form-input pea-form-fees" step="0.01" min="0" placeholder="Frais" value={fees} onChange={e => setFees(e.target.value)} />
       <button type="submit" className="btn btn-primary btn-sm"><Plus size={14} /> Ajouter</button>
     </form>
   )
@@ -293,8 +293,8 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                       <th>Type</th>
                       <th>Qte</th>
                       <th>Prix</th>
-                      <th>Frais</th>
-                      <th>Total</th>
+                      <th className="pea-col-fees">Frais</th>
+                      <th className="pea-col-total">Total</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -311,8 +311,8 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                           </td>
                           <td className="font-mono">{mv.quantity}</td>
                           <td className="font-mono">{fmt(mv.price)}</td>
-                          <td className="font-mono">{fmt(mv.fees || 0)}</td>
-                          <td className="font-mono font-semibold">{fmt(total)}</td>
+                          <td className="font-mono pea-col-fees">{fmt(mv.fees || 0)}</td>
+                          <td className="font-mono font-semibold pea-col-total">{fmt(total)}</td>
                           <td>
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
                               <Trash2 size={12} />
@@ -357,11 +357,11 @@ export default function PEA() {
     <div className="animate-fade-in">
       {/* Header card */}
       <div className="card mb-24" style={{ background: 'var(--gradient-card)', borderColor: 'var(--border-strong)' }}>
-        <div className="flex items-center justify-between">
+        <div className="pea-header-top">
           <div>
             <p className="stat-label">Valeur totale PEA</p>
             <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{fmt(totals.pea)}</p>
-            <div className="flex items-center gap-12 mt-8">
+            <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
               <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
                 {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                 {fmt(totalGain)} ({fmtPct(totalGainPct)})
@@ -369,7 +369,7 @@ export default function PEA() {
               <span className="text-sm text-muted">Investi: {fmt(totalInvested)}</span>
             </div>
           </div>
-          <div className="flex gap-12 items-center">
+          <div className="pea-header-actions">
             {pricesLastUpdated && (
               <span className="text-xs text-muted">
                 Mis a jour {fmtTime(pricesLastUpdated)}
