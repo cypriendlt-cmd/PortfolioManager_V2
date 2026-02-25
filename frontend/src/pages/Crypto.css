@@ -14,6 +14,7 @@
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
 }
 
 .crypto-card:hover {
@@ -47,6 +48,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex-shrink: 1;
 }
 
 .crypto-card-img {
@@ -90,6 +92,7 @@
   font-family: 'SF Mono', 'Fira Code', monospace;
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .crypto-card-right {
@@ -125,6 +128,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 .crypto-summary-label {
@@ -132,11 +136,16 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .crypto-summary-value {
   font-size: 0.95rem;
   font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Expanded body */
@@ -182,6 +191,7 @@
   padding: 10px 12px;
   text-align: center;
   transition: background 0.2s ease;
+  min-width: 0;
 }
 
 .crypto-market-box:hover {
@@ -199,6 +209,9 @@
   font-size: 0.9rem;
   font-weight: 600;
   font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Movements table */
@@ -255,6 +268,11 @@
   font-size: 0.85rem;
 }
 
+.crypto-form-date { width: 140px; }
+.crypto-form-qty { width: 100px; }
+.crypto-form-price { width: 100px; }
+.crypto-form-fees { width: 80px; }
+
 .crypto-type-toggle {
   display: flex;
   border-radius: 8px;
@@ -308,7 +326,24 @@
   justify-content: flex-end;
 }
 
-/* Responsive */
+/* ===== Page header card responsive ===== */
+.crypto-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.crypto-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ===== RESPONSIVE ===== */
+
 @media (max-width: 1024px) {
   .crypto-market-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -325,6 +360,19 @@
     display: none;
   }
 
+  .crypto-card-right {
+    flex-shrink: 1;
+  }
+
+  .crypto-card-right .badge {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .crypto-card-summary {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
@@ -339,8 +387,22 @@
     align-items: stretch;
   }
 
-  .crypto-movement-form .form-input {
+  .crypto-movement-form .form-input,
+  .crypto-form-date,
+  .crypto-form-qty,
+  .crypto-form-price,
+  .crypto-form-fees {
     width: 100% !important;
+  }
+
+  .crypto-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .crypto-header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
@@ -349,11 +411,34 @@
     padding: 10px 12px;
   }
 
+  .crypto-card-left {
+    max-width: 50%;
+  }
+
+  .crypto-card-name {
+    font-size: 0.85rem;
+    max-width: 100px;
+  }
+
+  .crypto-card-right .badge {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    max-width: 140px;
+  }
+
   .crypto-card-summary {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     padding: 0 12px 12px;
     padding-top: 10px;
+  }
+
+  .crypto-summary-value {
+    font-size: 0.8rem;
+  }
+
+  .crypto-summary-label {
+    font-size: 0.6rem;
   }
 
   .crypto-card-body-inner {
@@ -367,16 +452,45 @@
     gap: 8px;
   }
 
-  .crypto-movements-table {
+  .crypto-market-box-value {
     font-size: 0.75rem;
+  }
+
+  /* Hide Fees and Total columns on small screens */
+  .crypto-movements-table .col-fees,
+  .crypto-movements-table .col-total {
+    display: none;
+  }
+
+  .crypto-movements-table {
+    font-size: 0.72rem;
+  }
+
+  .crypto-movements-table th,
+  .crypto-movements-table td {
+    padding: 5px 5px;
   }
 
   .crypto-card-actions {
     padding: 8px 12px 10px;
   }
+
+  .crypto-chart-container {
+    min-height: 180px;
+  }
+
+  .crypto-header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .crypto-header-actions .btn {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
 }
 
-@media (max-width: 320px) {
+@media (max-width: 360px) {
   .crypto-card {
     border-radius: 10px;
   }
@@ -386,15 +500,22 @@
     gap: 6px;
   }
 
-  .crypto-card-name {
-    font-size: 0.85rem;
-  }
-
   .crypto-card-img,
   .crypto-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 0.75rem;
+    width: 26px;
+    height: 26px;
+    font-size: 0.7rem;
+  }
+
+  .crypto-card-name {
+    font-size: 0.8rem;
+    max-width: 80px;
+  }
+
+  .crypto-card-right .badge {
+    font-size: 0.6rem;
+    max-width: 110px;
+    padding: 2px 4px;
   }
 
   .crypto-card-summary {
@@ -405,11 +526,11 @@
   }
 
   .crypto-summary-label {
-    font-size: 0.65rem;
+    font-size: 0.55rem;
   }
 
   .crypto-summary-value {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
 
   .crypto-card-body-inner {
@@ -428,13 +549,17 @@
     border-radius: 8px;
   }
 
-  .crypto-movements-table {
+  .crypto-market-box-value {
     font-size: 0.7rem;
+  }
+
+  .crypto-movements-table {
+    font-size: 0.65rem;
   }
 
   .crypto-movements-table th,
   .crypto-movements-table td {
-    padding: 5px 6px;
+    padding: 4px 4px;
   }
 
   .crypto-movement-form .form-input {

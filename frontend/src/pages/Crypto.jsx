@@ -204,7 +204,7 @@ function MovementForm({ assetId, onAdd }) {
 
   return (
     <form onSubmit={handleSubmit} className="crypto-movement-form">
-      <input type="date" className="form-input" style={{ width: 140 }} value={date} onChange={e => setDate(e.target.value)} />
+      <input type="date" className="form-input crypto-form-date" value={date} onChange={e => setDate(e.target.value)} />
       <div className="crypto-type-toggle">
         <button type="button" className={type === 'buy' ? 'active-buy' : ''} onClick={() => setType('buy')}>
           <ArrowDownLeft size={12} />Achat
@@ -213,9 +213,9 @@ function MovementForm({ assetId, onAdd }) {
           <ArrowUpRight size={12} />Vente
         </button>
       </div>
-      <input type="number" className="form-input" style={{ width: 100 }} step="any" min="0.000001" placeholder="Qte" required value={quantity} onChange={e => setQuantity(e.target.value)} />
-      <input type="number" className="form-input" style={{ width: 100 }} step="0.01" min="0.01" placeholder="Prix" required value={price} onChange={e => setPrice(e.target.value)} />
-      <input type="number" className="form-input" style={{ width: 80 }} step="0.01" min="0" placeholder="Frais" value={fees} onChange={e => setFees(e.target.value)} />
+      <input type="number" className="form-input crypto-form-qty" step="any" min="0.000001" placeholder="Qte" required value={quantity} onChange={e => setQuantity(e.target.value)} />
+      <input type="number" className="form-input crypto-form-price" step="0.01" min="0.01" placeholder="Prix" required value={price} onChange={e => setPrice(e.target.value)} />
+      <input type="number" className="form-input crypto-form-fees" step="0.01" min="0" placeholder="Frais" value={fees} onChange={e => setFees(e.target.value)} />
       <button type="submit" className="btn btn-primary btn-sm"><Plus size={14} /> Ajouter</button>
     </form>
   )
@@ -352,8 +352,8 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                       <th>Type</th>
                       <th>Quantite</th>
                       <th>Prix</th>
-                      <th>Frais</th>
-                      <th>Total</th>
+                      <th className="col-fees">Frais</th>
+                      <th className="col-total">Total</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -369,8 +369,8 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                         </td>
                         <td className="font-mono">{fmtQty(mv.quantity)}</td>
                         <td className="font-mono">{fmt(mv.price)}</td>
-                        <td className="font-mono text-muted">{mv.fees ? fmt(mv.fees) : '—'}</td>
-                        <td className="font-mono font-semibold">{fmt(mv.quantity * mv.price + (mv.fees || 0))}</td>
+                        <td className="font-mono text-muted col-fees">{mv.fees ? fmt(mv.fees) : '—'}</td>
+                        <td className="font-mono font-semibold col-total">{fmt(mv.quantity * mv.price + (mv.fees || 0))}</td>
                         <td>
                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
                             <Trash2 size={12} />
@@ -456,11 +456,11 @@ export default function Crypto() {
     <div className="animate-fade-in">
       {/* Header card */}
       <div className="card mb-24" style={{ background: 'var(--gradient-card)', borderColor: 'var(--border-strong)' }}>
-        <div className="flex items-center justify-between">
+        <div className="crypto-header-top">
           <div>
             <p className="stat-label">Valeur totale Crypto</p>
             <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{fmt(totals.crypto)}</p>
-            <div className="flex items-center gap-12 mt-8">
+            <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
               <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
                 {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                 {fmt(totalGain)} ({fmtPct(totalGainPct)})
@@ -468,7 +468,7 @@ export default function Crypto() {
               <span className="text-sm text-muted">Investi: {fmt(totalInvested)}</span>
             </div>
           </div>
-          <div className="flex gap-12 items-center">
+          <div className="crypto-header-actions">
             {pricesLastUpdated && (
               <span className="text-xs text-muted">
                 Mis a jour {fmtTime(pricesLastUpdated)}
