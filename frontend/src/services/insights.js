@@ -2,6 +2,8 @@ import api from './api'
 
 export const getInsights = () => api.get('/api/insights')
 
+export const refreshInsights = () => api.post('/api/insights/refresh')
+
 export const analyzePortfolio = (portfolioData) =>
   api.post('/api/insights/analyze', { portfolio: portfolioData })
 

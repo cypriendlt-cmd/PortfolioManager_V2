@@ -13,6 +13,7 @@ const helmet = require('helmet');
 const session = require('express-session');
 const passport = require('passport');
 
+const cron = require('node-cron');
 const config = require('./config');
 
 // Route imports
@@ -170,6 +171,47 @@ app.listen(PORT, () => {
   if (warnings.length > 0) {
     console.warn('⚠️  Missing or insecure env vars:', warnings.join(', '));
     console.warn('   Copy .env.example to .env and fill in the values.\n');
+  }
+});
+
+// ─── Cron: refresh insights daily at 8:00 AM ────────────────────────────────
+
+cron.schedule('0 8 * * *', async () => {
+  console.log('[Cron] 8h00 - Refreshing daily insights...');
+  try {
+    const insightsService = require('./services/insights');
+    const marketService = require('./services/market');
+    const cryptoService = require('./services/crypto');
+    const insightsCacheService = require('./services/insightsCache');
+
+    const marketContext = {};
+    try {
+      const fg = await marketService.getCryptoFearGreed(1);
+      marketContext.fearGreed = fg.current;
+    } catch {}
+    try {
+      const sfg = await marketService.getStockFearGreed();
+      if (sfg.current.value !== null) marketContext.stockFearGreed = sfg.current;
+    } catch {}
+    try {
+      const prices = await cryptoService.getCryptoPrices(['bitcoin', 'ethereum'], 'eur');
+      if (prices.bitcoin) marketContext.btcPrice = prices.bitcoin.eur;
+      if (prices.ethereum) marketContext.ethPrice = prices.ethereum.eur;
+    } catch {}
+
+    const insights = await insightsService.getDailyInsights(marketContext);
+    insightsCacheService.saveCache({
+      insights,
+      fearGreed: {
+        crypto: marketContext.fearGreed || null,
+        stock: marketContext.stockFearGreed || null,
+      },
+      marketContext,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log('[Cron] Daily insights refreshed successfully.');
+  } catch (err) {
+    console.error('[Cron] Failed to refresh insights:', err.message);
   }
 });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Brain, RefreshCw, AlertCircle, TrendingUp, Shield, BarChart3, Lightbulb, Cpu } from 'lucide-react'
 import { getFearGreed } from '../services/market'
-import { analyzePortfolio, getProviders } from '../services/insights'
+import { getInsights, refreshInsights, analyzePortfolio, getProviders } from '../services/insights'
 import { usePortfolio } from '../context/PortfolioContext'
 import { Link } from 'react-router-dom'
 import './Insights.css'
@@ -84,6 +84,7 @@ export default function Insights() {
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [fearGreed, setFearGreed] = useState(null)
   const [analysis, setAnalysis] = useState(null)
+  const [marketInsight, setMarketInsight] = useState(null)
   const [error, setError] = useState(null)
   const [activeProvider, setActiveProvider] = useState(null)
   const [noProvider, setNoProvider] = useState(false)
@@ -105,6 +106,26 @@ export default function Insights() {
     } catch {
       setNoProvider(true)
     }
+  }
+
+  const loadCachedInsights = async () => {
+    try {
+      const res = await getInsights()
+      const data = res.data
+      if (data.insights) {
+        setMarketInsight(data.insights.summary || data.insights)
+        if (data.insights.source) setActiveProvider(data.insights.source)
+      }
+      if (data.analysis) {
+        setAnalysis(data.analysis)
+      }
+      if (data.fearGreed) {
+        setFearGreed({
+          crypto: data.fearGreed.crypto ? { value: data.fearGreed.crypto.value } : null,
+          stock: data.fearGreed.stock ? { value: data.fearGreed.stock.value } : null,
+        })
+      }
+    } catch {}
   }
 
   const loadAnalysis = async () => {
@@ -136,16 +157,30 @@ export default function Insights() {
 
   const handleRefresh = async () => {
     setLoading(true)
-    await Promise.allSettled([loadFearGreed(), loadAnalysis()])
+    try {
+      const res = await refreshInsights()
+      const data = res.data
+      if (data.insights) setMarketInsight(data.insights.summary || data.insights)
+      if (data.fearGreed) {
+        setFearGreed({
+          crypto: data.fearGreed.crypto ? { value: data.fearGreed.crypto.value } : null,
+          stock: data.fearGreed.stock ? { value: data.fearGreed.stock.value } : null,
+        })
+      }
+    } catch {}
+    await loadAnalysis()
     setLoading(false)
   }
 
   useEffect(() => {
+    loadCachedInsights()
     loadFearGreed()
     checkProviders()
   }, [])
 
   const fg = fearGreed || {}
+  const cryptoFgValue = fg.crypto?.value ?? fg.current?.value ?? 0
+  const stockFgValue = fg.stock?.value ?? 0
 
   return (
     <div className="animate-fade-in">
@@ -199,9 +234,9 @@ export default function Insights() {
       <div className="card mb-24">
         <h3 className="mb-24">Fear & Greed Index</h3>
         <div className="insights-gauges-row">
-          <GaugeMeter value={fg.crypto?.value || 0} label="Crypto Fear & Greed" />
+          <GaugeMeter value={cryptoFgValue} label="Crypto Fear & Greed" />
           <div className="insights-gauge-divider" />
-          <GaugeMeter value={fg.market?.value || 0} label="Marches Fear & Greed" />
+          <GaugeMeter value={stockFgValue} label="Marchés Fear & Greed" />
         </div>
         <div className="insights-fg-legend">
           {[
@@ -218,6 +253,19 @@ export default function Insights() {
           ))}
         </div>
       </div>
+
+      {/* Market Summary */}
+      {marketInsight && (
+        <div className="card mb-24">
+          <div className="flex items-center gap-10 mb-16">
+            <Brain size={20} style={{ color: 'var(--accent)' }} />
+            <h3 style={{ margin: 0 }}>Synthèse marché IA</h3>
+          </div>
+          <div className="text-sm" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            {typeof marketInsight === 'string' ? marketInsight : JSON.stringify(marketInsight)}
+          </div>
+        </div>
+      )}
 
       {/* Portfolio Analysis */}
       {analysisLoading ? (

@@ -10,14 +10,38 @@ const router = express.Router();
 
 /**
  * GET /api/market/fear-greed
- * Get the current Crypto Fear & Greed Index.
- * Optional query param: limit (number of historical data points, default 1)
+ * Get both Crypto and Stock Fear & Greed indexes.
+ * Returns: { crypto: { value, label }, stock: { value, label } }
  */
 router.get('/fear-greed', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 1, 365);
-    const data = await marketService.getCryptoFearGreed(limit);
-    res.json(data);
+
+    // Fetch both in parallel
+    const [cryptoData, stockData] = await Promise.allSettled([
+      marketService.getCryptoFearGreed(limit),
+      marketService.getStockFearGreed(),
+    ]);
+
+    const crypto = cryptoData.status === 'fulfilled' ? cryptoData.value : null;
+    const stock = stockData.status === 'fulfilled' ? stockData.value : null;
+
+    res.json({
+      crypto: crypto ? {
+        value: crypto.current.value,
+        label: crypto.current.classification,
+        source: crypto.source,
+      } : { value: null, label: 'Indisponible' },
+      stock: stock ? {
+        value: stock.current.value,
+        label: stock.current.classification,
+        source: stock.source,
+      } : { value: null, label: 'Indisponible' },
+      // Keep legacy fields for backward compatibility
+      current: crypto?.current || null,
+      history: crypto?.history || [],
+      source: crypto?.source || 'unavailable',
+    });
   } catch (error) {
     console.error('[Market] Fear & Greed error:', error.message);
     res.status(500).json({ error: 'Failed to fetch Fear & Greed index', details: error.message });
@@ -26,7 +50,6 @@ router.get('/fear-greed', async (req, res) => {
 
 /**
  * GET /api/market/fear-greed/history?days=30
- * Get historical Fear & Greed data for charting.
  */
 router.get('/fear-greed/history', async (req, res) => {
   try {
@@ -41,7 +64,6 @@ router.get('/fear-greed/history', async (req, res) => {
 
 /**
  * GET /api/market/sentiment
- * Get aggregated market sentiment from multiple sources.
  */
 router.get('/sentiment', async (req, res) => {
   try {

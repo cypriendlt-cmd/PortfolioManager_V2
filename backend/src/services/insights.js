@@ -58,6 +58,9 @@ function buildPrompt(marketData) {
   if (marketData.fearGreed) {
     prompt += `Index Peur & Cupidité Crypto: ${marketData.fearGreed.value}/100 (${marketData.fearGreed.classification})\n`;
   }
+  if (marketData.stockFearGreed) {
+    prompt += `Index Peur & Cupidité Bourse (CNN): ${marketData.stockFearGreed.value}/100 (${marketData.stockFearGreed.classification})\n`;
+  }
   if (marketData.btcPrice) {
     prompt += `Prix Bitcoin: ${marketData.btcPrice} EUR\n`;
   }
@@ -69,6 +72,7 @@ function buildPrompt(marketData) {
   prompt += `1. Un résumé du sentiment de marché actuel (2-3 phrases)\n`;
   prompt += `2. Les principaux points d'attention pour les investisseurs (3 points)\n`;
   prompt += `3. Un conseil général sur la gestion de portefeuille dans ce contexte (1-2 phrases)\n`;
+  prompt += `4. Cite 2-3 sources ou articles récents pertinents liés au marché (nom de la source, sujet abordé)\n`;
   prompt += `\nReste factuel et éducatif. Rappelle que ce n'est pas un conseil d'investissement.`;
 
   return prompt;
