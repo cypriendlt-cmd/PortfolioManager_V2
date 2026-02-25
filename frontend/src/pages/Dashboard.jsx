@@ -242,6 +242,7 @@ export default function Dashboard() {
   }, [])
 
   // Load dashboard-specific compact analysis (independent from Insights page)
+  // Use totals.total as stable dependency to avoid infinite loops
   useEffect(() => {
     if (!portfolio || !totals.total) return
     const portfolioData = {
@@ -256,7 +257,8 @@ export default function Dashboard() {
         if (res.data.synthesis) setAnalysis(res.data)
       })
       .catch(() => {})
-  }, [portfolio, totals])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totals.total])
 
   const [timeRange, setTimeRange] = useState('6m')
   const perfData = buildPortfolioHistory(portfolio, totals, timeRange)
