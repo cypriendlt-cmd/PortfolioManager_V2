@@ -8,3 +8,6 @@ export const analyzePortfolio = (portfolioData) =>
   api.post('/api/insights/analyze', { portfolio: portfolioData })
 
 export const getProviders = () => api.get('/api/insights/providers')
+
+export const getDashboardSummary = (portfolioData) =>
+  api.post('/api/insights/dashboard-summary', { portfolio: portfolioData })

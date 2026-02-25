@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
-import { getInsights } from '../services/insights'
+import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
 import { Link } from 'react-router-dom'
 import './Dashboard.css'
@@ -236,11 +236,27 @@ export default function Dashboard() {
         const data = res.data
         const summary = data.insights?.summary || data.summary || data.content
         if (summary) setInsight(summary)
-        if (data.analysis) setAnalysis(data.analysis)
       })
       .catch(() => {})
       .finally(() => setInsightLoading(false))
   }, [])
+
+  // Load dashboard-specific compact analysis (independent from Insights page)
+  useEffect(() => {
+    if (!portfolio || !totals.total) return
+    const portfolioData = {
+      crypto: portfolio.crypto || [],
+      pea: portfolio.pea || [],
+      livrets: portfolio.livrets || [],
+      fundraising: portfolio.fundraising || [],
+      totals,
+    }
+    getDashboardSummary(portfolioData)
+      .then(res => {
+        if (res.data.synthesis) setAnalysis(res.data)
+      })
+      .catch(() => {})
+  }, [portfolio, totals])
 
   const [timeRange, setTimeRange] = useState('6m')
   const perfData = buildPortfolioHistory(portfolio, totals, timeRange)
@@ -487,7 +503,7 @@ export default function Dashboard() {
               <div className="analysis-icon" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
                 <TrendingUp size={14} />
               </div>
-              <span className="analysis-text">{analysis.synthesis.slice(0, 100)}</span>
+              <span className="analysis-text">{analysis.synthesis}</span>
             </div>
           )}
           {analysis.diversification && (
@@ -495,7 +511,7 @@ export default function Dashboard() {
               <div className="analysis-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
                 <BarChart3 size={14} />
               </div>
-              <span className="analysis-text">{analysis.diversification.slice(0, 100)}</span>
+              <span className="analysis-text">{analysis.diversification}</span>
             </div>
           )}
           {analysis.overexposures && (
@@ -503,7 +519,7 @@ export default function Dashboard() {
               <div className="analysis-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
                 <Shield size={14} />
               </div>
-              <span className="analysis-text">{analysis.overexposures.slice(0, 100)}</span>
+              <span className="analysis-text">{analysis.overexposures}</span>
             </div>
           )}
           {analysis.recommendations && (
@@ -511,7 +527,7 @@ export default function Dashboard() {
               <div className="analysis-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
                 <Lightbulb size={14} />
               </div>
-              <span className="analysis-text">{analysis.recommendations.slice(0, 100)}</span>
+              <span className="analysis-text">{analysis.recommendations}</span>
             </div>
           )}
           <div className="analysis-link">

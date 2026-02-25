@@ -224,7 +224,70 @@ ${portfolioJson}`;
   };
 }
 
+/**
+ * Generate a compact dashboard summary for a portfolio.
+ * Each field must be a single short sentence (max ~15 words).
+ * Completely independent from the detailed Insights page analysis.
+ */
+async function getDashboardSummary(portfolioData) {
+  const portfolioJson = JSON.stringify(portfolioData, null, 2);
+
+  const prompt = `Tu es un expert financier senior. Analyse ce portefeuille et donne un résumé ULTRA COURT pour un dashboard.
+
+RÈGLES STRICTES :
+- Chaque champ = UNE SEULE phrase courte (10-15 mots MAX)
+- Style télégraphique, direct, comme un titre de journal financier
+- Pas de paragraphe, pas de liste, pas de détail
+- Chiffres et % quand pertinent
+- Ton factuel et neutre
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "synthesis": "phrase courte résumant l'état global du portefeuille",
+  "diversification": "phrase courte sur la qualité de diversification",
+  "overexposures": "phrase courte sur les sur/sous-expositions détectées",
+  "recommendations": "phrase courte avec la recommandation prioritaire"
+}
+
+Portefeuille :
+${portfolioJson}`;
+
+  const result = await aiOrchestrator.generateWithFallback(prompt, {
+    systemPrompt: 'Tu es un analyste financier expert. Réponds uniquement en JSON. Sois extrêmement concis.',
+    maxTokens: 300,
+    temperature: 0.5,
+  });
+
+  if (result.content) {
+    try {
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          synthesis: parsed.synthesis || '',
+          diversification: parsed.diversification || '',
+          overexposures: parsed.overexposures || '',
+          recommendations: parsed.recommendations || '',
+          provider: result.provider,
+          generatedAt: new Date().toISOString(),
+        };
+      }
+    } catch {}
+    return {
+      synthesis: result.content.slice(0, 80),
+      diversification: '',
+      overexposures: '',
+      recommendations: '',
+      provider: result.provider,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  return { synthesis: null, provider: 'none' };
+}
+
 module.exports = {
   getDailyInsights,
   analyzePortfolio,
+  getDashboardSummary,
 };

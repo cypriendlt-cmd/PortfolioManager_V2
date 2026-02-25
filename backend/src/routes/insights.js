@@ -120,6 +120,42 @@ router.get('/providers', (req, res) => {
 });
 
 /**
+ * POST /api/insights/dashboard-summary
+ * Generate a compact portfolio summary for the dashboard (independent from full analysis).
+ */
+router.post('/dashboard-summary', async (req, res) => {
+  try {
+    const { portfolio } = req.body;
+    if (!portfolio) {
+      return res.status(400).json({ error: 'Portfolio data is required' });
+    }
+
+    // Check if we have a cached dashboard summary (< 24h)
+    const existing = insightsCache.loadCache() || {};
+    if (existing.dashboardSummary && existing.dashboardSummaryAt) {
+      const age = Date.now() - new Date(existing.dashboardSummaryAt).getTime();
+      if (age < CACHE_TTL_MS) {
+        return res.json({ ...existing.dashboardSummary, cached: true });
+      }
+    }
+
+    const summary = await insightsService.getDashboardSummary(portfolio);
+
+    // Cache it separately from the full analysis
+    insightsCache.saveCache({
+      ...existing,
+      dashboardSummary: summary,
+      dashboardSummaryAt: new Date().toISOString(),
+    });
+
+    res.json({ ...summary, cached: false });
+  } catch (error) {
+    console.error('[Insights] Dashboard summary error:', error.message);
+    res.status(500).json({ error: 'Failed to generate dashboard summary', details: error.message });
+  }
+});
+
+/**
  * POST /api/insights/analyze
  * Analyze a user's portfolio using AI.
  */
