@@ -1,5 +1,10 @@
 /* ===== CRYPTO PAGE ===== */
 
+.animate-fade-in {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .crypto-cards-list {
   display: flex;
   flex-direction: column;
@@ -333,6 +338,18 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.crypto-header-top > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.crypto-header-top .stat-value {
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .crypto-header-actions {
@@ -403,6 +420,10 @@
   .crypto-header-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .crypto-header-top .stat-value {
+    font-size: 1.8rem !important;
   }
 }
 
@@ -487,6 +508,10 @@
   .crypto-header-actions .btn {
     font-size: 0.8rem;
     padding: 6px 10px;
+  }
+
+  .crypto-header-top .stat-value {
+    font-size: 1.5rem !important;
   }
 }
 
