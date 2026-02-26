@@ -69,10 +69,24 @@ export default function Settings() {
         const regs = await navigator.serviceWorker.getRegistrations()
         await Promise.all(regs.map(r => r.unregister()))
       }
-      setCacheCleared(true)
-      setTimeout(() => setCacheCleared(false), 3000)
+      // Clear all localStorage (auth tokens, API keys, cached data)
+      localStorage.clear()
+      // Clear sessionStorage
+      sessionStorage.clear()
+      // Clear cookies
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/'
+      })
+      // Revoke Google token if gapi loaded
+      try {
+        const token = window.gapi?.client?.getToken()
+        if (token) window.google?.accounts?.oauth2?.revoke(token.access_token)
+      } catch {}
+      // Force full reload (bypass cache)
+      window.location.reload()
     } catch (e) {
       console.error('Cache clear error:', e)
+      window.location.reload()
     }
   }
 
