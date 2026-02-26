@@ -44,8 +44,8 @@
  */
 
 const EMAILJS_SERVICE_ID = 'service_portfoliomgr'
-const EMAILJS_TEMPLATE_ID = 'template_bug_report'
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY'
+const EMAILJS_TEMPLATE_ID = 'template_8b0lavl'
+const EMAILJS_PUBLIC_KEY = 'ibeVRoEC4GclrLDRE'
 
 const EMAILJS_API_URL = 'https://api.emailjs.com/api/v1.0/email/send'
 
