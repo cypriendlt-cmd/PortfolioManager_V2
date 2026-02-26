@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2 } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info } from 'lucide-react'
+import packageJson from '../../package.json'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
@@ -53,6 +54,27 @@ export default function Settings() {
   const [corsProxyTest, setCorsProxyTest] = useState(null) // null | 'testing' | 'ok' | 'error'
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission())
   const notifSupported = isNotificationSupported()
+
+  const [cacheCleared, setCacheCleared] = useState(false)
+
+  const handleClearCache = async () => {
+    try {
+      // Clear SW caches
+      if ('caches' in window) {
+        const names = await caches.keys()
+        await Promise.all(names.map(name => caches.delete(name)))
+      }
+      // Unregister SW so it re-installs fresh
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map(r => r.unregister()))
+      }
+      setCacheCleared(true)
+      setTimeout(() => setCacheCleared(false), 3000)
+    } catch (e) {
+      console.error('Cache clear error:', e)
+    }
+  }
 
   // Bug report form
   const [reportType, setReportType] = useState('bug')
@@ -424,9 +446,20 @@ export default function Settings() {
             <Upload size={16} /> Importer des données
             <input type="file" accept=".json" style={{ display: 'none' }} />
           </label>
+          <button className="btn btn-ghost" onClick={handleClearCache} style={{ color: 'var(--danger)' }}>
+            {cacheCleared ? <><Check size={16} /> Cache vidé</> : <><Trash2 size={16} /> Vider le cache</>}
+          </button>
         </div>
         <p className="text-xs text-muted mt-12">Les données sont stockées sur votre Google Drive personnel.</p>
       </Section>
+
+      {/* Version */}
+      <div style={{ textAlign: 'center', padding: '8px 0' }}>
+        <span className="text-xs text-muted">
+          <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          PortfolioManager v{packageJson.version}
+        </span>
+      </div>
 
       {/* Report Bug / FAQ */}
       <Section title="Signaler un bug / FAQ" icon={MessageSquare}>
