@@ -4,7 +4,7 @@
  */
 
 export function isNotificationSupported() {
-  return 'Notification' in window && 'serviceWorker' in navigator
+  return 'Notification' in window
 }
 
 export function getNotificationPermission() {
@@ -14,33 +14,58 @@ export function getNotificationPermission() {
 
 export async function requestPermission() {
   if (!('Notification' in window)) return 'unsupported'
-  return Notification.requestPermission()
+  try {
+    const result = await Notification.requestPermission()
+    // Some browsers return undefined for already-granted; read directly
+    return result || Notification.permission
+  } catch {
+    return Notification.permission
+  }
 }
 
 export async function showNotification(title, options = {}) {
-  if (Notification.permission !== 'granted') return false
+  if (Notification.permission !== 'granted') {
+    console.warn('[Notifications] Permission not granted:', Notification.permission)
+    return false
+  }
+
+  // Try ServiceWorker first (required for mobile/PWA)
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 2000)),
+      ])
+      await reg.showNotification(title, {
+        icon: './icons/icon-192x192.png',
+        badge: './icons/icon-192x192.png',
+        ...options,
+      })
+      return true
+    } catch (e) {
+      console.warn('[Notifications] SW showNotification failed, using fallback:', e.message)
+    }
+  }
+
+  // Fallback: basic Notification constructor (works on desktop)
   try {
-    const reg = await navigator.serviceWorker.ready
-    await reg.showNotification(title, {
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
+    new Notification(title, {
+      icon: './icons/icon-192x192.png',
       ...options,
     })
     return true
-  } catch {
-    // Fallback to basic Notification if SW not available
-    try {
-      new Notification(title, options)
-      return true
-    } catch {
-      return false
-    }
+  } catch (e) {
+    console.error('[Notifications] Fallback Notification also failed:', e)
+    return false
   }
 }
 
 export async function testNotification() {
   const perm = await requestPermission()
-  if (perm !== 'granted') return false
+  if (perm !== 'granted') {
+    console.warn('[Notifications] Permission denied after request:', perm)
+    return false
+  }
   return showNotification('PortfolioManager - Test', {
     body: 'Les notifications fonctionnent correctement !',
     tag: 'test-notification',
