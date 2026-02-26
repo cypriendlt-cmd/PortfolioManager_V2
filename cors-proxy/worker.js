@@ -69,7 +69,8 @@ export default {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/html, */*',
       }
-      const apiKey = request.headers.get('X-MBX-APIKEY')
+      // Accept API key via header OR query param (query param avoids CORS preflight)
+      const apiKey = request.headers.get('X-MBX-APIKEY') || url.searchParams.get('apikey')
       if (apiKey) forwardHeaders['X-MBX-APIKEY'] = apiKey
 
       const response = await fetch(targetUrl, { headers: forwardHeaders })

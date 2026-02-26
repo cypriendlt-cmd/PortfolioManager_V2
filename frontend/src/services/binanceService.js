@@ -30,10 +30,10 @@ async function binanceFetch(endpoint, apiKey, apiSecret, params = {}) {
   queryParams.append('signature', signature)
 
   const url = `${BINANCE_BASE}${endpoint}?${queryParams.toString()}`
-  const proxyUrl = `${proxy}?url=${encodeURIComponent(url)}`
+  // Pass API key as query param to proxy to avoid CORS preflight issues with custom headers
+  const proxyUrl = `${proxy}?apikey=${encodeURIComponent(apiKey)}&url=${encodeURIComponent(url)}`
 
   const res = await fetch(proxyUrl, {
-    headers: { 'X-MBX-APIKEY': apiKey },
     signal: AbortSignal.timeout(15000),
   })
 
@@ -89,10 +89,12 @@ export async function fetchBinanceBalances(apiKey, apiSecret) {
 export async function syncBinanceToPortfolio(apiKey, apiSecret) {
   const balances = await fetchBinanceBalances(apiKey, apiSecret)
 
-  // Filter out stablecoins and very small dust
+  // Filter out stablecoins, Binance earn/launchpool tokens (LD*), and dust
   const meaningful = balances.filter(b => {
-    const dust = ['USDT', 'BUSD', 'USDC', 'EUR', 'USD', 'GBP', 'FDUSD', 'TUSD']
-    if (dust.includes(b.asset) && b.total < 1) return false
+    // Skip Binance-specific non-tradeable tokens (launchpool, earn, wrapped internal)
+    if (/^(LD|BETH$|WBETH$|BETH$)/.test(b.asset)) return false
+    const stables = ['USDT', 'BUSD', 'USDC', 'EUR', 'USD', 'GBP', 'FDUSD', 'TUSD', 'DAI', 'USDP']
+    if (stables.includes(b.asset) && b.total < 1) return false
     return b.total > 0.00001
   })
 

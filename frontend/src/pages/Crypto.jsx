@@ -445,6 +445,7 @@ export default function Crypto() {
     try {
       const balances = await syncBinanceToPortfolio(apiKey, apiSecret)
       let added = 0, updated = 0
+      const delay = (ms) => new Promise(r => setTimeout(r, ms))
       for (const bal of balances) {
         // Try to find matching crypto by symbol
         const existing = portfolio.crypto.find(c => c.symbol?.toUpperCase() === bal.asset.toUpperCase())
@@ -455,10 +456,11 @@ export default function Crypto() {
             updated++
           }
         } else {
-          // Search CoinGecko for this asset to get coingeckoId
+          // Search CoinGecko for this asset to get coingeckoId (with rate limit delay)
           try {
+            await delay(1500)
             const results = await searchCoinGecko(bal.asset)
-            const match = results.find(r => r.symbol === bal.asset)
+            const match = results.find(r => r.symbol?.toUpperCase() === bal.asset.toUpperCase())
             if (match) {
               addCrypto({
                 name: match.name,

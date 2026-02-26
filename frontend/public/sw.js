@@ -18,9 +18,10 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network-first strategy for API calls, cache-first for assets
+  // Only cache GET requests; skip API calls, auth, and non-GET methods (PATCH, POST, etc.)
+  if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api/') || event.request.url.includes('/auth/')) {
-    return; // Let network handle API requests
+    return;
   }
 
   event.respondWith(

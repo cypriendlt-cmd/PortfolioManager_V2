@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info } from 'lucide-react'
 import packageJson from '../../package.json'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
+import { loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
 import {
   isNotificationSupported, getNotificationPermission,
   requestPermission, testNotification
@@ -50,6 +51,22 @@ export default function Settings() {
   const notifSupported = isNotificationSupported()
 
   const [cacheCleared, setCacheCleared] = useState(false)
+
+  // Load Binance keys from Drive on mount (restores after cache clear)
+  useEffect(() => {
+    if (!driveConnected) return
+    loadFileFromDrive('secrets.json').then(data => {
+      if (!data) return
+      if (data.binanceKey && !binanceKey) {
+        setBinanceKey(data.binanceKey)
+        localStorage.setItem(BINANCE_KEY_STORAGE, data.binanceKey)
+      }
+      if (data.binanceSecret && !binanceSecret) {
+        setBinanceSecret(data.binanceSecret)
+        localStorage.setItem(BINANCE_SECRET_STORAGE, data.binanceSecret)
+      }
+    }).catch(() => {})
+  }, [driveConnected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClearCache = async () => {
     try {
@@ -117,9 +134,20 @@ export default function Settings() {
     }
   }
 
-  const handleSave = () => {
-    localStorage.setItem(BINANCE_KEY_STORAGE, binanceKey.trim())
-    localStorage.setItem(BINANCE_SECRET_STORAGE, binanceSecret.trim())
+  const handleSave = async () => {
+    const key = binanceKey.trim()
+    const secret = binanceSecret.trim()
+    localStorage.setItem(BINANCE_KEY_STORAGE, key)
+    localStorage.setItem(BINANCE_SECRET_STORAGE, secret)
+    // Persist to Drive so keys survive cache clears
+    if (driveConnected) {
+      try {
+        const existing = await loadFileFromDrive('secrets.json').catch(() => null)
+        await saveFileToDrive('secrets.json', { ...existing, binanceKey: key, binanceSecret: secret })
+      } catch (e) {
+        console.warn('Failed to save keys to Drive:', e.message)
+      }
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }

@@ -215,17 +215,40 @@ export async function fetchStockPrices(isins) {
 // ---------------------------------------------------------------------------
 
 export async function searchCoinGecko(query) {
-  const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-  if (!res.ok) throw new Error(`CoinGecko search HTTP ${res.status}`)
-  const json = await res.json()
-  return (json.coins || []).slice(0, 10).map(c => ({
-    id: c.id,
-    name: c.name,
-    symbol: c.symbol?.toUpperCase(),
-    thumb: c.thumb,
-    marketCapRank: c.market_cap_rank,
-  }))
+  // Try CoinGecko first
+  try {
+    const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (res.ok) {
+      const json = await res.json()
+      const results = (json.coins || []).slice(0, 10).map(c => ({
+        id: c.id,
+        name: c.name,
+        symbol: c.symbol?.toUpperCase(),
+        thumb: c.thumb,
+        marketCapRank: c.market_cap_rank,
+      }))
+      if (results.length > 0) return results
+    }
+  } catch {}
+
+  // Fallback: CoinCap API (free, CORS-friendly)
+  try {
+    const url = `https://api.coincap.io/v2/assets?search=${encodeURIComponent(query)}&limit=10`
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) throw new Error(`CoinCap HTTP ${res.status}`)
+    const json = await res.json()
+    return (json.data || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      symbol: c.symbol?.toUpperCase(),
+      thumb: null,
+      marketCapRank: c.rank ? parseInt(c.rank) : null,
+      _source: 'coincap',
+    }))
+  } catch {}
+
+  return []
 }
 
 export async function fetchCryptoPrices(coinIds) {
@@ -236,45 +259,79 @@ export async function fetchCryptoPrices(coinIds) {
 
   if (cached && coinIds.every(id => cached[id])) return cached
 
+  // Separate CoinGecko IDs from CoinCap IDs (CoinCap assets added via fallback search)
+  const result = {}
+
+  // Try CoinGecko first for all IDs
   try {
     const ids = coinIds.join(',')
     const url = `${COINGECKO_BASE}/coins/markets?vs_currency=eur&ids=${encodeURIComponent(ids)}&order=market_cap_desc&per_page=250&sparkline=false&price_change_percentage=24h`
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
 
     if (res.status === 429) {
-      console.warn('CoinGecko rate limit hit, using cache')
-      return cachedAll
-    }
-    if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`)
-
-    const data = await res.json()
-    const result = {}
-    for (const coin of data) {
-      result[coin.id] = {
-        currentPrice: coin.current_price,
-        change24h: coin.price_change_percentage_24h,
-        high24h: coin.high_24h,
-        low24h: coin.low_24h,
-        marketCap: coin.market_cap,
-        volume: coin.total_volume,
-        name: coin.name,
-        symbol: coin.symbol?.toUpperCase(),
-        image: coin.image,
-        lastUpdated: coin.last_updated || new Date().toISOString(),
+      console.warn('CoinGecko rate limit hit, trying CoinCap fallback')
+    } else if (res.ok) {
+      const data = await res.json()
+      for (const coin of data) {
+        result[coin.id] = {
+          currentPrice: coin.current_price,
+          change24h: coin.price_change_percentage_24h,
+          high24h: coin.high_24h,
+          low24h: coin.low_24h,
+          marketCap: coin.market_cap,
+          volume: coin.total_volume,
+          name: coin.name,
+          symbol: coin.symbol?.toUpperCase(),
+          image: coin.image,
+          lastUpdated: coin.last_updated || new Date().toISOString(),
+        }
       }
     }
-
-    const merged = { ...cachedAll, ...result }
-    writeCache(CACHE_KEY_CRYPTO, merged)
-    return result
   } catch (err) {
-    console.warn('CoinGecko fetch failed, using stale cache:', err.message)
-    const stale = {}
-    for (const id of coinIds) {
-      if (cachedAll[id]) stale[id] = { ...cachedAll[id], stale: true }
-    }
-    return stale
+    console.warn('CoinGecko fetch failed:', err.message)
   }
+
+  // Fallback: fetch missing IDs from CoinCap
+  const missing = coinIds.filter(id => !result[id] && !cachedAll[id])
+  if (missing.length > 0) {
+    for (const id of missing) {
+      try {
+        const res = await fetch(`https://api.coincap.io/v2/assets/${id}`, { signal: AbortSignal.timeout(8000) })
+        if (res.ok) {
+          const json = await res.json()
+          const d = json.data
+          if (d && d.priceUsd) {
+            // CoinCap returns USD — approximate EUR (rough 0.92 rate)
+            const eurRate = 0.92
+            result[id] = {
+              currentPrice: parseFloat(d.priceUsd) * eurRate,
+              change24h: d.changePercent24Hr ? parseFloat(d.changePercent24Hr) : null,
+              high24h: null,
+              low24h: null,
+              marketCap: d.marketCapUsd ? parseFloat(d.marketCapUsd) * eurRate : null,
+              volume: d.volumeUsd24Hr ? parseFloat(d.volumeUsd24Hr) * eurRate : null,
+              name: d.name,
+              symbol: d.symbol?.toUpperCase(),
+              image: null,
+              lastUpdated: new Date().toISOString(),
+              _approximate: true,
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  // Use stale cache for anything still missing
+  for (const id of coinIds) {
+    if (!result[id] && cachedAll[id]) {
+      result[id] = { ...cachedAll[id], stale: true }
+    }
+  }
+
+  const merged = { ...cachedAll, ...result }
+  writeCache(CACHE_KEY_CRYPTO, merged)
+  return result
 }
 
 export function getCachedCryptoPrices() {
