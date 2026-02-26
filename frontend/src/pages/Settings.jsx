@@ -17,10 +17,11 @@ const HF_KEY_STORAGE = 'pm_hf_api_key'
 const CORS_PROXY_KEY = 'pm_cors_proxy_url'
 
 const THEME_META = {
-  crimson: { label: 'Crimson', colors: ['#0f0a0a', '#dc2626', '#faf5f5'] },
-  rose: { label: 'Rosé', colors: ['#120a0e', '#e11d48', '#fdf2f8'] },
-  burgundy: { label: 'Burgundy', colors: ['#0d0808', '#a21c2d', '#faf6f6'] },
-  ember: { label: 'Ember', colors: ['#0f0a05', '#ea580c', '#fff7ed'] },
+  crimson: { label: 'Crimson', colors: ['#0f1729', '#dc2626', '#f1f5f9'] },
+  ocean: { label: 'Ocean', colors: ['#0a1628', '#2563eb', '#f0f4f8'] },
+  slate: { label: 'Slate', colors: ['#111318', '#64748b', '#f8f9fa'] },
+  amethyst: { label: 'Amethyst', colors: ['#0e0f1a', '#8b5cf6', '#f5f3ff'] },
+  teal: { label: 'Teal', colors: ['#0a1a1e', '#06b6d4', '#f0fdfa'] },
 }
 
 function Section({ title, icon: Icon, children }) {
