@@ -25,9 +25,17 @@ export function BetaProvider({ children }) {
     setIsBeta(prev => {
       const next = !prev
       localStorage.setItem('pm_beta_mode', String(next))
+      // Persist to Drive so reload doesn't revert
+      if (user && accessToken && gapiReady) {
+        saveFileToDrive('user-profile.json', {
+          version: 1,
+          preferences: { betaEnabled: next },
+          financeProfile: userProfile || EMPTY_PROFILE,
+        }).catch(() => {})
+      }
       return next
     })
-  }, [])
+  }, [user, accessToken, gapiReady, userProfile])
 
   // Load profile from Drive on login
   useEffect(() => {

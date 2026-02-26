@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { usePortfolio } from '../context/PortfolioContext'
 import { usePriceRefresh } from '../hooks/usePriceRefresh'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { searchISIN } from '../services/priceService'
 import './PEA.css'
 
@@ -194,6 +195,7 @@ function PerformanceChart({ asset }) {
 
 /* ===== Accordion Card ===== */
 function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDeleteMovement }) {
+  const { m, mp } = usePrivacyMask()
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
   const totalInvested = asset.buyPrice * asset.quantity
@@ -213,12 +215,12 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
         <div className="pea-card-middle">
           <span>{asset.quantity} x {fmt(current)}</span>
           <span style={{ margin: '0 4px' }}>=</span>
-          <span className="pea-total-value">{fmt(totalValue)}</span>
+          <span className="pea-total-value">{m(fmt(totalValue))}</span>
         </div>
         <div className="pea-card-right">
           <span className={`badge ${gain >= 0 ? 'badge-success' : 'badge-danger'}`}>
             {gain >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-            {fmt(gain)} ({fmtPct(gainPct)})
+            {m(fmt(gain))} ({mp(fmtPct(gainPct))})
           </span>
           <div className="pea-card-chevron">
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -230,22 +232,22 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
       <div className="pea-card-summary">
         <div className="pea-summary-item">
           <span className="pea-summary-label">Investi</span>
-          <span className="pea-summary-value">{fmt(totalInvested)}</span>
+          <span className="pea-summary-value">{m(fmt(totalInvested))}</span>
         </div>
         <div className="pea-summary-item">
           <span className="pea-summary-label">Valeur actuelle</span>
-          <span className="pea-summary-value font-semibold">{fmt(totalValue)}</span>
+          <span className="pea-summary-value font-semibold">{m(fmt(totalValue))}</span>
         </div>
         <div className="pea-summary-item">
           <span className="pea-summary-label">+/- value</span>
           <span className={`pea-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
-            {gain >= 0 ? '+' : ''}{fmt(gain)}
+            {m(`${gain >= 0 ? '+' : ''}${fmt(gain)}`)}
           </span>
         </div>
         <div className="pea-summary-item">
           <span className="pea-summary-label">Performance</span>
           <span className={`pea-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
-            {fmtPct(gainPct)}
+            {mp(fmtPct(gainPct))}
           </span>
         </div>
       </div>
@@ -312,7 +314,7 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                           <td className="font-mono">{mv.quantity}</td>
                           <td className="font-mono">{fmt(mv.price)}</td>
                           <td className="font-mono pea-col-fees">{fmt(mv.fees || 0)}</td>
-                          <td className="font-mono font-semibold pea-col-total">{fmt(total)}</td>
+                          <td className="font-mono font-semibold pea-col-total">{m(fmt(total))}</td>
                           <td>
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
                               <Trash2 size={12} />
@@ -346,6 +348,7 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
 export default function PEA() {
   const { portfolio, totals, addPea, deletePea, addPeaMovement, deletePeaMovement, pricesLastUpdated } = usePortfolio()
   const { isRefreshing, refreshNow } = usePriceRefresh()
+  const { m, mp } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
 
@@ -360,13 +363,13 @@ export default function PEA() {
         <div className="pea-header-top">
           <div>
             <p className="stat-label">Valeur totale PEA</p>
-            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{fmt(totals.pea)}</p>
+            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{m(fmt(totals.pea))}</p>
             <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
               <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
                 {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {fmt(totalGain)} ({fmtPct(totalGainPct)})
+                {m(fmt(totalGain))} ({mp(fmtPct(totalGainPct))})
               </span>
-              <span className="text-sm text-muted">Investi: {fmt(totalInvested)}</span>
+              <span className="text-sm text-muted">Investi: {m(fmt(totalInvested))}</span>
             </div>
           </div>
           <div className="pea-header-actions">

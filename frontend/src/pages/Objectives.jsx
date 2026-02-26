@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, X, Target, Trash2, Edit2 } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -73,6 +74,7 @@ function getStatus(obj) {
 
 export default function Objectives() {
   const { portfolio, addObjective, deleteObjective, updateObjective } = usePortfolio()
+  const { m } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
 
   const totalTarget = portfolio.objectives.reduce((s, o) => s + o.targetAmount, 0)
@@ -85,7 +87,7 @@ export default function Objectives() {
           <div className="flex items-center justify-between">
             <div>
               <p className="stat-label">Progression globale des objectifs</p>
-              <p className="stat-value" style={{ fontSize: '2rem', marginTop: 4 }}>{fmt(totalCurrent)} <span className="text-muted text-lg">/ {fmt(totalTarget)}</span></p>
+              <p className="stat-value" style={{ fontSize: '2rem', marginTop: 4 }}>{m(fmt(totalCurrent))} <span className="text-muted text-lg">/ {m(fmt(totalTarget))}</span></p>
               <div className="progress-bar mt-16" style={{ height: 10 }}>
                 <div className="progress-fill" style={{ width: `${Math.min((totalCurrent / totalTarget) * 100, 100)}%`, background: 'var(--accent)' }} />
               </div>
@@ -129,8 +131,8 @@ export default function Objectives() {
               </div>
 
               <div className="flex justify-between mb-8">
-                <span className="text-xl font-bold">{fmt(obj.currentAmount)}</span>
-                <span className="text-muted text-sm">{fmt(obj.targetAmount)}</span>
+                <span className="text-xl font-bold">{m(fmt(obj.currentAmount))}</span>
+                <span className="text-muted text-sm">{m(fmt(obj.targetAmount))}</span>
               </div>
 
               <div className="progress-bar mb-8" style={{ height: 10 }}>
@@ -139,7 +141,7 @@ export default function Objectives() {
 
               <div className="flex justify-between">
                 <span className="text-xs text-muted">{pct.toFixed(1)}% atteint</span>
-                <span className="text-xs text-muted">Reste: {fmt(Math.max(remaining, 0))}</span>
+                <span className="text-xs text-muted">Reste: {m(fmt(Math.max(remaining, 0)))}</span>
               </div>
             </div>
           )

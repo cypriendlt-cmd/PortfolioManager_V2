@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react'
 import { Plus, X, PiggyBank, Trash2, ChevronDown, ChevronUp, TrendingUp, Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { useBank } from '../context/BankContext'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { calculateInterestYTD, calculateInterestAnnualEstimate } from '../services/interestEngine'
 import { getCurrentRate } from '../services/rateProvider'
+import { Link } from 'react-router-dom'
 
 const LIVRET_TYPES = {
   'livret-a': { label: 'Livret A', max: 22950, color: '#3b82f6' },
@@ -108,8 +111,14 @@ function MovementForm({ livretId, onAdd }) {
 
 export default function Livrets() {
   const { portfolio, totals, addLivret, deleteLivret, addLivretMovement, deleteLivretMovement } = usePortfolio()
+  const bankCtx = useBank()
+  const { m } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
+
+  // Bank livrets (from imported Excel)
+  const bankLivrets = (bankCtx?.accountBalances || []).filter(a => a.type !== 'courant')
+  const bankLivretsTotal = bankLivrets.reduce((s, a) => s + a.balance, 0)
 
   const interestData = useMemo(() => {
     const data = {}
@@ -131,21 +140,21 @@ export default function Livrets() {
       <div className="grid grid-3 mb-24 gap-20">
         <div className="stat-card">
           <p className="stat-label">Total epargne reglementee</p>
-          <p className="stat-value" style={{ fontSize: '1.75rem', marginTop: 4 }}>{fmt(totals.livrets)}</p>
+          <p className="stat-value" style={{ fontSize: '1.75rem', marginTop: 4 }}>{m(fmt(totals.livrets))}</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-8 mb-4">
             <TrendingUp size={16} style={{ color: 'var(--success)' }} />
             <p className="stat-label" style={{ margin: 0 }}>Interets annuels estimes</p>
           </div>
-          <p className="stat-value text-success">{fmt(totalAnnualEstimate)}</p>
+          <p className="stat-value text-success">{m(fmt(totalAnnualEstimate))}</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-8 mb-4">
             <Calendar size={16} style={{ color: 'var(--accent)' }} />
             <p className="stat-label" style={{ margin: 0 }}>Interets YTD</p>
           </div>
-          <p className="stat-value">{fmt(totalYTD)}</p>
+          <p className="stat-value">{m(fmt(totalYTD))}</p>
         </div>
       </div>
 
@@ -193,7 +202,7 @@ export default function Livrets() {
               {/* Balance + progress */}
               <div className="mb-16">
                 <div className="flex justify-between mb-8">
-                  <span className="text-2xl font-bold">{fmt(l.balance)}</span>
+                  <span className="text-2xl font-bold">{m(fmt(l.balance))}</span>
                   {info.max > 0 && <span className="text-sm text-muted">/ {fmt(info.max)}</span>}
                 </div>
                 {info.max > 0 && (
@@ -207,15 +216,15 @@ export default function Livrets() {
               <div className="grid grid-3 gap-12 mb-12">
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '10px 14px' }}>
                   <div className="text-xs text-muted mb-4">Interets YTD</div>
-                  <div className="font-semibold text-success">{fmt(ytd)}</div>
+                  <div className="font-semibold text-success">{m(fmt(ytd))}</div>
                 </div>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '10px 14px' }}>
                   <div className="text-xs text-muted mb-4">Estimation annuelle</div>
-                  <div className="font-semibold text-success">{fmt(annual)}</div>
+                  <div className="font-semibold text-success">{m(fmt(annual))}</div>
                 </div>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '10px 14px' }}>
                   <div className="text-xs text-muted mb-4">Moy. / quinzaine</div>
-                  <div className="font-semibold text-success">{fmt(annual / 24)}</div>
+                  <div className="font-semibold text-success">{m(fmt(annual / 24))}</div>
                 </div>
               </div>
 
@@ -250,7 +259,7 @@ export default function Livrets() {
                           </div>
                           <div className="flex items-center gap-8">
                             <span className="text-sm font-semibold" style={{ color: mv.amount > 0 ? 'var(--success)' : 'var(--danger)' }}>
-                              {mv.amount > 0 ? '+' : ''}{fmt(mv.amount)}
+                              {m(`${mv.amount > 0 ? '+' : ''}${fmt(mv.amount)}`)}
                             </span>
                             <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteLivretMovement(l.id, idx)}>
                               <Trash2 size={12} />
@@ -279,9 +288,9 @@ export default function Livrets() {
                         {byQuinzaine.map((q, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '4px 8px' }}>{fmtDate(q.start)} - {fmtDate(q.end)}</td>
-                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{fmt(q.balance)}</td>
+                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{m(fmt(q.balance))}</td>
                             <td style={{ padding: '4px 8px', textAlign: 'right' }}>{fmtPct(q.rate)}</td>
-                            <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--success)' }}>{fmt(q.interest)}</td>
+                            <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--success)' }}>{m(fmt(q.interest))}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -304,6 +313,39 @@ export default function Livrets() {
           </div>
         )}
       </div>
+
+      {/* ═══ Bank Livrets (imported from Excel) ═══ */}
+      {bankLivrets.length > 0 && (
+        <>
+          <div style={{ marginTop: 32, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Livrets importés (relevés bancaires)</h3>
+            <Link to="/banking" className="btn btn-ghost" style={{ fontSize: '0.8rem' }}>Voir détails →</Link>
+          </div>
+          <div className="grid grid-3 mb-24 gap-20">
+            <div className="stat-card">
+              <p className="stat-label">Total livrets importés</p>
+              <p className="stat-value" style={{ fontSize: '1.5rem', marginTop: 4 }}>{m(fmt(bankLivretsTotal))}</p>
+            </div>
+          </div>
+          <div className="grid grid-2 gap-20">
+            {bankLivrets.map(a => (
+              <div key={a.id} className="card" style={{ borderTop: '3px solid var(--accent)' }}>
+                <div className="flex items-center gap-12 mb-16">
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PiggyBank size={20} />
+                  </div>
+                  <div>
+                    <div className="font-semibold">{a.alias}</div>
+                    <div className="text-sm text-muted">{a.type}</div>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>{m(fmt(a.balance))}</div>
+                <div className="text-xs text-muted" style={{ marginTop: 4 }}>{a.txCount} mouvements importés</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {showModal && <AddLivretModal onClose={() => setShowModal(false)} onAdd={addLivret} />}
     </div>

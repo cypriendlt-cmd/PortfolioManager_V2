@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
 } from 'recharts'
 import { useBank } from '../context/BankContext'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { CATEGORIES } from '../services/bankEngine'
 import BankImportModal from '../components/BankImportModal'
 import './Banking.css'
@@ -31,6 +32,7 @@ export default function Banking() {
     importExcel, addRule, deleteRule,
     setInitialBalance, refreshCategories,
   } = useBank()
+  const { m, mp } = usePrivacyMask()
   const [tab, setTab] = useState('synthese')
   const [importOpen, setImportOpen] = useState(false)
 
@@ -55,10 +57,10 @@ export default function Banking() {
         ))}
       </div>
 
-      {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} />}
-      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} />}
-      {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} />}
-      {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} />}
+      {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} m={m} mp={mp} />}
+      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} m={m} />}
+      {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} m={m} />}
+      {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} m={m} />}
       {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} />}
 
       <BankImportModal open={importOpen} onClose={() => setImportOpen(false)} />
@@ -67,7 +69,7 @@ export default function Banking() {
 }
 
 /* ─── SYNTHESE ─── */
-function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights }) {
+function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights, m, mp }) {
   const courants = accountBalances.filter(a => a.type === 'courant')
   const livrets = accountBalances.filter(a => a.type !== 'courant')
   const totalCourant = courants.reduce((s, a) => s + a.balance, 0)
@@ -82,11 +84,11 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights }
       <div className="bank-accounts-grid">
         <div className="bank-account-card">
           <div className="account-type">Total Comptes Courants</div>
-          <div className="account-balance" style={{ color: totalCourant >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fmt(totalCourant)}</div>
+          <div className="account-balance" style={{ color: totalCourant >= 0 ? 'var(--success)' : 'var(--danger)' }}>{m(fmt(totalCourant))}</div>
         </div>
         <div className="bank-account-card">
           <div className="account-type">Total Livrets</div>
-          <div className="account-balance" style={{ color: 'var(--accent)' }}>{fmt(totalLivrets)}</div>
+          <div className="account-balance" style={{ color: 'var(--accent)' }}>{m(fmt(totalLivrets))}</div>
         </div>
         <div className="bank-account-card">
           <div className="account-type">Taux d'épargne</div>
@@ -126,7 +128,7 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights }
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: catMap[e.category]?.color || '#94a3b8' }} />
                 {catMap[e.category]?.label || e.category}
               </span>
-              <span style={{ fontWeight: 600 }}>{fmt(e.total)}</span>
+              <span style={{ fontWeight: 600 }}>{m(fmt(e.total))}</span>
             </div>
           ))}
         </div>
@@ -136,7 +138,7 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights }
 }
 
 /* ─── COMPTE COURANT ─── */
-function CourantTab({ bankHistory, accountBalances, setInitialBalance }) {
+function CourantTab({ bankHistory, accountBalances, setInitialBalance, m }) {
   const [monthFilter, setMonthFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -167,7 +169,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance }) {
           <div key={a.id} className="bank-account-card">
             <div className="account-type">Courant</div>
             <div className="account-alias">{a.alias}</div>
-            <div className="account-balance" style={{ color: a.balance >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fmt(a.balance)}</div>
+            <div className="account-balance" style={{ color: a.balance >= 0 ? 'var(--success)' : 'var(--danger)' }}>{m(fmt(a.balance))}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{a.txCount} transactions</div>
             <div className="balance-input-row">
               <input placeholder="Solde initial" value={balanceInput} onChange={e => setBalanceInput(e.target.value)} />
@@ -212,7 +214,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance }) {
                   </span>
                 </td>
                 <td style={{ textAlign: 'right' }}>
-                  <span className={`tx-amount ${tx.amount >= 0 ? 'positive' : 'negative'}`}>{fmtD(tx.amount)}</span>
+                  <span className={`tx-amount ${tx.amount >= 0 ? 'positive' : 'negative'}`}>{m(fmtD(tx.amount))}</span>
                 </td>
               </tr>
             ))}
@@ -226,7 +228,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance }) {
 }
 
 /* ─── LIVRETS BANCAIRES ─── */
-function LivretsTab({ bankHistory, accountBalances, setInitialBalance }) {
+function LivretsTab({ bankHistory, accountBalances, setInitialBalance, m }) {
   const [balanceInput, setBalanceInput] = useState('')
   const livretAccounts = accountBalances.filter(a => a.type !== 'courant')
 
@@ -250,7 +252,7 @@ function LivretsTab({ bankHistory, accountBalances, setInitialBalance }) {
           <div key={a.id} className="bank-account-card">
             <div className="account-type">{a.type}</div>
             <div className="account-alias">{a.alias}</div>
-            <div className="account-balance" style={{ color: 'var(--accent)' }}>{fmt(a.balance)}</div>
+            <div className="account-balance" style={{ color: 'var(--accent)' }}>{m(fmt(a.balance))}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{a.txCount} mouvements</div>
             <div className="balance-input-row">
               <input placeholder="Solde initial" value={balanceInput} onChange={e => setBalanceInput(e.target.value)} />
@@ -286,7 +288,7 @@ function LivretsTab({ bankHistory, accountBalances, setInitialBalance }) {
 }
 
 /* ─── ANALYSE IA ─── */
-function AnalyseTab({ healthScore, coachInsights, aggregates }) {
+function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
   if (!coachInsights) {
     return <p style={{ color: 'var(--text-muted)', padding: 20 }}>Importez des transactions pour obtenir une analyse.</p>
   }
@@ -312,7 +314,7 @@ function AnalyseTab({ healthScore, coachInsights, aggregates }) {
       <div className="bank-insights-grid">
         <div className="bank-insight-card">
           <h4><AlertTriangle size={14} style={{ color: 'var(--danger)' }} /> Frais bancaires détectés</h4>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>{fmt(coachInsights.fees.total)}</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>{m(fmt(coachInsights.fees.total))}</div>
           {coachInsights.fees.items.slice(0, 5).map((f, i) => (
             <div key={i} style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
               <span style={{ color: 'var(--text-muted)' }}>{f.label.slice(0, 40)}</span>

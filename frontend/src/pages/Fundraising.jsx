@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, X, Rocket, Trash2 } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n)
 const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR')
@@ -61,6 +62,7 @@ function AddFundraisingModal({ onClose, onAdd }) {
 
 export default function Fundraising() {
   const { portfolio, totals, addFundraising, deleteFundraising } = usePortfolio()
+  const { m } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
 
   return (
@@ -69,7 +71,7 @@ export default function Fundraising() {
         <div className="flex items-center justify-between">
           <div>
             <p className="stat-label">Total investi — Levées de fonds</p>
-            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{fmt(totals.fundraising)}</p>
+            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{m(fmt(totals.fundraising))}</p>
             <p className="stat-sub mt-8">{portfolio.fundraising.length} projet{portfolio.fundraising.length > 1 ? 's' : ''}</p>
           </div>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
@@ -102,8 +104,8 @@ export default function Fundraising() {
                       <span className="font-semibold">{f.projectName}</span>
                     </div>
                   </td>
-                  <td className="font-mono font-semibold">{fmt(f.amountInvested)}</td>
-                  <td className="font-mono">{fmt(f.unitPrice)}</td>
+                  <td className="font-mono font-semibold">{m(fmt(f.amountInvested))}</td>
+                  <td className="font-mono">{m(fmt(f.unitPrice))}</td>
                   <td className="font-mono">{new Intl.NumberFormat('fr-FR').format(f.units)}</td>
                   <td>{f.date ? fmtDate(f.date) : '—'}</td>
                   <td>

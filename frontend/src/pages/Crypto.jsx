@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { usePortfolio } from '../context/PortfolioContext'
 import { usePriceRefresh } from '../hooks/usePriceRefresh'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { searchCoinGecko } from '../services/priceService'
 import './Crypto.css'
 
@@ -249,6 +250,7 @@ function PerformanceChart({ asset }) {
 
 /* ===== Accordion Card ===== */
 function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMovement, onDeleteMovement }) {
+  const { m, mp } = usePrivacyMask()
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
   const totalInvested = asset.buyPrice * asset.quantity
@@ -277,7 +279,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
         <div className="crypto-card-right">
           <span className={`badge ${gain >= 0 ? 'badge-success' : 'badge-danger'}`}>
             {gain >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-            {fmt(gain)} ({fmtPct(gainPct)})
+            {m(fmt(gain))} ({mp(fmtPct(gainPct))})
           </span>
           <div className="crypto-card-chevron">
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -289,22 +291,22 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
       <div className="crypto-card-summary">
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">Investi</span>
-          <span className="crypto-summary-value">{fmt(totalInvested)}</span>
+          <span className="crypto-summary-value">{m(fmt(totalInvested))}</span>
         </div>
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">Valeur actuelle</span>
-          <span className="crypto-summary-value font-semibold">{fmt(totalValue)}</span>
+          <span className="crypto-summary-value font-semibold">{m(fmt(totalValue))}</span>
         </div>
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">+/- value</span>
           <span className={`crypto-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
-            {gain >= 0 ? '+' : ''}{fmt(gain)}
+            {m(`${gain >= 0 ? '+' : ''}${fmt(gain)}`)}
           </span>
         </div>
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">Performance</span>
           <span className={`crypto-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
-            {fmtPct(gainPct)}
+            {mp(fmtPct(gainPct))}
           </span>
         </div>
       </div>
@@ -370,7 +372,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                         <td className="font-mono">{fmtQty(mv.quantity)}</td>
                         <td className="font-mono">{fmt(mv.price)}</td>
                         <td className="font-mono text-muted col-fees">{mv.fees ? fmt(mv.fees) : '—'}</td>
-                        <td className="font-mono font-semibold col-total">{fmt(mv.quantity * mv.price + (mv.fees || 0))}</td>
+                        <td className="font-mono font-semibold col-total">{m(fmt(mv.quantity * mv.price + (mv.fees || 0)))}</td>
                         <td>
                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
                             <Trash2 size={12} />
@@ -419,6 +421,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
 export default function Crypto() {
   const { portfolio, totals, addCrypto, updateCrypto, deleteCrypto, addCryptoMovement, deleteCryptoMovement, pricesLastUpdated } = usePortfolio()
   const { isRefreshing, refreshNow } = usePriceRefresh()
+  const { m, mp } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
   const [editAsset, setEditAsset] = useState(null) // asset being edited, or null
 
@@ -459,13 +462,13 @@ export default function Crypto() {
         <div className="crypto-header-top">
           <div>
             <p className="stat-label">Valeur totale Crypto</p>
-            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{fmt(totals.crypto)}</p>
+            <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{m(fmt(totals.crypto))}</p>
             <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
               <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
                 {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {fmt(totalGain)} ({fmtPct(totalGainPct)})
+                {m(fmt(totalGain))} ({mp(fmtPct(totalGainPct))})
               </span>
-              <span className="text-sm text-muted">Investi: {fmt(totalInvested)}</span>
+              <span className="text-sm text-muted">Investi: {m(fmt(totalInvested))}</span>
             </div>
           </div>
           <div className="crypto-header-actions">

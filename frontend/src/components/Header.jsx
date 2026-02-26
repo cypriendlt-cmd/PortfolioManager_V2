@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Menu, Sun, Moon, Bell, Search, Check } from 'lucide-react'
+import { Menu, Sun, Moon, Bell, Search, Check, Eye, EyeOff } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import { usePrivacy } from '../context/PrivacyContext'
 import { getDueNotifications, markNotificationDone } from '../services/notifications'
 import './Header.css'
 
@@ -15,10 +16,12 @@ const PAGE_TITLES = {
   '/insights': 'Insights IA',
   '/dca': 'DCA',
   '/settings': 'Paramètres',
+  '/banking': 'Banque & Cashflow',
 }
 
 export default function Header({ onMenuClick }) {
   const { darkMode, toggleDarkMode } = useTheme()
+  const { hideValues, toggleHideValues } = usePrivacy()
   const location = useLocation()
   const [searchFocused, setSearchFocused] = useState(false)
   const [dueNotifs, setDueNotifs] = useState([])
@@ -107,6 +110,10 @@ export default function Header({ onMenuClick }) {
             </div>
           )}
         </div>
+
+        <button className="header-icon-btn" onClick={toggleHideValues} title={hideValues ? 'Afficher les valeurs' : 'Masquer les valeurs'}>
+          {hideValues ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
 
         <button className="header-icon-btn" onClick={toggleDarkMode} title={darkMode ? 'Mode clair' : 'Mode sombre'}>
           {darkMode ? <Sun size={18} /> : <Moon size={18} />}

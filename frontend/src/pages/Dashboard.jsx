@@ -6,6 +6,7 @@ import {
 import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb, Landmark, CreditCard, Heart } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
 import { useBank } from '../context/BankContext'
+import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
 import { Link } from 'react-router-dom'
@@ -217,6 +218,7 @@ function GaugeChart({ value, label }) {
 export default function Dashboard() {
   const { portfolio, totals } = usePortfolio()
   const { accountBalances, aggregates, healthScore, coachInsights } = useBank() || {}
+  const { m, mp } = usePrivacyMask()
   const [fearGreed, setFearGreed] = useState({ crypto: 0, market: 0 })
   const [insight, setInsight] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -308,10 +310,10 @@ export default function Dashboard() {
       <div className="dashboard-hero">
         <div className="dashboard-hero-content">
           <p className="dashboard-hero-label">Valeur totale du portefeuille</p>
-          <p className="dashboard-total">{fmt(totals.total)}</p>
+          <p className="dashboard-total">{m(fmt(totals.total))}</p>
           <span className={`dashboard-hero-badge ${totalGain >= 0 ? 'dashboard-hero-badge--up' : 'dashboard-hero-badge--down'}`}>
             {totalGain >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-            {fmt(totalGain)} depuis le début
+            {m(fmt(totalGain))} depuis le début
           </span>
         </div>
         <div className="dashboard-hero-chart">
@@ -332,8 +334,8 @@ export default function Dashboard() {
             </div>
             <span className="dash-stat-label">Total Crypto</span>
           </div>
-          <div className="dash-stat-value">{fmt(totals.crypto)}</div>
-          <div className={`dash-stat-sub ${cryptoGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{fmtPct(cryptoGainPct)}</div>
+          <div className="dash-stat-value">{m(fmt(totals.crypto))}</div>
+          <div className={`dash-stat-sub ${cryptoGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{mp(fmtPct(cryptoGainPct))}</div>
         </div>
 
         <div className="dash-stat" style={{ '--stat-accent': 'var(--success)' }}>
@@ -343,8 +345,8 @@ export default function Dashboard() {
             </div>
             <span className="dash-stat-label">Total PEA</span>
           </div>
-          <div className="dash-stat-value">{fmt(totals.pea)}</div>
-          <div className={`dash-stat-sub ${peaGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{fmtPct(peaGainPct)}</div>
+          <div className="dash-stat-value">{m(fmt(totals.pea))}</div>
+          <div className={`dash-stat-sub ${peaGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{mp(fmtPct(peaGainPct))}</div>
         </div>
 
         <div className="dash-stat" style={{ '--stat-accent': 'var(--warning)' }}>
@@ -354,7 +356,7 @@ export default function Dashboard() {
             </div>
             <span className="dash-stat-label">Épargne</span>
           </div>
-          <div className="dash-stat-value">{fmt(totals.livrets)}</div>
+          <div className="dash-stat-value">{m(fmt(totals.livrets))}</div>
           <div className="dash-stat-sub text-muted">{portfolio.livrets.length} livret{portfolio.livrets.length > 1 ? 's' : ''}</div>
         </div>
 
@@ -365,7 +367,7 @@ export default function Dashboard() {
             </div>
             <span className="dash-stat-label">Levées</span>
           </div>
-          <div className="dash-stat-value">{fmt(totals.fundraising)}</div>
+          <div className="dash-stat-value">{m(fmt(totals.fundraising))}</div>
           <div className="dash-stat-sub text-muted">{portfolio.fundraising.length} projets</div>
         </div>
       </div>
@@ -380,8 +382,8 @@ export default function Dashboard() {
               </div>
               <span className="dash-stat-label">Cashflow du mois</span>
             </div>
-            <div className="dash-stat-value" style={{ color: monthSavings >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fmt(monthSavings)}</div>
-            <div className="dash-stat-sub text-muted">{fmt(monthIncome)} entrées · {fmt(monthExpenses)} sorties</div>
+            <div className="dash-stat-value" style={{ color: monthSavings >= 0 ? 'var(--success)' : 'var(--danger)' }}>{m(fmt(monthSavings))}</div>
+            <div className="dash-stat-sub text-muted">{m(fmt(monthIncome))} entrées · {m(fmt(monthExpenses))} sorties</div>
           </div>
 
           <div className="dash-stat" style={{ '--stat-accent': '#3b82f6' }}>
@@ -391,7 +393,7 @@ export default function Dashboard() {
               </div>
               <span className="dash-stat-label">Solde bancaire</span>
             </div>
-            <div className="dash-stat-value">{fmt(bankTotal)}</div>
+            <div className="dash-stat-value">{m(fmt(bankTotal))}</div>
             <div className="dash-stat-sub text-muted">{(accountBalances || []).length} compte(s)</div>
           </div>
 
@@ -402,7 +404,7 @@ export default function Dashboard() {
               </div>
               <span className="dash-stat-label">Frais détectés</span>
             </div>
-            <div className="dash-stat-value" style={{ color: 'var(--danger)' }}>{fmt(monthFees)}</div>
+            <div className="dash-stat-value" style={{ color: 'var(--danger)' }}>{m(fmt(monthFees))}</div>
             <div className="dash-stat-sub"><Link to="/banking" style={{ color: 'var(--accent)', fontSize: '0.75rem' }}>Voir l'analyse →</Link></div>
           </div>
 
@@ -413,7 +415,7 @@ export default function Dashboard() {
               </div>
               <span className="dash-stat-label">Patrimoine net</span>
             </div>
-            <div className="dash-stat-value">{fmt(patrimoineNet)}</div>
+            <div className="dash-stat-value">{m(fmt(patrimoineNet))}</div>
             {healthScore != null && <div className="dash-stat-sub" style={{ color: healthScore >= 60 ? 'var(--success)' : 'var(--warning)' }}>Score santé : {healthScore}/100</div>}
           </div>
         </div>
@@ -431,7 +433,7 @@ export default function Dashboard() {
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v) => fmt(v)} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.82rem' }} />
+                <Tooltip formatter={(v) => m(fmt(v))} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.82rem' }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="dashboard-legend">
@@ -440,7 +442,7 @@ export default function Dashboard() {
                   <span className="dashboard-legend-dot" style={{ background: item.color }} />
                   <div>
                     <div className="legend-name">{item.name}</div>
-                    <div className="legend-detail">{fmt(item.value)} · {((item.value / totals.total) * 100).toFixed(1)}%</div>
+                    <div className="legend-detail">{m(fmt(item.value))} · {mp(`${((item.value / totals.total) * 100).toFixed(1)}%`)}</div>
                   </div>
                 </div>
               ))}
@@ -468,7 +470,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => [fmt(v), 'Valeur']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.82rem' }} />
+              <Tooltip formatter={(v) => [m(fmt(v)), 'Valeur']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.82rem' }} />
               <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5} dot={{ fill: 'var(--accent)', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -501,7 +503,7 @@ export default function Dashboard() {
                   <span className="activity-date">{a.dateLabel}</span>
                 </div>
                 <span className={`activity-amount ${a.type === 'sell' ? 'text-danger' : 'text-success'}`}>
-                  {a.type === 'sell' ? '-' : '+'}{fmt(a.amount)}
+                  {m(`${a.type === 'sell' ? '-' : '+'}${fmt(a.amount)}`)}
                 </span>
               </div>
             ))}
