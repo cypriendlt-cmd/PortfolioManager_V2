@@ -78,6 +78,30 @@ export async function saveFileToDrive(filename, data) {
   return result.id
 }
 
+export async function loadBinaryFileFromDrive(filename) {
+  const folderId = await getOrCreateAppFolder()
+  const fileId = await findFileByName(folderId, filename)
+  if (!fileId) return null
+  const token = window.gapi.client.getToken().access_token
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Drive binary fetch failed: ${res.status}`)
+  return res.arrayBuffer()
+}
+
+export async function listFilesInAppFolder(extension) {
+  const folderId = await getOrCreateAppFolder()
+  let q = `'${folderId}' in parents and trashed=false`
+  if (extension) q += ` and name contains '.${extension}'`
+  const res = await window.gapi.client.drive.files.list({
+    q,
+    fields: 'files(id, name, modifiedTime)',
+    spaces: 'drive',
+  })
+  return res.result.files || []
+}
+
 // Legacy wrappers for portfolio.json (used by existing code)
 
 export async function loadPortfolioFromDrive() {

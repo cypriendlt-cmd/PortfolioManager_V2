@@ -12,6 +12,7 @@ import Fundraising from './pages/Fundraising'
 import Objectives from './pages/Objectives'
 import Insights from './pages/Insights'
 import DCA from './pages/DCA'
+import Banking from './pages/Banking'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import InstallPrompt from './components/InstallPrompt'
@@ -21,6 +22,7 @@ import BetaSecurity from './pages/beta/BetaSecurity'
 import BetaInvestments from './pages/beta/BetaInvestments'
 import BetaFreedom from './pages/beta/BetaFreedom'
 import BetaOnboarding from './pages/beta/BetaOnboarding'
+import { BankProvider } from './context/BankContext'
 
 /**
  * Inner component that lives inside PortfolioProvider so it can access the context.
@@ -49,7 +51,7 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  return <PriceRefreshManager>{children}</PriceRefreshManager>
+  return <PriceRefreshManager><BankProvider>{children}</BankProvider></PriceRefreshManager>
 }
 
 export default function App() {
@@ -103,6 +105,7 @@ export default function App() {
                   <Route path="/fundraising" element={<Fundraising />} />
                   <Route path="/objectives" element={<Objectives />} />
                   <Route path="/insights" element={<Insights />} />
+                  <Route path="/banking" element={<Banking />} />
                   <Route path="/dca" element={<DCA />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

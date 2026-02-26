@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Bitcoin, TrendingUp, PiggyBank,
-  Rocket, Target, Brain, Calculator, Settings, ChevronLeft,
+  Rocket, Target, Brain, Calculator, Landmark, Settings, ChevronLeft,
   ChevronRight, Menu, X
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,7 @@ import './Sidebar.css'
 
 const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/banking', icon: Landmark, label: 'Banque & Cash' },
   { path: '/crypto', icon: Bitcoin, label: 'Crypto' },
   { path: '/pea', icon: TrendingUp, label: 'PEA' },
   { path: '/livrets', icon: PiggyBank, label: 'Livrets' },

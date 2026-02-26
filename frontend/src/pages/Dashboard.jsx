@@ -3,8 +3,9 @@ import {
   LineChart, Line, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb, Landmark, CreditCard, Heart } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { useBank } from '../context/BankContext'
 import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
 import { Link } from 'react-router-dom'
@@ -215,6 +216,7 @@ function GaugeChart({ value, label }) {
 
 export default function Dashboard() {
   const { portfolio, totals } = usePortfolio()
+  const { accountBalances, aggregates, healthScore, coachInsights } = useBank() || {}
   const [fearGreed, setFearGreed] = useState({ crypto: 0, market: 0 })
   const [insight, setInsight] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -291,6 +293,15 @@ export default function Dashboard() {
   const peaInvested = portfolio.pea.reduce((sum, p) => sum + p.buyPrice * p.quantity, 0)
   const peaGainPct = peaInvested > 0 ? ((totals.pea - peaInvested) / peaInvested) * 100 : 0
 
+  // Bank data
+  const bankTotal = (accountBalances || []).reduce((s, a) => s + a.balance, 0)
+  const lastAgg = aggregates?.[aggregates.length - 1]
+  const monthIncome = lastAgg?.income || 0
+  const monthExpenses = lastAgg?.expenses || 0
+  const monthSavings = monthIncome - monthExpenses
+  const monthFees = coachInsights?.fees?.total || 0
+  const patrimoineNet = totals.total + bankTotal
+
   return (
     <div className="dashboard">
       {/* ═══ Hero ═══ */}
@@ -358,6 +369,55 @@ export default function Dashboard() {
           <div className="dash-stat-sub text-muted">{portfolio.fundraising.length} projets</div>
         </div>
       </div>
+
+      {/* ═══ Bank & Patrimoine Cards ═══ */}
+      {(accountBalances?.length > 0 || bankTotal !== 0) && (
+        <div className="dashboard-stats">
+          <div className="dash-stat" style={{ '--stat-accent': '#06b6d4' }}>
+            <div className="dash-stat-header">
+              <div className="dash-stat-icon" style={{ background: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4' }}>
+                <CreditCard size={17} />
+              </div>
+              <span className="dash-stat-label">Cashflow du mois</span>
+            </div>
+            <div className="dash-stat-value" style={{ color: monthSavings >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fmt(monthSavings)}</div>
+            <div className="dash-stat-sub text-muted">{fmt(monthIncome)} entrées · {fmt(monthExpenses)} sorties</div>
+          </div>
+
+          <div className="dash-stat" style={{ '--stat-accent': '#3b82f6' }}>
+            <div className="dash-stat-header">
+              <div className="dash-stat-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+                <Landmark size={17} />
+              </div>
+              <span className="dash-stat-label">Solde bancaire</span>
+            </div>
+            <div className="dash-stat-value">{fmt(bankTotal)}</div>
+            <div className="dash-stat-sub text-muted">{(accountBalances || []).length} compte(s)</div>
+          </div>
+
+          <div className="dash-stat" style={{ '--stat-accent': '#dc2626' }}>
+            <div className="dash-stat-header">
+              <div className="dash-stat-icon" style={{ background: 'rgba(220, 38, 38, 0.12)', color: '#dc2626' }}>
+                <AlertTriangle size={17} />
+              </div>
+              <span className="dash-stat-label">Frais détectés</span>
+            </div>
+            <div className="dash-stat-value" style={{ color: 'var(--danger)' }}>{fmt(monthFees)}</div>
+            <div className="dash-stat-sub"><Link to="/banking" style={{ color: 'var(--accent)', fontSize: '0.75rem' }}>Voir l'analyse →</Link></div>
+          </div>
+
+          <div className="dash-stat" style={{ '--stat-accent': '#10b981' }}>
+            <div className="dash-stat-header">
+              <div className="dash-stat-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+                <Heart size={17} />
+              </div>
+              <span className="dash-stat-label">Patrimoine net</span>
+            </div>
+            <div className="dash-stat-value">{fmt(patrimoineNet)}</div>
+            {healthScore != null && <div className="dash-stat-sub" style={{ color: healthScore >= 60 ? 'var(--success)' : 'var(--warning)' }}>Score santé : {healthScore}/100</div>}
+          </div>
+        </div>
+      )}
 
       {/* ═══ Charts ═══ */}
       <div className="dashboard-charts">
