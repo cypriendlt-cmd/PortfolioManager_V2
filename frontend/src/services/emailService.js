@@ -10,7 +10,7 @@
  *  2. Ajouter un Email Service :
  *     - Dashboard → Email Services → Add New Service
  *     - Choisir "Gmail" (ou autre provider)
- *     - Connecter votre compte Gmail (portfoliomanagercd@gmail.com)
+ *     - Connecter votre compte Gmail (iweacytlew3@gmail.com)
  *     - Copier le SERVICE_ID (ex: "service_xxxxxxx")
  *
  *  3. Créer un Email Template :
@@ -26,7 +26,7 @@
  *       Description :
  *       {{description}}
  *
- *     - Destinataire (To Email) : portfoliomanagercd@gmail.com
+ *     - Destinataire (To Email) : iweacytlew3@gmail.com
  *     - Copier le TEMPLATE_ID (ex: "template_xxxxxxx")
  *
  *  4. Récupérer votre Public Key :
