@@ -24,35 +24,31 @@ async function getOrCreateAppFolder() {
   return folder.result.id
 }
 
-async function findFile(folderId) {
+async function findFileByName(folderId, filename) {
   const res = await window.gapi.client.drive.files.list({
-    q: `name='${PORTFOLIO_FILE}' and '${folderId}' in parents and trashed=false`,
+    q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
   })
   return res.result.files?.[0]?.id || null
 }
 
-export async function loadPortfolioFromDrive() {
+// Generic helpers for any named file in the app folder
+
+export async function loadFileFromDrive(filename) {
   const folderId = await getOrCreateAppFolder()
-  const fileId = await findFile(folderId)
-
+  const fileId = await findFileByName(folderId, filename)
   if (!fileId) return null
-
-  const res = await window.gapi.client.drive.files.get({
-    fileId,
-    alt: 'media',
-  })
+  const res = await window.gapi.client.drive.files.get({ fileId, alt: 'media' })
   return typeof res.result === 'string' ? JSON.parse(res.result) : res.result
 }
 
-export async function savePortfolioToDrive(data) {
+export async function saveFileToDrive(filename, data) {
   const folderId = await getOrCreateAppFolder()
-  const existingId = await findFile(folderId)
+  const existingId = await findFileByName(folderId, filename)
   const content = JSON.stringify(data, null, 2)
 
   if (existingId) {
-    // Update: use raw fetch since gapi.client doesn't support media upload well
     const token = window.gapi.client.getToken().access_token
     await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`, {
       method: 'PATCH',
@@ -65,9 +61,8 @@ export async function savePortfolioToDrive(data) {
     return existingId
   }
 
-  // Create: multipart upload
   const token = window.gapi.client.getToken().access_token
-  const metadata = { name: PORTFOLIO_FILE, parents: [folderId] }
+  const metadata = { name: filename, parents: [folderId] }
   const boundary = '-------portfoliomanager'
   const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`
 
@@ -81,4 +76,14 @@ export async function savePortfolioToDrive(data) {
   })
   const result = await res.json()
   return result.id
+}
+
+// Legacy wrappers for portfolio.json (used by existing code)
+
+export async function loadPortfolioFromDrive() {
+  return loadFileFromDrive(PORTFOLIO_FILE)
+}
+
+export async function savePortfolioToDrive(data) {
+  return saveFileToDrive(PORTFOLIO_FILE, data)
 }

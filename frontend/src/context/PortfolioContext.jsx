@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from './AuthContext'
-import { loadPortfolioFromDrive, savePortfolioToDrive } from '../services/googleDrive'
+import { loadPortfolioFromDrive, savePortfolioToDrive, loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
 import { getAllCurrentRates } from '../services/rateProvider'
 
 const PortfolioContext = createContext(null)
@@ -24,6 +24,12 @@ export function PortfolioProvider({ children }) {
   const [priceRefreshError, setPriceRefreshError] = useState(null)
   const manualRefreshRef = useRef(null)
   const saveTimer = useRef(null)
+
+  // Insights + DCA Drive persistence
+  const [insightsData, setInsightsData] = useState(null)
+  const [dcaConfig, setDcaConfig] = useState(null)
+  const insightsSaveTimer = useRef(null)
+  const dcaSaveTimer = useRef(null)
 
   const rates = useMemo(() => getAllCurrentRates(), [])
 
@@ -52,14 +58,46 @@ export function PortfolioProvider({ children }) {
     }
   }, [user, accessToken, gapiReady])
 
+  const fetchInsightsFromDrive = useCallback(async () => {
+    if (!user || !accessToken || !gapiReady) return
+    try {
+      const data = await loadFileFromDrive('insights.json')
+      if (data) setInsightsData(data)
+    } catch (e) {
+      console.warn('Drive insights load error:', e)
+      try {
+        const cached = localStorage.getItem('pm_insights_cache')
+        if (cached) setInsightsData(JSON.parse(cached))
+      } catch {}
+    }
+  }, [user, accessToken, gapiReady])
+
+  const fetchDcaConfigFromDrive = useCallback(async () => {
+    if (!user || !accessToken || !gapiReady) return
+    try {
+      const data = await loadFileFromDrive('dca-config.json')
+      if (data) setDcaConfig(data)
+    } catch (e) {
+      console.warn('Drive DCA config load error:', e)
+      try {
+        const cached = localStorage.getItem('pm_dca_config_cache')
+        if (cached) setDcaConfig(JSON.parse(cached))
+      } catch {}
+    }
+  }, [user, accessToken, gapiReady])
+
   useEffect(() => {
     if (user && accessToken && gapiReady) {
       fetchPortfolio()
+      fetchInsightsFromDrive()
+      fetchDcaConfigFromDrive()
     } else {
       setPortfolio(EMPTY_PORTFOLIO)
       setDriveConnected(false)
+      setInsightsData(null)
+      setDcaConfig(null)
     }
-  }, [user, accessToken, gapiReady, fetchPortfolio])
+  }, [user, accessToken, gapiReady, fetchPortfolio, fetchInsightsFromDrive, fetchDcaConfigFromDrive])
 
   // Debounced save to Drive
   const saveToDrive = useCallback((data) => {
@@ -74,6 +112,26 @@ export function PortfolioProvider({ children }) {
         console.error('Drive save error:', e)
         setDriveError('Erreur de sauvegarde sur Google Drive')
       }
+    }, 1500)
+  }, [user, accessToken, gapiReady])
+
+  const saveInsights = useCallback((data) => {
+    setInsightsData(data)
+    localStorage.setItem('pm_insights_cache', JSON.stringify(data))
+    if (!user || !accessToken || !gapiReady) return
+    if (insightsSaveTimer.current) clearTimeout(insightsSaveTimer.current)
+    insightsSaveTimer.current = setTimeout(async () => {
+      try { await saveFileToDrive('insights.json', data) } catch (e) { console.warn('Drive insights save error:', e) }
+    }, 1500)
+  }, [user, accessToken, gapiReady])
+
+  const saveDcaConfig = useCallback((data) => {
+    setDcaConfig(data)
+    localStorage.setItem('pm_dca_config_cache', JSON.stringify(data))
+    if (!user || !accessToken || !gapiReady) return
+    if (dcaSaveTimer.current) clearTimeout(dcaSaveTimer.current)
+    dcaSaveTimer.current = setTimeout(async () => {
+      try { await saveFileToDrive('dca-config.json', data) } catch (e) { console.warn('Drive DCA save error:', e) }
     }, 1500)
   }, [user, accessToken, gapiReady])
 
@@ -315,6 +373,8 @@ export function PortfolioProvider({ children }) {
       addFundraising, deleteFundraising,
       addObjective, updateObjective, deleteObjective,
       fetchPortfolio,
+      insightsData, saveInsights,
+      dcaConfig, saveDcaConfig,
       updatePrices, pricesLastUpdated,
       isRefreshingPrices, setIsRefreshingPrices,
       priceRefreshError, setPriceRefreshError,

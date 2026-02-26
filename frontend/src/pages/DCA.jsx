@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Calculator, TrendingUp, Calendar, Play, BellRing,
-  Trash2, ToggleLeft, ToggleRight
+  Trash2, ToggleLeft, ToggleRight, Bell, BellOff, Send
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
@@ -10,19 +10,27 @@ import {
   getNotifications, addNotification, removeNotification,
   toggleNotification
 } from '../services/notifications'
+import {
+  isNotificationSupported, getNotificationPermission,
+  requestPermission, testNotification, checkAndNotifyDueReminders
+} from '../services/pushNotifications'
+import { usePortfolio } from '../context/PortfolioContext'
 import './DCA.css'
 
 const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
 const fmtPct = (v) => new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v)
 
-function computeDCA(monthlyAmount, totalMonths, annualRate) {
+function computeDCA(monthlyAmount, totalMonths, annualRate, initialFixedAmount = 0) {
   const monthlyRate = Math.pow(1 + annualRate / 100, 1 / 12) - 1
   const data = []
   for (let i = 1; i <= totalMonths; i++) {
-    const cumulativeInvested = monthlyAmount * i
-    const projectedValue = monthlyRate === 0
-      ? cumulativeInvested
+    const cumulativeInvested = initialFixedAmount + monthlyAmount * i
+    // Initial lump sum grows for i months, DCA formula for recurring
+    const initialGrowth = initialFixedAmount * Math.pow(1 + monthlyRate, i)
+    const dcaGrowth = monthlyRate === 0
+      ? monthlyAmount * i
       : monthlyAmount * ((Math.pow(1 + monthlyRate, i) - 1) / monthlyRate) * (1 + monthlyRate)
+    const projectedValue = initialGrowth + dcaGrowth
     data.push({ month: i, cumulativeInvested, projectedValue: Math.round(projectedValue) })
   }
   return data
@@ -34,10 +42,18 @@ function addMonths(date, months) {
   return d
 }
 
+function formatDateForMonth(startDate, monthIndex) {
+  const d = addMonths(new Date(startDate), monthIndex)
+  return d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
+}
+
 export default function DCA() {
+  const { dcaConfig, saveDcaConfig } = usePortfolio()
+
   const [assetType, setAssetType] = useState('crypto')
   const [assetName, setAssetName] = useState('')
   const [monthlyAmount, setMonthlyAmount] = useState(100)
+  const [initialFixedAmount, setInitialFixedAmount] = useState(0)
   const [duration, setDuration] = useState(12)
   const [durationUnit, setDurationUnit] = useState('months')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
@@ -52,29 +68,72 @@ export default function DCA() {
   // Notifications list
   const [notifications, setNotifications] = useState([])
 
+  // Browser notification permission
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission())
+  const notifSupported = isNotificationSupported()
+
+  // Load DCA config from Drive on mount
   useEffect(() => {
-    setNotifications(getNotifications())
-  }, [])
+    if (dcaConfig?.simulations?.length > 0) {
+      const sim = dcaConfig.simulations[0]
+      if (sim.assetType) setAssetType(sim.assetType)
+      if (sim.assetName) setAssetName(sim.assetName)
+      if (sim.monthlyAmount) setMonthlyAmount(sim.monthlyAmount)
+      if (sim.initialFixedAmount != null) setInitialFixedAmount(sim.initialFixedAmount)
+      if (sim.duration) setDuration(sim.duration)
+      if (sim.durationUnit) setDurationUnit(sim.durationUnit)
+      if (sim.startDate) setStartDate(sim.startDate)
+      if (sim.annualReturn != null) setAnnualReturn(sim.annualReturn)
+    }
+    if (dcaConfig?.notifications?.length > 0) {
+      setNotifications(dcaConfig.notifications)
+    } else {
+      setNotifications(getNotifications())
+    }
+  }, [dcaConfig])
+
+  // Check for due reminders on mount
+  useEffect(() => {
+    if (notifications.length > 0) {
+      checkAndNotifyDueReminders(notifications)
+    }
+  }, [notifications])
+
+  // Persist to Drive
+  const persistConfig = useCallback((sims, notifs) => {
+    const config = {
+      simulations: sims || [],
+      notifications: notifs || notifications,
+    }
+    saveDcaConfig(config)
+  }, [saveDcaConfig, notifications])
 
   const handleCalculate = (e) => {
     e.preventDefault()
     const totalMonths = durationUnit === 'years' ? duration * 12 : duration
     if (totalMonths <= 0 || monthlyAmount <= 0) return
-    const data = computeDCA(monthlyAmount, totalMonths, annualReturn)
+    const data = computeDCA(monthlyAmount, totalMonths, annualReturn, initialFixedAmount)
     setResults({ data, totalMonths, startDate })
     setShowReminderForm(false)
     setReminderSuccess(false)
+
+    // Save simulation config to Drive
+    const sim = {
+      id: 'main',
+      assetType, assetName, monthlyAmount, initialFixedAmount,
+      duration, durationUnit, startDate, annualReturn,
+    }
+    persistConfig([sim], notifications)
   }
 
   const handleAddReminder = () => {
     const totalMonths = durationUnit === 'years' ? duration * 12 : duration
     const end = addMonths(new Date(startDate), totalMonths)
-    // Compute first reminder date
     const start = new Date(startDate)
     const firstReminder = new Date(start.getFullYear(), start.getMonth(), Math.min(reminderDay, 28))
     if (firstReminder <= start) firstReminder.setMonth(firstReminder.getMonth() + 1)
 
-    addNotification({
+    const entry = addNotification({
       assetName: assetName || 'Mon actif DCA',
       assetType,
       monthlyAmount,
@@ -83,7 +142,9 @@ export default function DCA() {
       endDate: end.toISOString().slice(0, 10),
       nextReminder: firstReminder.toISOString().slice(0, 10),
     })
-    setNotifications(getNotifications())
+    const updatedNotifs = [...notifications, entry]
+    setNotifications(updatedNotifs)
+    persistConfig(undefined, updatedNotifs)
     setShowReminderForm(false)
     setReminderSuccess(true)
     setTimeout(() => setReminderSuccess(false), 3000)
@@ -91,22 +152,41 @@ export default function DCA() {
 
   const handleDeleteNotif = (id) => {
     removeNotification(id)
-    setNotifications(getNotifications())
+    const updatedNotifs = notifications.filter(n => n.id !== id)
+    setNotifications(updatedNotifs)
+    persistConfig(undefined, updatedNotifs)
   }
 
   const handleToggleNotif = (id) => {
     toggleNotification(id)
-    setNotifications(getNotifications())
+    const updatedNotifs = notifications.map(n => n.id === id ? { ...n, active: !n.active } : n)
+    setNotifications(updatedNotifs)
+    persistConfig(undefined, updatedNotifs)
+  }
+
+  const handleRequestPermission = async () => {
+    const result = await requestPermission()
+    setNotifPermission(result)
+  }
+
+  const handleTestNotification = async () => {
+    if (notifPermission !== 'granted') {
+      const result = await requestPermission()
+      setNotifPermission(result)
+      if (result !== 'granted') return
+    }
+    await testNotification()
   }
 
   const last = results?.data[results.data.length - 1]
   const chartData = results?.data.filter((_, i, arr) => {
-    // Show ~30 points max for readability
     const step = Math.max(1, Math.floor(arr.length / 30))
     return i % step === 0 || i === arr.length - 1
-  })
+  }).map(row => ({
+    ...row,
+    dateLabel: formatDateForMonth(results.startDate, row.month),
+  }))
 
-  // Table rows: first 12 + last
   const tableRows = results?.data.filter((row, i, arr) => {
     return i < 12 || i === arr.length - 1
   })
@@ -117,6 +197,24 @@ export default function DCA() {
         <h2>Calculateur DCA</h2>
         <p>Simulez vos investissements programmés et suivez vos rappels mensuels.</p>
       </div>
+
+      {/* Notification permission banner */}
+      {notifSupported && notifPermission === 'default' && (
+        <div className="dca-card" style={{ background: 'var(--accent-light)', borderColor: 'var(--accent)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Bell size={20} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 4 }}>Activer les notifications</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Recevez des rappels système pour vos investissements DCA.
+              </div>
+            </div>
+            <button className="dca-reminder-btn" onClick={handleRequestPermission}>
+              Autoriser
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input form */}
       <div className="dca-card">
@@ -147,6 +245,16 @@ export default function DCA() {
               placeholder="Ex: Bitcoin, MSCI World..."
               value={assetName}
               onChange={e => setAssetName(e.target.value)}
+            />
+          </div>
+
+          <div className="dca-form-group">
+            <label>Investissement initial (EUR)</label>
+            <input
+              type="number"
+              min="0"
+              value={initialFixedAmount}
+              onChange={e => setInitialFixedAmount(Number(e.target.value))}
             />
           </div>
 
@@ -239,7 +347,10 @@ export default function DCA() {
                   <XAxis
                     dataKey="month"
                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                    tickFormatter={v => `M${v}`}
+                    tickFormatter={v => {
+                      const d = addMonths(new Date(results.startDate), v)
+                      return d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                    }}
                   />
                   <YAxis
                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
@@ -256,7 +367,10 @@ export default function DCA() {
                       fmt(val),
                       name === 'cumulativeInvested' ? 'Investi' : 'Valeur projetée'
                     ]}
-                    labelFormatter={v => `Mois ${v}`}
+                    labelFormatter={v => {
+                      const d = addMonths(new Date(results.startDate), v)
+                      return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                    }}
                   />
                   <Legend
                     formatter={(value) =>
@@ -391,6 +505,25 @@ export default function DCA() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Test notification button */}
+        {notifSupported && (
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="dca-reminder-btn" onClick={handleTestNotification}>
+              <Send size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Tester les notifications
+            </button>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {notifPermission === 'granted' && (
+                <><Bell size={12} style={{ verticalAlign: 'middle' }} /> Notifications activées</>
+              )}
+              {notifPermission === 'denied' && (
+                <><BellOff size={12} style={{ verticalAlign: 'middle' }} /> Notifications bloquées (modifier dans les paramètres du navigateur)</>
+              )}
+              {notifPermission === 'default' && 'Cliquez pour activer les notifications'}
+            </span>
           </div>
         )}
       </div>

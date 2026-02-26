@@ -79,7 +79,7 @@ function AnalysisCard({ icon: Icon, title, content, color }) {
 }
 
 export default function Insights() {
-  const { portfolio, totals } = usePortfolio()
+  const { portfolio, totals, insightsData, saveInsights } = usePortfolio()
   const [loading, setLoading] = useState(false)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [fearGreed, setFearGreed] = useState(null)
@@ -88,6 +88,29 @@ export default function Insights() {
   const [error, setError] = useState(null)
   const [activeProvider, setActiveProvider] = useState(null)
   const [noProvider, setNoProvider] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
+
+  // Load cached insights from Drive
+  useEffect(() => {
+    if (!insightsData) return
+    const { market, portfolio: portInsight } = insightsData
+    if (market?.content) {
+      setMarketInsight(market.content)
+      if (market.updatedAt) setLastUpdated(new Date(market.updatedAt))
+    }
+    if (portInsight?.content) {
+      setAnalysis(portInsight.content)
+      if (portInsight.updatedAt && (!lastUpdated || new Date(portInsight.updatedAt) > lastUpdated)) {
+        setLastUpdated(new Date(portInsight.updatedAt))
+      }
+    }
+  }, [insightsData])
+
+  const isCacheFresh = () => {
+    if (!lastUpdated) return false
+    const ageMs = Date.now() - lastUpdated.getTime()
+    return ageMs < 24 * 60 * 60 * 1000 // < 24h
+  }
 
   const loadFearGreed = async () => {
     try {
@@ -109,6 +132,8 @@ export default function Insights() {
   }
 
   const loadCachedInsights = async () => {
+    // Skip backend call if we have fresh Drive cache
+    if (isCacheFresh()) return
     try {
       const res = await getInsights()
       const data = res.data
@@ -126,6 +151,26 @@ export default function Insights() {
         })
       }
     } catch {}
+  }
+
+  const persistInsights = (marketContent, analysisContent) => {
+    const now = new Date().toISOString()
+    const data = {
+      market: {
+        type: 'market',
+        content: marketContent || marketInsight,
+        createdAt: insightsData?.market?.createdAt || now,
+        updatedAt: now,
+      },
+      portfolio: {
+        type: 'portfolio',
+        content: analysisContent || analysis,
+        createdAt: insightsData?.portfolio?.createdAt || now,
+        updatedAt: now,
+      },
+    }
+    saveInsights(data)
+    setLastUpdated(new Date())
   }
 
   const loadAnalysis = async () => {
@@ -147,20 +192,26 @@ export default function Insights() {
       } else {
         setAnalysis(res.data)
         setActiveProvider(res.data.provider)
+        return res.data
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Erreur lors de l\'analyse')
     } finally {
       setAnalysisLoading(false)
     }
+    return null
   }
 
   const handleRefresh = async () => {
     setLoading(true)
+    let newMarket = null
     try {
       const res = await refreshInsights()
       const data = res.data
-      if (data.insights) setMarketInsight(data.insights.summary || data.insights)
+      if (data.insights) {
+        newMarket = data.insights.summary || data.insights
+        setMarketInsight(newMarket)
+      }
       if (data.fearGreed) {
         setFearGreed({
           crypto: data.fearGreed.crypto ? { value: data.fearGreed.crypto.value } : null,
@@ -168,15 +219,22 @@ export default function Insights() {
         })
       }
     } catch {}
-    await loadAnalysis()
+    const newAnalysis = await loadAnalysis()
+    persistInsights(newMarket, newAnalysis)
     setLoading(false)
   }
 
   useEffect(() => {
-    loadCachedInsights()
     loadFearGreed()
     checkProviders()
   }, [])
+
+  // Load from backend only after Drive data is resolved
+  useEffect(() => {
+    if (!isCacheFresh()) {
+      loadCachedInsights()
+    }
+  }, [insightsData])
 
   const fg = fearGreed || {}
   const cryptoFgValue = fg.crypto?.value ?? fg.current?.value ?? 0
@@ -195,10 +253,17 @@ export default function Insights() {
             )}
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={handleRefresh} disabled={loading || analysisLoading}>
-          <RefreshCw size={16} className={loading || analysisLoading ? 'animate-pulse' : ''} />
-          Actualiser
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {lastUpdated && (
+            <span className="text-xs text-muted">
+              Mis à jour : {lastUpdated.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button className="btn btn-secondary" onClick={handleRefresh} disabled={loading || analysisLoading}>
+            <RefreshCw size={16} className={loading || analysisLoading ? 'animate-pulse' : ''} />
+            Régénérer
+          </button>
+        </div>
       </div>
 
       {noProvider && !analysis && (

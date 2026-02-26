@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
+import {
+  isNotificationSupported, getNotificationPermission,
+  requestPermission, testNotification
+} from '../services/pushNotifications'
+import { sendBugReport } from '../services/emailService'
 import './Settings.css'
 
 const GROQ_KEY_STORAGE = 'pm_groq_api_key'
@@ -46,6 +51,41 @@ export default function Settings() {
   const [corsProxy, setCorsProxy] = useState(() => localStorage.getItem(CORS_PROXY_KEY) || '')
   const [corsProxySaved, setCorsProxySaved] = useState(false)
   const [corsProxyTest, setCorsProxyTest] = useState(null) // null | 'testing' | 'ok' | 'error'
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission())
+  const notifSupported = isNotificationSupported()
+
+  // Bug report form
+  const [reportType, setReportType] = useState('bug')
+  const [reportSubject, setReportSubject] = useState('')
+  const [reportDesc, setReportDesc] = useState('')
+  const [reportEmail, setReportEmail] = useState('')
+  const [reportHoneypot, setReportHoneypot] = useState('')
+  const [reportStatus, setReportStatus] = useState(null) // null | 'loading' | 'success' | 'error'
+  const [reportError, setReportError] = useState('')
+
+  const handleSendReport = async (e) => {
+    e.preventDefault()
+    setReportStatus('loading')
+    setReportError('')
+    const result = await sendBugReport({
+      type: reportType,
+      subject: reportSubject,
+      description: reportDesc,
+      userEmail: reportEmail,
+      honeypot: reportHoneypot,
+    })
+    if (result.success) {
+      setReportStatus('success')
+      setReportSubject('')
+      setReportDesc('')
+      setReportEmail('')
+      setReportType('bug')
+      setTimeout(() => setReportStatus(null), 4000)
+    } else {
+      setReportStatus('error')
+      setReportError(result.error || 'Erreur inconnue.')
+    }
+  }
 
   const handleSave = () => {
     setSaved(true)
@@ -315,6 +355,49 @@ export default function Settings() {
         </p>
       </Section>
 
+      {/* Notifications */}
+      <Section title="Notifications" icon={Bell}>
+        {notifSupported ? (
+          <>
+            <div className="gc-status">
+              <div className={`gc-status-item ${notifPermission === 'granted' ? 'gc-ok' : notifPermission === 'denied' ? 'gc-error' : 'gc-warn'}`}>
+                {notifPermission === 'granted' ? <CheckCircle size={16} /> : notifPermission === 'denied' ? <BellOff size={16} /> : <AlertCircle size={16} />}
+                <span>
+                  {notifPermission === 'granted' && 'Notifications activées'}
+                  {notifPermission === 'denied' && 'Notifications bloquées — modifiez les paramètres de votre navigateur'}
+                  {notifPermission === 'default' && 'Notifications non configurées'}
+                </span>
+              </div>
+            </div>
+            <div className="gc-actions mt-16">
+              {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+                <button className="btn btn-primary" onClick={async () => {
+                  const result = await requestPermission()
+                  setNotifPermission(result)
+                }}>
+                  <Bell size={16} /> Autoriser les notifications
+                </button>
+              )}
+              <button className="btn btn-secondary" onClick={async () => {
+                if (notifPermission !== 'granted') {
+                  const result = await requestPermission()
+                  setNotifPermission(result)
+                  if (result !== 'granted') return
+                }
+                await testNotification()
+              }}>
+                <Send size={16} /> Tester
+              </button>
+            </div>
+            <p className="text-xs text-muted mt-12">
+              Les notifications sont utilisées pour les rappels DCA. Aucun serveur tiers requis.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted">Votre navigateur ne supporte pas les notifications.</p>
+        )}
+      </Section>
+
       {/* Binance API */}
       <Section title="Binance API" icon={Key}>
         <p className="text-sm text-muted mb-16">Connectez votre compte Binance pour synchroniser automatiquement vos cryptomonnaies.</p>
@@ -343,6 +426,122 @@ export default function Settings() {
           </label>
         </div>
         <p className="text-xs text-muted mt-12">Les données sont stockées sur votre Google Drive personnel.</p>
+      </Section>
+
+      {/* Report Bug / FAQ */}
+      <Section title="Signaler un bug / FAQ" icon={MessageSquare}>
+        <p className="text-sm text-muted mb-16">
+          Un problème, une idée d'amélioration ou une question ? Envoyez-nous un message.
+        </p>
+
+        <form onSubmit={handleSendReport}>
+          {/* Honeypot — invisible to users */}
+          <input
+            type="text"
+            name="website"
+            value={reportHoneypot}
+            onChange={e => setReportHoneypot(e.target.value)}
+            style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+
+          {/* Type toggle */}
+          <div className="form-group mb-16">
+            <label className="form-label">Type de message</label>
+            <div className="report-type-toggle">
+              {[
+                { key: 'bug', label: 'Bug', icon: Bug },
+                { key: 'suggestion', label: 'Suggestion', icon: Lightbulb },
+                { key: 'question', label: 'Question', icon: HelpCircle },
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={reportType === key ? 'active' : ''}
+                  onClick={() => setReportType(key)}
+                >
+                  <Icon size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Sujet *</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Résumez votre message en quelques mots"
+              value={reportSubject}
+              onChange={e => setReportSubject(e.target.value)}
+              required
+              disabled={reportStatus === 'loading'}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Description *</label>
+            <textarea
+              className="form-input"
+              rows={5}
+              placeholder="Décrivez le problème, la suggestion ou votre question en détail..."
+              value={reportDesc}
+              onChange={e => setReportDesc(e.target.value)}
+              required
+              disabled={reportStatus === 'loading'}
+              style={{ resize: 'vertical', minHeight: 100 }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Email de contact (optionnel)</label>
+            <input
+              className="form-input"
+              type="email"
+              placeholder="votre@email.com"
+              value={reportEmail}
+              onChange={e => setReportEmail(e.target.value)}
+              disabled={reportStatus === 'loading'}
+            />
+            <span className="text-xs text-muted" style={{ marginTop: 4 }}>
+              Pour que nous puissions vous répondre si nécessaire.
+            </span>
+          </div>
+
+          <div className="gc-actions">
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={reportStatus === 'loading' || !reportSubject.trim() || !reportDesc.trim()}
+            >
+              {reportStatus === 'loading' ? (
+                <><Loader2 size={16} className="animate-pulse" /> Envoi en cours...</>
+              ) : (
+                <><Send size={16} /> Envoyer</>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Feedback */}
+        {reportStatus === 'success' && (
+          <div className="gc-status mt-16">
+            <div className="gc-status-item gc-ok">
+              <CheckCircle size={16} />
+              <span>Message envoyé avec succès ! Merci pour votre retour.</span>
+            </div>
+          </div>
+        )}
+        {reportStatus === 'error' && (
+          <div className="gc-status mt-16">
+            <div className="gc-status-item gc-error">
+              <AlertCircle size={16} />
+              <span>{reportError}</span>
+            </div>
+          </div>
+        )}
       </Section>
 
       {/* Logout */}

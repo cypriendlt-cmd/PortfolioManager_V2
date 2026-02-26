@@ -234,6 +234,44 @@
 .gc-warn { color: var(--text-muted); }
 .gc-error { color: var(--danger); }
 
+/* Report type toggle */
+.report-type-toggle {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-top: 6px;
+}
+
+.report-type-toggle button {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.report-type-toggle button:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.report-type-toggle button:hover {
+  background: var(--bg-secondary);
+}
+
+.report-type-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 @media (max-width: 600px) {
   .theme-grid {
     grid-template-columns: repeat(2, 1fr);
