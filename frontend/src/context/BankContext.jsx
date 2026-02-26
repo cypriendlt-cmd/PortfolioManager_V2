@@ -18,6 +18,15 @@ const EMPTY_BANK = {
   transactions: [],
   rules: [],
   lastImport: null,
+  financeProfile: null,
+}
+
+const EMPTY_PROFILE = {
+  monthlyIncome: 0,
+  monthlyExpenses: 0,
+  currentCash: 0,
+  investmentHorizon: 'moyen',
+  riskTolerance: 'modere',
 }
 
 export function BankProvider({ children }) {
@@ -152,6 +161,13 @@ export function BankProvider({ children }) {
     }))
   }, [updateAndSave])
 
+  const updateFinanceProfile = useCallback((data) => {
+    updateAndSave(prev => ({
+      ...prev,
+      financeProfile: { ...(prev.financeProfile || EMPTY_PROFILE), ...data },
+    }))
+  }, [updateAndSave])
+
   const refreshCategories = useCallback(() => {
     updateAndSave(prev => ({
       ...prev,
@@ -180,6 +196,8 @@ export function BankProvider({ children }) {
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
       setInitialBalance, refreshCategories,
+      financeProfile: bankHistory.financeProfile || EMPTY_PROFILE,
+      updateFinanceProfile,
     }}>
       {children}
     </BankContext.Provider>
