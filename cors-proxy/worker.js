@@ -36,11 +36,27 @@ export default {
     }
 
     const url = new URL(request.url)
-    const targetUrl = url.searchParams.get('url')
+    let targetUrl = url.searchParams.get('url')
+    let extraHeaders = {}
+
+    // POST method: read target URL and extra headers from JSON body
+    // This avoids exposing API keys in query params or requiring custom CORS headers
+    if (request.method === 'POST') {
+      try {
+        const body = await request.json()
+        targetUrl = body.url || targetUrl
+        extraHeaders = body.headers || {}
+      } catch {
+        return handleCORS(request, new Response(
+          JSON.stringify({ error: 'Invalid JSON body' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ))
+      }
+    }
 
     if (!targetUrl) {
       return handleCORS(request, new Response(
-        JSON.stringify({ error: 'Missing ?url= parameter' }),
+        JSON.stringify({ error: 'Missing ?url= parameter or body.url' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       ))
     }
@@ -64,12 +80,12 @@ export default {
     }
 
     try {
-      // Forward relevant headers for API authentication (e.g. Binance)
       const forwardHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/html, */*',
+        ...extraHeaders,
       }
-      // Accept API key via header OR query param (query param avoids CORS preflight)
+      // Also support API key via query param (legacy GET)
       const apiKey = request.headers.get('X-MBX-APIKEY') || url.searchParams.get('apikey')
       if (apiKey) forwardHeaders['X-MBX-APIKEY'] = apiKey
 
@@ -99,8 +115,8 @@ function handleCORS(request, response) {
 
   const headers = new Headers(response.headers)
   headers.set('Access-Control-Allow-Origin', allowedOrigin)
-  headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, X-MBX-APIKEY')
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  headers.set('Access-Control-Allow-Headers', 'Content-Type')
   headers.set('Access-Control-Max-Age', '86400')
 
   return new Response(response.body, {

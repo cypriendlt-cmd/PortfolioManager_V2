@@ -161,6 +161,15 @@ export function BankProvider({ children }) {
     }))
   }, [updateAndSave])
 
+  const updateAccount = useCallback((accountId, fields) => {
+    updateAndSave(prev => ({
+      ...prev,
+      accounts: prev.accounts.map(a =>
+        a.id === accountId ? { ...a, ...fields } : a
+      )
+    }))
+  }, [updateAndSave])
+
   const updateFinanceProfile = useCallback((data) => {
     updateAndSave(prev => ({
       ...prev,
@@ -219,7 +228,7 @@ export function BankProvider({ children }) {
       aggregates, healthScore, coachInsights,
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
-      setInitialBalance, refreshCategories,
+      setInitialBalance, updateAccount, refreshCategories,
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
     }}>

@@ -30,10 +30,16 @@ async function binanceFetch(endpoint, apiKey, apiSecret, params = {}) {
   queryParams.append('signature', signature)
 
   const url = `${BINANCE_BASE}${endpoint}?${queryParams.toString()}`
-  // Pass API key as query param to proxy to avoid CORS preflight issues with custom headers
-  const proxyUrl = `${proxy}?apikey=${encodeURIComponent(apiKey)}&url=${encodeURIComponent(url)}`
 
-  const res = await fetch(proxyUrl, {
+  // Use POST to proxy — sends API key in body (not in URL, not as custom header)
+  // This avoids CORS preflight issues and keeps the key out of browser history/logs
+  const res = await fetch(proxy, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url,
+      headers: { 'X-MBX-APIKEY': apiKey },
+    }),
     signal: AbortSignal.timeout(15000),
   })
 
