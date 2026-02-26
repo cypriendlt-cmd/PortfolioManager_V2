@@ -11,7 +11,8 @@ import {
 import { usePortfolio } from '../context/PortfolioContext'
 import { usePriceRefresh } from '../hooks/usePriceRefresh'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
-import { searchCoinGecko } from '../services/priceService'
+import { searchCoinGecko, fetchCryptoPrices } from '../services/priceService'
+import { syncBinanceToPortfolio } from '../services/binanceService'
 import './Crypto.css'
 
 const fmt = (n) => n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n) : '—'
@@ -430,6 +431,58 @@ export default function Crypto() {
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0
 
   const [expandedId, setExpandedId] = useState(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState(null)
+
+  const hasBinanceKeys = !!(localStorage.getItem('pm_binance_api_key') && localStorage.getItem('pm_binance_api_secret'))
+
+  const handleBinanceSync = async () => {
+    const apiKey = localStorage.getItem('pm_binance_api_key')
+    const apiSecret = localStorage.getItem('pm_binance_api_secret')
+    if (!apiKey || !apiSecret) return
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const balances = await syncBinanceToPortfolio(apiKey, apiSecret)
+      let added = 0, updated = 0
+      for (const bal of balances) {
+        // Try to find matching crypto by symbol
+        const existing = portfolio.crypto.find(c => c.symbol?.toUpperCase() === bal.asset.toUpperCase())
+        if (existing) {
+          // Update quantity if different
+          if (Math.abs(existing.quantity - bal.total) > 0.00001) {
+            updateCrypto({ ...existing, quantity: bal.total, source: 'binance' })
+            updated++
+          }
+        } else {
+          // Search CoinGecko for this asset to get coingeckoId
+          try {
+            const results = await searchCoinGecko(bal.asset)
+            const match = results.find(r => r.symbol === bal.asset)
+            if (match) {
+              addCrypto({
+                name: match.name,
+                symbol: match.symbol,
+                coingeckoId: match.id,
+                coinImage: match.thumb,
+                quantity: bal.total,
+                buyPrice: 0,
+                currentPrice: 0,
+                source: 'binance',
+              })
+              added++
+            }
+          } catch {}
+        }
+      }
+      setSyncResult({ success: true, added, updated, total: balances.length })
+    } catch (e) {
+      setSyncResult({ success: false, error: e.message })
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncResult(null), 5000)
+    }
+  }
 
   const handleOpenEdit = (asset) => {
     setEditAsset(asset)
@@ -477,11 +530,22 @@ export default function Crypto() {
                 Mis a jour {fmtTime(pricesLastUpdated)}
               </span>
             )}
+            {hasBinanceKeys && (
+              <button
+                className="btn btn-secondary"
+                onClick={handleBinanceSync}
+                disabled={syncing}
+                title="Synchroniser depuis Binance"
+              >
+                {syncing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={16} />}
+                Binance
+              </button>
+            )}
             <button
               className="btn btn-secondary"
               onClick={refreshNow}
               disabled={isRefreshing}
-              title="Forcer la mise à jour des prix"
+              title="Forcer la mise a jour des prix"
             >
               <RefreshCw size={16} />
               Rafraichir
@@ -492,6 +556,15 @@ export default function Crypto() {
           </div>
         </div>
       </div>
+
+      {syncResult && (
+        <div className="card mb-16" style={{ padding: '12px 16px', fontSize: '0.85rem', background: syncResult.success ? 'var(--success-light, rgba(34,197,94,0.08))' : 'var(--danger-light, rgba(239,68,68,0.08))', color: syncResult.success ? 'var(--success)' : 'var(--danger)' }}>
+          {syncResult.success
+            ? `Binance sync : ${syncResult.total} actifs trouves, ${syncResult.added} ajoutes, ${syncResult.updated} mis a jour`
+            : `Erreur Binance : ${syncResult.error}`
+          }
+        </div>
+      )}
 
       {/* Accordion cards */}
       <div className="crypto-cards-list">

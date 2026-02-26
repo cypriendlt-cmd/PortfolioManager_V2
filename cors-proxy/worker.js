@@ -25,6 +25,7 @@ const ALLOWED_APIS = [
   'api.coingecko.com',
   'www.boursorama.com',
   'live.euronext.com',
+  'api.binance.com',
 ]
 
 export default {
@@ -63,12 +64,15 @@ export default {
     }
 
     try {
-      const response = await fetch(targetUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json, text/html, */*',
-        },
-      })
+      // Forward relevant headers for API authentication (e.g. Binance)
+      const forwardHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json, text/html, */*',
+      }
+      const apiKey = request.headers.get('X-MBX-APIKEY')
+      if (apiKey) forwardHeaders['X-MBX-APIKEY'] = apiKey
+
+      const response = await fetch(targetUrl, { headers: forwardHeaders })
 
       const body = await response.text()
 
@@ -95,7 +99,7 @@ function handleCORS(request, response) {
   const headers = new Headers(response.headers)
   headers.set('Access-Control-Allow-Origin', allowedOrigin)
   headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  headers.set('Access-Control-Allow-Headers', 'Content-Type')
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, X-MBX-APIKEY')
   headers.set('Access-Control-Max-Age', '86400')
 
   return new Response(response.body, {

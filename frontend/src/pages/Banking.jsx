@@ -48,7 +48,7 @@ export default function Banking() {
     return <div className="banking" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chargement...</div>
   }
 
-  const hasProfile = financeProfile && financeProfile.monthlyIncome > 0
+  const hasProfile = financeProfile && (financeProfile.monthlyIncome > 0 || aggregates.length > 0)
 
   return (
     <div className="banking">
@@ -78,7 +78,7 @@ export default function Banking() {
 
       {/* Profile setup inline when needed */}
       {(tab === 'securite' || tab === 'liberte' || tab === 'investissements') && !hasProfile && (
-        <ProfileSetup profile={financeProfile} updateProfile={updateFinanceProfile} />
+        <ProfileSetup profile={financeProfile} updateProfile={updateFinanceProfile} hasAggregates={aggregates.length > 0} />
       )}
 
       <BankImportModal open={importOpen} onClose={() => setImportOpen(false)} />
@@ -86,9 +86,8 @@ export default function Banking() {
   )
 }
 
-/* ─── PROFILE SETUP (inline onboarding) ─── */
-function ProfileSetup({ profile, updateProfile }) {
-  const [step, setStep] = useState(0)
+/* ─── PROFILE SETUP (inline — horizon/risk only, income/expenses auto-calculated) ─── */
+function ProfileSetup({ profile, updateProfile, hasAggregates }) {
   const [form, setForm] = useState({
     monthlyIncome: profile?.monthlyIncome || '',
     monthlyExpenses: profile?.monthlyExpenses || '',
@@ -100,26 +99,20 @@ function ProfileSetup({ profile, updateProfile }) {
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
-  const canNext = () => {
-    if (step === 0) return form.monthlyIncome !== '' && form.monthlyExpenses !== ''
-    if (step === 1) return form.currentCash !== ''
-    return true
-  }
-
   const handleSubmit = () => {
-    updateProfile({
-      monthlyIncome: Number(form.monthlyIncome),
-      monthlyExpenses: Number(form.monthlyExpenses),
-      currentCash: Number(form.currentCash),
-      investmentHorizon: form.investmentHorizon,
-      riskTolerance: form.riskTolerance,
-    })
+    const data = { investmentHorizon: form.investmentHorizon, riskTolerance: form.riskTolerance }
+    if (!hasAggregates) {
+      data.monthlyIncome = Number(form.monthlyIncome)
+      data.monthlyExpenses = Number(form.monthlyExpenses)
+      data.currentCash = Number(form.currentCash)
+    }
+    updateProfile(data)
     setDone(true)
   }
 
   if (done) return null
 
-  const STEPS = ['Revenus & Depenses', 'Epargne disponible', 'Profil investisseur']
+  const canSubmit = hasAggregates || (form.monthlyIncome !== '' && form.monthlyExpenses !== '' && form.currentCash !== '')
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: '24px auto', padding: 24 }}>
@@ -127,18 +120,14 @@ function ProfileSetup({ profile, updateProfile }) {
         <User size={18} /> Configurez votre profil financier
       </h3>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {STEPS.map((s, i) => (
-          <div key={i} style={{
-            width: 10, height: 10, borderRadius: '50%',
-            background: i === step ? 'var(--accent)' : i < step ? 'var(--success)' : 'var(--bg-secondary)',
-            transition: 'all 0.25s',
-            transform: i === step ? 'scale(1.2)' : 'scale(1)',
-          }} />
-        ))}
-      </div>
+      {hasAggregates && (
+        <div className="alert-banner info" style={{ marginBottom: 16 }}>
+          <CheckCircle size={16} />
+          Revenus, depenses et epargne sont calcules automatiquement depuis vos releves bancaires importes.
+        </div>
+      )}
 
-      {step === 0 && (
+      {!hasAggregates && (
         <>
           <div className="form-group">
             <label className="form-label">Revenus mensuels nets</label>
@@ -148,41 +137,33 @@ function ProfileSetup({ profile, updateProfile }) {
             <label className="form-label">Depenses mensuelles</label>
             <input className="form-input" type="number" placeholder="ex: 1800" value={form.monthlyExpenses} onChange={e => set('monthlyExpenses', e.target.value)} min="0" />
           </div>
+          <div className="form-group">
+            <label className="form-label">Epargne de precaution disponible (cash)</label>
+            <input className="form-input" type="number" placeholder="ex: 5000" value={form.currentCash} onChange={e => set('currentCash', e.target.value)} min="0" />
+          </div>
         </>
       )}
 
-      {step === 1 && (
-        <div className="form-group">
-          <label className="form-label">Epargne de precaution disponible (cash)</label>
-          <input className="form-input" type="number" placeholder="ex: 5000" value={form.currentCash} onChange={e => set('currentCash', e.target.value)} min="0" />
+      <div className="form-group">
+        <label className="form-label">Horizon d'investissement</label>
+        <div className="segmented-control">
+          {[['court', 'Court terme'], ['moyen', 'Moyen terme'], ['long', 'Long terme']].map(([v, l]) => (
+            <button key={v} type="button" className={form.investmentHorizon === v ? 'active' : ''} onClick={() => set('investmentHorizon', v)}>{l}</button>
+          ))}
         </div>
-      )}
+      </div>
+      <div className="form-group">
+        <label className="form-label">Tolerance au risque</label>
+        <div className="segmented-control">
+          {[['prudent', 'Prudent'], ['modere', 'Modere'], ['dynamique', 'Dynamique']].map(([v, l]) => (
+            <button key={v} type="button" className={form.riskTolerance === v ? 'active' : ''} onClick={() => set('riskTolerance', v)}>{l}</button>
+          ))}
+        </div>
+      </div>
 
-      {step === 2 && (
-        <>
-          <div className="form-group">
-            <label className="form-label">Horizon d'investissement</label>
-            <div className="segmented-control">
-              {[['court', 'Court terme'], ['moyen', 'Moyen terme'], ['long', 'Long terme']].map(([v, l]) => (
-                <button key={v} type="button" className={form.investmentHorizon === v ? 'active' : ''} onClick={() => set('investmentHorizon', v)}>{l}</button>
-              ))}
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Tolerance au risque</label>
-            <div className="segmented-control">
-              {[['prudent', 'Prudent'], ['modere', 'Modere'], ['dynamique', 'Dynamique']].map(([v, l]) => (
-                <button key={v} type="button" className={form.riskTolerance === v ? 'active' : ''} onClick={() => set('riskTolerance', v)}>{l}</button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-        {step > 0 ? <button className="btn btn-ghost" onClick={() => setStep(step - 1)}><ArrowLeft size={14} /> Retour</button> : <span />}
-        <button className="btn btn-primary" disabled={!canNext()} onClick={() => step < 2 ? setStep(step + 1) : handleSubmit()}>
-          {step < 2 ? <>Suivant <ArrowRight size={14} /></> : <><CheckCircle size={14} /> Terminer</>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+        <button className="btn btn-primary" disabled={!canSubmit} onClick={handleSubmit}>
+          <CheckCircle size={14} /> Valider
         </button>
       </div>
     </div>

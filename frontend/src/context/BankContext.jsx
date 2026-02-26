@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from './AuthContext'
 import { loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
 import { parseExcelBuffer } from '../services/bankParser'
@@ -182,6 +182,30 @@ export function BankProvider({ children }) {
     ? generateCoachInsights(bankHistory.transactions, aggregates)
     : null
 
+  // Auto-compute finance profile from bank data when available
+  const autoFinanceProfile = useMemo(() => {
+    const manual = bankHistory.financeProfile
+    // If we have bank aggregates, auto-compute income/expenses from last 3 months average
+    if (aggregates.length > 0) {
+      const recent = aggregates.slice(-3)
+      const avgIncome = recent.reduce((s, a) => s + a.income, 0) / recent.length
+      const avgExpenses = recent.reduce((s, a) => s + a.expenses, 0) / recent.length
+      // Cash = sum of all account balances
+      const totalCash = bankHistory.accounts.reduce((s, acc) => {
+        const txTotal = bankHistory.transactions.filter(t => t.accountId === acc.id).reduce((sum, t) => sum + t.amount, 0)
+        return s + (acc.initialBalance || 0) + txTotal
+      }, 0)
+      return {
+        monthlyIncome: Math.round(avgIncome),
+        monthlyExpenses: Math.round(avgExpenses),
+        currentCash: Math.round(totalCash),
+        investmentHorizon: manual?.investmentHorizon || 'moyen',
+        riskTolerance: manual?.riskTolerance || 'modere',
+      }
+    }
+    return manual || EMPTY_PROFILE
+  }, [aggregates, bankHistory])
+
   // Account balances
   const accountBalances = bankHistory.accounts.map(acc => {
     const txs = bankHistory.transactions.filter(t => t.accountId === acc.id)
@@ -196,7 +220,7 @@ export function BankProvider({ children }) {
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
       setInitialBalance, refreshCategories,
-      financeProfile: bankHistory.financeProfile || EMPTY_PROFILE,
+      financeProfile: autoFinanceProfile,
       updateFinanceProfile,
     }}>
       {children}

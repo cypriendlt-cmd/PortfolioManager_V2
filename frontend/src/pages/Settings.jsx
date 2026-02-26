@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info } from 'lucide-react'
 import packageJson from '../../package.json'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -11,10 +11,8 @@ import {
 import { sendBugReport } from '../services/emailService'
 import './Settings.css'
 
-const GROQ_KEY_STORAGE = 'pm_groq_api_key'
-const TOGETHER_KEY_STORAGE = 'pm_together_api_key'
-const HF_KEY_STORAGE = 'pm_hf_api_key'
-const CORS_PROXY_KEY = 'pm_cors_proxy_url'
+const BINANCE_KEY_STORAGE = 'pm_binance_api_key'
+const BINANCE_SECRET_STORAGE = 'pm_binance_api_secret'
 
 const THEME_META = {
   crimson: { label: 'Crimson', colors: ['#0f1729', '#dc2626', '#f1f5f9'] },
@@ -41,18 +39,13 @@ export default function Settings() {
   const { theme, darkMode, toggleDarkMode, changeTheme, THEMES } = useTheme()
   const { user, logout } = useAuth()
   const { driveConnected, driveError, portfolio } = usePortfolio()
-  const [binanceKey, setBinanceKey] = useState('')
-  const [binanceSecret, setBinanceSecret] = useState('')
+  const [binanceKey, setBinanceKey] = useState(() => localStorage.getItem(BINANCE_KEY_STORAGE) || '')
+  const [binanceSecret, setBinanceSecret] = useState(() => localStorage.getItem(BINANCE_SECRET_STORAGE) || '')
   const [currency, setCurrency] = useState('EUR')
   const [language, setLanguage] = useState('fr')
   const [saved, setSaved] = useState(false)
-  const [groqKey, setGroqKey] = useState(() => localStorage.getItem(GROQ_KEY_STORAGE) || '')
-  const [togetherKey, setTogetherKey] = useState(() => localStorage.getItem(TOGETHER_KEY_STORAGE) || '')
-  const [hfKey, setHfKey] = useState(() => localStorage.getItem(HF_KEY_STORAGE) || '')
-  const [aiSaved, setAiSaved] = useState(false)
-  const [corsProxy, setCorsProxy] = useState(() => localStorage.getItem(CORS_PROXY_KEY) || '')
-  const [corsProxySaved, setCorsProxySaved] = useState(false)
-  const [corsProxyTest, setCorsProxyTest] = useState(null) // null | 'testing' | 'ok' | 'error'
+  const [binanceTest, setBinanceTest] = useState(null) // null | 'testing' | 'ok' | 'error'
+  const [binanceError, setBinanceError] = useState('')
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission())
   const notifSupported = isNotificationSupported()
 
@@ -125,8 +118,31 @@ export default function Settings() {
   }
 
   const handleSave = () => {
+    localStorage.setItem(BINANCE_KEY_STORAGE, binanceKey.trim())
+    localStorage.setItem(BINANCE_SECRET_STORAGE, binanceSecret.trim())
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleTestBinance = async () => {
+    const key = binanceKey.trim()
+    const secret = binanceSecret.trim()
+    if (!key || !secret) { setBinanceTest('error'); setBinanceError('Cle API et secret requis'); return }
+    setBinanceTest('testing')
+    setBinanceError('')
+    try {
+      const { testBinanceConnection } = await import('../services/binanceService')
+      const result = await testBinanceConnection(key, secret)
+      if (result.success) {
+        setBinanceTest('ok')
+      } else {
+        setBinanceTest('error')
+        setBinanceError(result.error || 'Erreur de connexion')
+      }
+    } catch (e) {
+      setBinanceTest('error')
+      setBinanceError(e.message || 'Erreur inconnue')
+    }
   }
 
   const handleExport = () => {
@@ -171,96 +187,6 @@ export default function Settings() {
             {driveConnected ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
             <span>Google Drive {driveConnected ? 'synchronisé' : driveError || 'en attente'}</span>
           </div>
-        </div>
-      </Section>
-
-      {/* CORS Proxy for stock prices */}
-      <Section title="Proxy CORS (prix bourse)" icon={Server}>
-        <p className="text-sm text-muted mb-16">
-          Pour récupérer les prix des actions/ETF (Yahoo Finance), un proxy CORS est nécessaire.
-          Déployez un Cloudflare Worker gratuit (100k req/jour) avec le fichier <code>cors-proxy/worker.js</code> du repo.
-        </p>
-        <div className="gc-steps">
-          <div className="gc-step">
-            <div className="gc-step-number">1</div>
-            <div className="gc-step-content">
-              <div className="settings-label">Créer un Worker Cloudflare</div>
-              <div className="settings-hint">Allez sur Cloudflare Dashboard → Workers & Pages → Create</div>
-              <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="gc-link">
-                Ouvrir Cloudflare Dashboard <ExternalLink size={14} />
-              </a>
-            </div>
-          </div>
-          <div className="gc-step">
-            <div className="gc-step-number">2</div>
-            <div className="gc-step-content">
-              <div className="settings-label">Copier le code du Worker</div>
-              <div className="settings-hint">
-                Collez le contenu de <code>cors-proxy/worker.js</code> dans l'éditeur et déployez.
-              </div>
-              <a href="https://github.com/cypriendlt-cmd/PortfolioManager_V2/blob/master/cors-proxy/worker.js" target="_blank" rel="noopener noreferrer" className="gc-link">
-                Voir le code du Worker <ExternalLink size={14} />
-              </a>
-            </div>
-          </div>
-          <div className="gc-step">
-            <div className="gc-step-number">3</div>
-            <div className="gc-step-content">
-              <div className="settings-label">Coller l'URL du Worker ci-dessous</div>
-              <div className="settings-hint">
-                Ex: <code>https://portfolio-cors-proxy.votre-compte.workers.dev</code>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="form-group mt-16">
-          <label className="form-label">URL du proxy CORS</label>
-          <input
-            className="form-input"
-            type="text"
-            placeholder="https://portfolio-cors-proxy.xxx.workers.dev"
-            value={corsProxy}
-            onChange={e => setCorsProxy(e.target.value)}
-          />
-        </div>
-        <div className="gc-actions">
-          <button className="btn btn-primary" onClick={() => {
-            const url = corsProxy.trim().replace(/\/$/, '')
-            localStorage.setItem(CORS_PROXY_KEY, url)
-            setCorsProxySaved(true)
-            setTimeout(() => setCorsProxySaved(false), 2000)
-          }}>
-            {corsProxySaved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder'}
-          </button>
-          <button className="btn btn-secondary" onClick={async () => {
-            const url = corsProxy.trim().replace(/\/$/, '')
-            if (!url) { setCorsProxyTest('error'); return }
-            setCorsProxyTest('testing')
-            try {
-              const res = await fetch(`${url}?url=${encodeURIComponent('https://query2.finance.yahoo.com/v1/finance/search?q=FR0011871128&quotesCount=1&newsCount=0')}`, { signal: AbortSignal.timeout(10000) })
-              const data = await res.json()
-              setCorsProxyTest(data.quotes ? 'ok' : 'error')
-            } catch {
-              setCorsProxyTest('error')
-            }
-          }}>
-            Tester la connexion
-          </button>
-        </div>
-        <div className="gc-status mt-16">
-          <div className={`gc-status-item ${corsProxy ? 'gc-ok' : 'gc-warn'}`}>
-            {corsProxy ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Proxy {corsProxy ? 'configuré' : 'non configuré — les prix bourse ne seront pas disponibles'}</span>
-          </div>
-          {corsProxyTest === 'testing' && (
-            <div className="gc-status-item gc-warn"><AlertCircle size={16} /><span>Test en cours...</span></div>
-          )}
-          {corsProxyTest === 'ok' && (
-            <div className="gc-status-item gc-ok"><CheckCircle size={16} /><span>Proxy fonctionnel — Yahoo Finance accessible</span></div>
-          )}
-          {corsProxyTest === 'error' && (
-            <div className="gc-status-item gc-error"><AlertCircle size={16} /><span>Echec du test — vérifiez l'URL du Worker</span></div>
-          )}
         </div>
       </Section>
 
@@ -326,72 +252,6 @@ export default function Settings() {
         </div>
       </Section>
 
-      {/* AI Providers */}
-      <Section title="IA — Fournisseurs" icon={Brain}>
-        <p className="text-sm text-muted mb-16">
-          Configurez au moins une cle API pour activer les analyses IA sur la page Insights.
-          Les fournisseurs sont testes dans l'ordre : Groq, Together AI, Hugging Face.
-        </p>
-        <div className="form-group">
-          <label className="form-label">Cle API Groq (recommande)</label>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="gsk_..."
-            value={groqKey}
-            onChange={e => setGroqKey(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Cle API Together AI</label>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="..."
-            value={togetherKey}
-            onChange={e => setTogetherKey(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Cle API Hugging Face</label>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="hf_..."
-            value={hfKey}
-            onChange={e => setHfKey(e.target.value)}
-          />
-        </div>
-        <div className="gc-actions">
-          <button className="btn btn-primary" onClick={() => {
-            localStorage.setItem(GROQ_KEY_STORAGE, groqKey.trim())
-            localStorage.setItem(TOGETHER_KEY_STORAGE, togetherKey.trim())
-            localStorage.setItem(HF_KEY_STORAGE, hfKey.trim())
-            setAiSaved(true)
-            setTimeout(() => setAiSaved(false), 2000)
-          }}>
-            {aiSaved ? <><Check size={16} /> Sauvegarde</> : 'Sauvegarder les cles'}
-          </button>
-        </div>
-        <div className="gc-status mt-16">
-          <div className={`gc-status-item ${groqKey ? 'gc-ok' : 'gc-warn'}`}>
-            {groqKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Groq {groqKey ? 'configure' : 'non configure'}</span>
-          </div>
-          <div className={`gc-status-item ${togetherKey ? 'gc-ok' : 'gc-warn'}`}>
-            {togetherKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Together AI {togetherKey ? 'configure' : 'non configure'}</span>
-          </div>
-          <div className={`gc-status-item ${hfKey ? 'gc-ok' : 'gc-warn'}`}>
-            {hfKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Hugging Face {hfKey ? 'configure' : 'non configure'}</span>
-          </div>
-        </div>
-        <p className="text-xs text-muted mt-12">
-          Vos cles sont stockees localement dans votre navigateur.
-        </p>
-      </Section>
-
       {/* Notifications */}
       <Section title="Notifications" icon={Bell}>
         {notifSupported ? (
@@ -437,18 +297,38 @@ export default function Settings() {
 
       {/* Binance API */}
       <Section title="Binance API" icon={Key}>
-        <p className="text-sm text-muted mb-16">Connectez votre compte Binance pour synchroniser automatiquement vos cryptomonnaies.</p>
+        <p className="text-sm text-muted mb-16">
+          Connectez votre compte Binance pour synchroniser automatiquement vos cryptomonnaies.
+          Utilisez une cle API en lecture seule (Enable Reading uniquement).
+        </p>
         <div className="form-group">
-          <label className="form-label">Clé API</label>
-          <input className="form-input" type="password" placeholder="Entrez votre clé API Binance" value={binanceKey} onChange={e => setBinanceKey(e.target.value)} />
+          <label className="form-label">Cle API</label>
+          <input className="form-input" type="password" placeholder="Entrez votre cle API Binance" value={binanceKey} onChange={e => setBinanceKey(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Clé secrète</label>
-          <input className="form-input" type="password" placeholder="Entrez votre clé secrète Binance" value={binanceSecret} onChange={e => setBinanceSecret(e.target.value)} />
+          <label className="form-label">Cle secrete</label>
+          <input className="form-input" type="password" placeholder="Entrez votre cle secrete Binance" value={binanceSecret} onChange={e => setBinanceSecret(e.target.value)} />
         </div>
-        <button className="btn btn-primary" onClick={handleSave}>
-          {saved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder les clés'}
-        </button>
+        <div className="gc-actions">
+          <button className="btn btn-primary" onClick={handleSave}>
+            {saved ? <><Check size={16} /> Sauvegarde</> : 'Sauvegarder les cles'}
+          </button>
+          <button className="btn btn-secondary" onClick={handleTestBinance}>
+            {binanceTest === 'testing' ? <><Loader2 size={16} /> Test en cours...</> : 'Tester la connexion'}
+          </button>
+        </div>
+        <div className="gc-status mt-16">
+          <div className={`gc-status-item ${binanceKey ? 'gc-ok' : 'gc-warn'}`}>
+            {binanceKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Cle API {binanceKey ? 'configuree' : 'non configuree'}</span>
+          </div>
+          {binanceTest === 'ok' && (
+            <div className="gc-status-item gc-ok"><CheckCircle size={16} /><span>Connexion Binance OK</span></div>
+          )}
+          {binanceTest === 'error' && (
+            <div className="gc-status-item gc-error"><AlertCircle size={16} /><span>{binanceError || 'Echec de la connexion'}</span></div>
+          )}
+        </div>
       </Section>
 
       {/* Data */}
