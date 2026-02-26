@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info } from 'lucide-react'
+import { Sun, Moon, Download, Upload, LogOut, Key, Globe, User, Palette, Check, AlertCircle, CheckCircle, Brain, ExternalLink, Server, Bell, BellOff, Send, MessageSquare, Bug, Lightbulb, HelpCircle, Loader2, Trash2, Info, Sparkles } from 'lucide-react'
 import packageJson from '../../package.json'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { usePortfolio } from '../context/PortfolioContext'
+import { useBeta } from '../context/BetaContext'
 import {
   isNotificationSupported, getNotificationPermission,
   requestPermission, testNotification
@@ -41,6 +42,7 @@ export default function Settings() {
   const { theme, darkMode, toggleDarkMode, changeTheme, THEMES } = useTheme()
   const { user, logout } = useAuth()
   const { driveConnected, driveError, portfolio } = usePortfolio()
+  const { isBeta, toggleBeta } = useBeta()
   const [binanceKey, setBinanceKey] = useState('')
   const [binanceSecret, setBinanceSecret] = useState('')
   const [currency, setCurrency] = useState('EUR')
@@ -261,6 +263,19 @@ export default function Settings() {
           {corsProxyTest === 'error' && (
             <div className="gc-status-item gc-error"><AlertCircle size={16} /><span>Echec du test — vérifiez l'URL du Worker</span></div>
           )}
+        </div>
+      </Section>
+
+      {/* Beta Mode */}
+      <Section title="Mode Bêta — Coach Financier" icon={Sparkles}>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Activer le mode Coach</div>
+            <div className="settings-hint">Remplace l'interface classique par un coach financier personnalisé avec suivi budget, épargne et objectifs de liberté financière.</div>
+          </div>
+          <button className="settings-toggle" onClick={toggleBeta}>
+            <div className={`settings-toggle-ball ${isBeta ? 'settings-toggle-ball--on' : ''}`} />
+          </button>
         </div>
       </Section>
 

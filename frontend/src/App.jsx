@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import { useBeta } from './context/BetaContext'
 import { usePriceRefreshManager } from './hooks/usePriceRefresh'
 import Layout from './components/Layout'
+import BetaLayout from './components/BetaLayout'
 import Dashboard from './pages/Dashboard'
 import Crypto from './pages/Crypto'
 import PEA from './pages/PEA'
@@ -13,6 +15,12 @@ import DCA from './pages/DCA'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import InstallPrompt from './components/InstallPrompt'
+import BetaDashboard from './pages/beta/BetaDashboard'
+import BetaBudget from './pages/beta/BetaBudget'
+import BetaSecurity from './pages/beta/BetaSecurity'
+import BetaInvestments from './pages/beta/BetaInvestments'
+import BetaFreedom from './pages/beta/BetaFreedom'
+import BetaOnboarding from './pages/beta/BetaOnboarding'
 
 /**
  * Inner component that lives inside PortfolioProvider so it can access the context.
@@ -45,34 +53,64 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
+  const { isBeta, hasCompletedOnboarding } = useBeta()
+
   return (
     <>
     <InstallPrompt />
     <Routes>
       <Route path="/login" element={<Login />} />
-      {/* Settings accessible without auth for Google Cloud config */}
-      <Route path="/settings" element={
-        <Layout>
-          <Settings />
-        </Layout>
-      } />
-      <Route path="/*" element={
-        <ProtectedRoute>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/crypto" element={<Crypto />} />
-              <Route path="/pea" element={<PEA />} />
-              <Route path="/livrets" element={<Livrets />} />
-              <Route path="/fundraising" element={<Fundraising />} />
-              <Route path="/objectives" element={<Objectives />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/dca" element={<DCA />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Layout>
-        </ProtectedRoute>
-      } />
+      {isBeta ? (
+        <>
+          <Route path="/settings" element={
+            <BetaLayout><Settings /></BetaLayout>
+          } />
+          <Route path="/beta/*" element={
+            <ProtectedRoute>
+              <BetaLayout>
+                <Routes>
+                  {!hasCompletedOnboarding ? (
+                    <Route path="*" element={<BetaOnboarding />} />
+                  ) : (
+                    <>
+                      <Route path="/" element={<BetaDashboard />} />
+                      <Route path="/budget" element={<BetaBudget />} />
+                      <Route path="/security" element={<BetaSecurity />} />
+                      <Route path="/investments" element={<BetaInvestments />} />
+                      <Route path="/freedom" element={<BetaFreedom />} />
+                      <Route path="*" element={<Navigate to="/beta" replace />} />
+                    </>
+                  )}
+                </Routes>
+              </BetaLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<Navigate to="/beta" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/settings" element={
+            <Layout><Settings /></Layout>
+          } />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/crypto" element={<Crypto />} />
+                  <Route path="/pea" element={<PEA />} />
+                  <Route path="/livrets" element={<Livrets />} />
+                  <Route path="/fundraising" element={<Fundraising />} />
+                  <Route path="/objectives" element={<Objectives />} />
+                  <Route path="/insights" element={<Insights />} />
+                  <Route path="/dca" element={<DCA />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Layout>
+            </ProtectedRoute>
+          } />
+        </>
+      )}
     </Routes>
     </>
   )
