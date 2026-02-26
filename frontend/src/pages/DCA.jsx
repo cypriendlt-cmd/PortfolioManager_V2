@@ -137,6 +137,10 @@ export default function DCA() {
       assetName: assetName || 'Mon actif DCA',
       assetType,
       monthlyAmount,
+      initialFixedAmount,
+      duration,
+      durationUnit,
+      annualReturn,
       dayOfMonth: reminderDay,
       startDate,
       endDate: end.toISOString().slice(0, 10),
@@ -167,6 +171,23 @@ export default function DCA() {
   const handleRequestPermission = async () => {
     const result = await requestPermission()
     setNotifPermission(result)
+  }
+
+  const handleLoadReminder = (n) => {
+    setAssetType(n.assetType || 'crypto')
+    setAssetName(n.assetName || '')
+    setMonthlyAmount(n.monthlyAmount || 100)
+    setInitialFixedAmount(n.initialFixedAmount || 0)
+    setDuration(n.duration || 12)
+    setDurationUnit(n.durationUnit || 'months')
+    setStartDate(n.startDate || new Date().toISOString().slice(0, 10))
+    setAnnualReturn(n.annualReturn != null ? n.annualReturn : 8)
+    // Auto-calculate
+    const totalMonths = (n.durationUnit || 'months') === 'years' ? (n.duration || 12) * 12 : (n.duration || 12)
+    const data = computeDCA(n.monthlyAmount || 100, totalMonths, n.annualReturn != null ? n.annualReturn : 8, n.initialFixedAmount || 0)
+    setResults({ data, totalMonths, startDate: n.startDate || new Date().toISOString().slice(0, 10) })
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleTestNotification = async () => {
@@ -488,7 +509,7 @@ export default function DCA() {
           <div className="dca-notif-list">
             {notifications.map(n => (
               <div key={n.id} className={`dca-notif-item ${!n.active ? 'inactive' : ''}`}>
-                <div className="dca-notif-info">
+                <div className="dca-notif-info" style={{ cursor: 'pointer' }} onClick={() => handleLoadReminder(n)} title="Cliquer pour recharger la simulation">
                   <div className="dca-notif-name">{n.assetName}</div>
                   <div className="dca-notif-details">
                     {fmt(n.monthlyAmount)}/mois &middot; Jour {n.dayOfMonth} &middot; Prochain : {n.nextReminder || '—'}
