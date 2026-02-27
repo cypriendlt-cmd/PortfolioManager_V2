@@ -4,7 +4,7 @@ import {
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
-  ArrowRight, ArrowLeft
+  ArrowRight, ArrowLeft, Zap, Brain, Loader2
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
@@ -12,7 +12,7 @@ import {
 import { useBank } from '../context/BankContext'
 import { usePortfolio } from '../context/PortfolioContext'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
-import { CATEGORIES } from '../services/bankEngine'
+import { CATEGORIES, TAXONOMY } from '../services/bankTaxonomy'
 import BankImportModal from '../components/BankImportModal'
 import './Banking.css'
 
@@ -32,13 +32,56 @@ const TABS = [
   { key: 'regles', label: 'Regles', icon: Settings2 },
 ]
 
+/* ─── Confidence dot ─── */
+function ConfidenceDot({ confidence }) {
+  const c = typeof confidence === 'number' ? confidence : 0
+  const color = c >= 0.8 ? '#22c55e' : c >= 0.5 ? '#f59e0b' : '#ef4444'
+  return <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: color, marginRight: 4, flexShrink: 0 }} title={`Confiance: ${(c * 100).toFixed(0)}%`} />
+}
+
+/* ─── Clickable category badge ─── */
+function CategoryBadge({ tx, onCorrect }) {
+  const [editing, setEditing] = useState(false)
+  const cat = catMap[tx.category] || catMap.autre
+  const color = cat?.color || '#94a3b8'
+
+  if (editing) {
+    return (
+      <select
+        autoFocus
+        value={tx.category}
+        onChange={e => { onCorrect(tx.hash, e.target.value); setEditing(false) }}
+        onBlur={() => setEditing(false)}
+        style={{ fontSize: '0.75rem', padding: '2px 4px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+      >
+        {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
+    )
+  }
+
+  return (
+    <span
+      className="tx-category"
+      style={{ background: color + '18', color, cursor: 'pointer' }}
+      onClick={() => setEditing(true)}
+      title={tx.reason || 'Cliquer pour changer'}
+    >
+      <ConfidenceDot confidence={tx.confidence} />
+      {tx.isTransfer && <Repeat size={10} style={{ marginRight: 3 }} />}
+      {cat?.label || tx.category}
+    </span>
+  )
+}
+
 export default function Banking() {
   const {
-    bankHistory, loading, accountBalances,
+    bankHistory, loading, processing, accountBalances,
     aggregates, healthScore, coachInsights,
     importExcel, addRule, deleteRule,
     setInitialBalance, refreshCategories,
     financeProfile, updateFinanceProfile,
+    correctCategory, deleteLearnedRule, clearAICache,
+    requestAICategorization, lowConfidenceCount,
   } = useBank()
   const { m, mp } = usePrivacyMask()
   const [tab, setTab] = useState('synthese')
@@ -54,9 +97,12 @@ export default function Banking() {
     <div className="banking">
       <div className="banking-header">
         <h1><Landmark size={22} style={{ marginRight: 8 }} />Banque & Cashflow</h1>
-        <button className="btn btn-primary" onClick={() => setImportOpen(true)}>
-          <Upload size={14} /> Importer un releve
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {processing && <Loader2 size={16} className="spin" style={{ color: 'var(--accent)' }} />}
+          <button className="btn btn-primary" onClick={() => setImportOpen(true)}>
+            <Upload size={14} /> Importer un releve
+          </button>
+        </div>
       </div>
 
       <div className="banking-tabs">
@@ -68,15 +114,14 @@ export default function Banking() {
       </div>
 
       {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} m={m} mp={mp} />}
-      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} m={m} />}
+      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} correctCategory={correctCategory} m={m} />}
       {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} m={m} />}
       {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} m={m} />}
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
       {tab === 'investissements' && <InvestmentsTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
-      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} />}
+      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} deleteLearnedRule={deleteLearnedRule} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
 
-      {/* Profile setup inline when needed */}
       {(tab === 'securite' || tab === 'liberte' || tab === 'investissements') && !hasProfile && (
         <ProfileSetup profile={financeProfile} updateProfile={updateFinanceProfile} hasAggregates={aggregates.length > 0} />
       )}
@@ -480,11 +525,17 @@ function InvestmentsTab({ profile, hasProfile, m }) {
 
 /* ─── SYNTHESE ─── */
 function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights, m, mp }) {
+  const [netMode, setNetMode] = useState(false)
   const courants = accountBalances.filter(a => a.type === 'courant')
   const livrets = accountBalances.filter(a => a.type !== 'courant')
   const totalCourant = courants.reduce((s, a) => s + a.balance, 0)
   const totalLivrets = livrets.reduce((s, a) => s + a.balance, 0)
   const lastMonths = aggregates.slice(-12)
+
+  const netData = useMemo(() => lastMonths.map(m => ({
+    ...m,
+    net: m.income - m.expenses,
+  })), [lastMonths])
 
   const lastAgg = aggregates[aggregates.length - 1]
   const savingsRate = lastAgg ? lastAgg.savingsRate : 0
@@ -514,16 +565,28 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights, 
 
       {lastMonths.length > 0 && (
         <div className="cashflow-chart-container">
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12 }}>Cashflow mensuel</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 600 }}>Cashflow mensuel</h3>
+            <div className="segmented-control" style={{ fontSize: '0.75rem' }}>
+              <button className={!netMode ? 'active' : ''} onClick={() => setNetMode(false)}>Brut</button>
+              <button className={netMode ? 'active' : ''} onClick={() => setNetMode(true)}>Net</button>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={lastMonths}>
+            <BarChart data={netMode ? netData : lastMonths}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false}
                 tickFormatter={m => { const [, mm] = m.split('-'); return ['Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aout','Sep','Oct','Nov','Dec'][parseInt(mm)-1] || m }} />
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
               <Tooltip formatter={(v) => fmt(v)} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.82rem' }} />
-              <Bar dataKey="income" name="Revenus" fill="#22c55e" radius={[4,4,0,0]} />
-              <Bar dataKey="expenses" name="Depenses" fill="#ef4444" radius={[4,4,0,0]} />
+              {netMode ? (
+                <Bar dataKey="net" name="Cashflow net" fill="#3b82f6" radius={[4,4,0,0]} />
+              ) : (
+                <>
+                  <Bar dataKey="income" name="Revenus" fill="#22c55e" radius={[4,4,0,0]} />
+                  <Bar dataKey="expenses" name="Depenses" fill="#ef4444" radius={[4,4,0,0]} />
+                </>
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -548,14 +611,14 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights, 
 }
 
 /* ─── COMPTE COURANT ─── */
-function CourantTab({ bankHistory, accountBalances, setInitialBalance, m }) {
+function CourantTab({ bankHistory, accountBalances, setInitialBalance, correctCategory, m }) {
   const [monthFilter, setMonthFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [search, setSearch] = useState('')
   const [balanceInput, setBalanceInput] = useState('')
 
-  const courantAccounts = accountBalances.filter(a => a.type === 'courant')
-  const courantIds = new Set(courantAccounts.map(a => a.id))
+  const courantAccounts = useMemo(() => accountBalances.filter(a => a.type === 'courant'), [accountBalances])
+  const courantIds = useMemo(() => new Set(courantAccounts.map(a => a.id)), [courantAccounts])
 
   const txs = useMemo(() => {
     let list = bankHistory.transactions.filter(t => courantIds.has(t.accountId))
@@ -568,8 +631,10 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, m }) {
     return list.sort((a, b) => b.date.localeCompare(a.date))
   }, [bankHistory.transactions, monthFilter, catFilter, search, courantIds])
 
-  const months = [...new Set(bankHistory.transactions.filter(t => courantIds.has(t.accountId)).map(t => t.date.slice(0, 7)))].sort().reverse()
-  const feesPattern = /FRAIS|COTISATION|TENUE DE COMPTE|COMMISSION|AGIOS/i
+  const months = useMemo(() =>
+    [...new Set(bankHistory.transactions.filter(t => courantIds.has(t.accountId)).map(t => t.date.slice(0, 7)))].sort().reverse(),
+    [bankHistory.transactions, courantIds]
+  )
 
   return (
     <>
@@ -613,14 +678,11 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, m }) {
           </thead>
           <tbody>
             {txs.slice(0, 200).map(tx => (
-              <tr key={tx.hash} className={`${tx.isTransfer ? 'tx-transfer' : ''} ${feesPattern.test(tx.label) ? 'tx-fee' : ''}`}>
+              <tr key={tx.hash} className={tx.isTransfer ? 'tx-transfer' : ''}>
                 <td>{tx.date}</td>
                 <td>{tx.label}</td>
                 <td>
-                  <span className="tx-category" style={{ background: (catMap[tx.category]?.color || '#94a3b8') + '18', color: catMap[tx.category]?.color || '#94a3b8' }}>
-                    {tx.isTransfer && <Repeat size={10} style={{ marginRight: 3 }} />}
-                    {catMap[tx.category]?.label || tx.category}
-                  </span>
+                  <CategoryBadge tx={tx} onCorrect={correctCategory} />
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <span className={`tx-amount ${tx.amount >= 0 ? 'positive' : 'negative'}`}>{m(fmtD(tx.amount))}</span>
@@ -766,12 +828,18 @@ function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
 }
 
 /* ─── REGLES & CATEGORIES ─── */
-function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories }) {
+function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, deleteLearnedRule, clearAICache, requestAICategorization, lowConfidenceCount }) {
   const [pattern, setPattern] = useState('')
   const [category, setCategory] = useState('autre')
   const [priority, setPriority] = useState(50)
   const [testLabel, setTestLabel] = useState('')
   const [testResult, setTestResult] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState(null)
+
+  const learnedRules = bankHistory.learnedRules || {}
+  const learnedEntries = Object.entries(learnedRules)
+  const aiCacheCount = Object.keys(bankHistory.aiCache || {}).length
 
   const handleAdd = () => {
     if (!pattern) return
@@ -787,6 +855,18 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories }) {
     } catch {
       setTestResult('Regex invalide')
     }
+  }
+
+  const handleAI = async () => {
+    setAiLoading(true)
+    setAiResult(null)
+    try {
+      const result = await requestAICategorization()
+      setAiResult(result.count > 0 ? `${result.count} marchands categorises` : 'Aucun marchand a categoriser')
+    } catch {
+      setAiResult('Erreur IA')
+    }
+    setAiLoading(false)
   }
 
   return (
@@ -835,6 +915,53 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories }) {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Learned rules section */}
+      <div className="bank-account-card" style={{ marginBottom: 16 }}>
+        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>
+          <Brain size={14} style={{ marginRight: 4 }} /> Regles apprises ({learnedEntries.length})
+        </h4>
+        {learnedEntries.length === 0 ? (
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Corrigez une categorie dans la table pour creer une regle apprise.</p>
+        ) : (
+          <table className="rules-table">
+            <thead><tr><th>Marchand</th><th>Categorie</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+              {learnedEntries.map(([key, rule]) => (
+                <tr key={key}>
+                  <td style={{ fontSize: '0.78rem' }}>{key}</td>
+                  <td>
+                    <span className="tx-category" style={{ background: (catMap[rule.category]?.color || '#94a3b8') + '18', color: catMap[rule.category]?.color || '#94a3b8' }}>
+                      {catMap[rule.category]?.label || rule.category}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{rule.learnedAt?.slice(0, 10)}</td>
+                  <td><button onClick={() => deleteLearnedRule(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}><Trash2 size={14} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* AI section */}
+      <div className="bank-account-card" style={{ marginBottom: 16 }}>
+        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>
+          <Zap size={14} style={{ marginRight: 4 }} /> Categorisation IA
+        </h4>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={handleAI} disabled={aiLoading || lowConfidenceCount === 0} style={{ padding: '6px 14px' }}>
+            {aiLoading ? <Loader2 size={14} className="spin" /> : <Zap size={14} />}
+            {aiLoading ? ' Analyse...' : ` Categoriser (${lowConfidenceCount} marchands)`}
+          </button>
+          {aiCacheCount > 0 && (
+            <button className="btn btn-ghost" onClick={clearAICache} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+              Vider le cache ({aiCacheCount})
+            </button>
+          )}
+          {aiResult && <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>{aiResult}</span>}
+        </div>
       </div>
 
       <div className="bank-account-card">

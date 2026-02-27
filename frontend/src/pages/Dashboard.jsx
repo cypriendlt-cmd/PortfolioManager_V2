@@ -268,10 +268,15 @@ export default function Dashboard() {
   const perfData = buildPortfolioHistory(portfolio, totals, timeRange)
   const recentActivities = gatherRecentActivities(portfolio)
 
+  // Include bank-imported livrets in total
+  const bankLivrets = (accountBalances || []).filter(a => a.type !== 'courant').reduce((s, a) => s + a.balance, 0)
+  const totalLivrets = totals.livrets + bankLivrets
+  const totalLivretCount = portfolio.livrets.length + (accountBalances || []).filter(a => a.type !== 'courant').length
+
   const allocationData = [
     { name: 'Crypto', value: totals.crypto, color: '#3b82f6' },
     { name: 'PEA', value: totals.pea, color: '#10b981' },
-    { name: 'Livrets', value: totals.livrets, color: '#f59e0b' },
+    { name: 'Livrets', value: totalLivrets, color: '#f59e0b' },
     { name: 'Levées', value: totals.fundraising, color: '#8b5cf6' },
   ]
 
@@ -288,7 +293,7 @@ export default function Dashboard() {
     ...portfolio.pea.map(p => p.buyPrice * p.quantity),
   ].reduce((a, b) => a + b, 0)
 
-  const totalGain = totals.total - totals.livrets - totals.fundraising - totalInvested
+  const totalGain = totals.total + bankLivrets - totalLivrets - totals.fundraising - totalInvested
 
   const cryptoInvested = portfolio.crypto.reduce((sum, c) => sum + c.buyPrice * c.quantity, 0)
   const cryptoGainPct = cryptoInvested > 0 ? ((totals.crypto - cryptoInvested) / cryptoInvested) * 100 : 0
@@ -302,7 +307,7 @@ export default function Dashboard() {
   const monthExpenses = lastAgg?.expenses || 0
   const monthSavings = monthIncome - monthExpenses
   const monthFees = coachInsights?.fees?.total || 0
-  const patrimoineNet = totals.total + bankTotal
+  const patrimoineNet = totals.total + bankLivrets + bankTotal
 
   return (
     <div className="dashboard">
@@ -310,7 +315,7 @@ export default function Dashboard() {
       <div className="dashboard-hero">
         <div className="dashboard-hero-content">
           <p className="dashboard-hero-label">Valeur totale du portefeuille</p>
-          <p className="dashboard-total">{m(fmt(totals.total))}</p>
+          <p className="dashboard-total">{m(fmt(totals.total + bankLivrets))}</p>
           <span className={`dashboard-hero-badge ${totalGain >= 0 ? 'dashboard-hero-badge--up' : 'dashboard-hero-badge--down'}`}>
             {totalGain >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
             {m(fmt(totalGain))} depuis le début
@@ -356,8 +361,8 @@ export default function Dashboard() {
             </div>
             <span className="dash-stat-label">Épargne</span>
           </div>
-          <div className="dash-stat-value">{m(fmt(totals.livrets))}</div>
-          <div className="dash-stat-sub text-muted">{portfolio.livrets.length} livret{portfolio.livrets.length > 1 ? 's' : ''}</div>
+          <div className="dash-stat-value">{m(fmt(totalLivrets))}</div>
+          <div className="dash-stat-sub text-muted">{totalLivretCount} livret{totalLivretCount > 1 ? 's' : ''}</div>
         </div>
 
         <div className="dash-stat" style={{ '--stat-accent': '#8b5cf6' }}>
@@ -442,7 +447,7 @@ export default function Dashboard() {
                   <span className="dashboard-legend-dot" style={{ background: item.color }} />
                   <div>
                     <div className="legend-name">{item.name}</div>
-                    <div className="legend-detail">{m(fmt(item.value))} · {mp(`${((item.value / totals.total) * 100).toFixed(1)}%`)}</div>
+                    <div className="legend-detail">{m(fmt(item.value))} · {mp(`${(((item.value) / (totals.total + bankLivrets)) * 100).toFixed(1)}%`)}</div>
                   </div>
                 </div>
               ))}

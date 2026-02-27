@@ -7,6 +7,7 @@ const REDIRECT_URI = 'https://cypriendlt-cmd.github.io/PortfolioManager_V2/'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
 const TOKEN_KEY = 'pm_google_token'
 const USER_KEY = 'pm_google_user'
+const GUEST_KEY = 'pm_guest_mode'
 
 function getStoredUser() {
   try {
@@ -36,6 +37,8 @@ function waitForGoogleScripts() {
   })
 }
 
+const GUEST_USER = { name: 'Invité', email: 'guest@local', avatar: null, isGuest: true }
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -43,6 +46,7 @@ export function AuthProvider({ children }) {
   const [clientId] = useState(GOOGLE_CLIENT_ID)
   const [gapiReady, setGapiReady] = useState(false)
   const [error, setError] = useState(null)
+  const [isGuest, setIsGuest] = useState(false)
 
   // Initialize gapi client
   const initGapi = useCallback(async () => {
@@ -154,6 +158,14 @@ export function AuthProvider({ children }) {
       return
     }
 
+    // Check for guest mode
+    if (sessionStorage.getItem(GUEST_KEY)) {
+      setUser(GUEST_USER)
+      setIsGuest(true)
+      setLoading(false)
+      return
+    }
+
     setLoading(false)
   }, [gapiReady])
 
@@ -171,7 +183,19 @@ export function AuthProvider({ children }) {
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
   }, [])
 
+  const loginAsGuest = useCallback(() => {
+    setUser(GUEST_USER)
+    setIsGuest(true)
+    sessionStorage.setItem(GUEST_KEY, 'true')
+  }, [])
+
   const logout = useCallback(() => {
+    if (isGuest) {
+      setUser(null)
+      setIsGuest(false)
+      sessionStorage.removeItem(GUEST_KEY)
+      return
+    }
     if (accessToken) {
       window.google?.accounts?.oauth2?.revoke(accessToken, () => {})
     }
@@ -180,7 +204,7 @@ export function AuthProvider({ children }) {
     setAccessToken(null)
     sessionStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
-  }, [accessToken])
+  }, [accessToken, isGuest])
 
   // Keep for Settings compatibility (no-op now since ID is hard-coded)
   const updateClientId = useCallback((newId) => {
@@ -189,8 +213,8 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, accessToken, clientId, gapiReady, error,
-      login, logout, updateClientId, handleOAuthCallback,
+      user, loading, accessToken, clientId, gapiReady, error, isGuest,
+      login, loginAsGuest, logout, updateClientId, handleOAuthCallback,
     }}>
       {children}
     </AuthContext.Provider>

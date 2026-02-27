@@ -24,6 +24,7 @@ const stocksRoutes = require('./routes/stocks');
 const livretsRoutes = require('./routes/livrets');
 const marketRoutes = require('./routes/market');
 const insightsRoutes = require('./routes/insights');
+const bankRoutes = require('./routes/categorize');
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use('/api/stocks', stocksRoutes);
 app.use('/api/livrets', livretsRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/insights', insightsRoutes);
+app.use('/api/bank', bankRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 

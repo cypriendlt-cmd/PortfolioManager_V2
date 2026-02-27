@@ -2,10 +2,9 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, us
 import { useAuth } from './AuthContext'
 import { loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
 import { parseExcelBuffer } from '../services/bankParser'
-import {
-  deduplicateTransactions, detectTransfers, categorizeAll,
-  computeMonthlyAggregates, computeHealthScore, generateCoachInsights
-} from '../services/bankEngine'
+import { deduplicateTransactions } from '../services/bankEngine'
+import { processInWorker, recategorizeInWorker, invalidateWorkerCache, terminateWorker } from '../services/bankWorkerBridge'
+import { aiCategorizeBatch } from '../services/bankAI'
 
 const BankContext = createContext(null)
 
@@ -13,10 +12,12 @@ const BANK_FILE = 'bank_history.json'
 const CACHE_KEY = 'pm_bank_cache'
 
 const EMPTY_BANK = {
-  version: 1,
+  version: 2,
   accounts: [],
   transactions: [],
   rules: [],
+  learnedRules: {},   // { merchant_key: { category, subcategory, learnedAt } }
+  aiCache: {},        // { merchant_key: { category, subcategory, confidence, cachedAt } }
   lastImport: null,
   financeProfile: null,
 }
@@ -29,25 +30,49 @@ const EMPTY_PROFILE = {
   riskTolerance: 'modere',
 }
 
+// Strip derived fields before saving to Drive (they're recomputed by worker)
+function stripDerived(transactions) {
+  return transactions.map(({ label_norm, merchant_key, payment_type, tokens, ...rest }) => rest)
+}
+
+// Migrate v1 → v2
+function migrateData(data) {
+  if (!data || !data.version) return EMPTY_BANK
+  if (data.version >= 2) return data
+  return {
+    ...EMPTY_BANK,
+    ...data,
+    version: 2,
+    learnedRules: data.learnedRules || {},
+    aiCache: data.aiCache || {},
+  }
+}
+
 export function BankProvider({ children }) {
   const { user, accessToken, gapiReady } = useAuth()
   const [bankHistory, setBankHistory] = useState(EMPTY_BANK)
   const [loading, setLoading] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const saveTimer = useRef(null)
+
+  // Worker-computed results (off main thread)
+  const [workerResults, setWorkerResults] = useState(null)
 
   // Load from Drive
   useEffect(() => {
     if (!user || !accessToken || !gapiReady) {
       setBankHistory(EMPTY_BANK)
+      setWorkerResults(null)
       return
     }
     setLoading(true)
     loadFileFromDrive(BANK_FILE)
       .then(data => {
         if (data && data.version) {
-          setBankHistory(data)
+          const migrated = migrateData(data)
+          setBankHistory(migrated)
           try {
-            const { transactions, ...meta } = data
+            const { transactions, ...meta } = migrated
             localStorage.setItem(CACHE_KEY, JSON.stringify(meta))
           } catch {}
         }
@@ -62,14 +87,42 @@ export function BankProvider({ children }) {
         } catch {}
       })
       .finally(() => setLoading(false))
+
+    return () => terminateWorker()
   }, [user, accessToken, gapiReady])
+
+  // Process transactions in worker whenever bankHistory changes
+  useEffect(() => {
+    if (!bankHistory.transactions.length) {
+      setWorkerResults(null)
+      return
+    }
+
+    setProcessing(true)
+    processInWorker({
+      transactions: bankHistory.transactions,
+      rules: bankHistory.rules,
+      learnedRules: bankHistory.learnedRules || {},
+      aiCache: bankHistory.aiCache || {},
+      accounts: bankHistory.accounts,
+    })
+      .then(result => {
+        if (result) setWorkerResults(result)
+      })
+      .catch(err => {
+        if (err.message !== 'Superseded') console.error('Worker error:', err)
+      })
+      .finally(() => setProcessing(false))
+  }, [bankHistory.transactions, bankHistory.rules, bankHistory.learnedRules, bankHistory.aiCache, bankHistory.accounts])
 
   const saveToDrive = useCallback((data) => {
     if (!user || !accessToken || !gapiReady) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       try {
-        await saveFileToDrive(BANK_FILE, data)
+        // Strip derived fields to save space
+        const toSave = { ...data, transactions: stripDerived(data.transactions) }
+        await saveFileToDrive(BANK_FILE, toSave)
       } catch (e) {
         console.error('Bank Drive save error:', e)
       }
@@ -80,6 +133,7 @@ export function BankProvider({ children }) {
     setBankHistory(prev => {
       const updated = updater(prev)
       saveToDrive(updated)
+      invalidateWorkerCache()
       try {
         const { transactions, ...meta } = updated
         localStorage.setItem(CACHE_KEY, JSON.stringify(meta))
@@ -93,25 +147,18 @@ export function BankProvider({ children }) {
 
     let result = {}
     updateAndSave(prev => {
-      // Merge accounts
       const existingIds = new Set(prev.accounts.map(a => a.id))
       const mergedAccounts = [...prev.accounts]
       for (const acc of newAccounts) {
         if (!existingIds.has(acc.id)) mergedAccounts.push(acc)
       }
 
-      // Deduplicate transactions
       const { merged, newCount, dupCount } = deduplicateTransactions(prev.transactions, newTxs)
-
-      // Detect transfers and categorize
-      let processed = detectTransfers(merged)
-      processed = categorizeAll(processed, prev.rules)
-
       result = { newCount, dupCount, accountCount: newAccounts.length, errors }
       return {
         ...prev,
         accounts: mergedAccounts,
-        transactions: processed,
+        transactions: merged,
         lastImport: new Date().toISOString(),
       }
     })
@@ -119,19 +166,17 @@ export function BankProvider({ children }) {
   }, [updateAndSave])
 
   const addRule = useCallback((rule) => {
-    updateAndSave(prev => {
-      const rules = [...prev.rules, { ...rule, id: `custom_${Date.now()}` }]
-      const transactions = categorizeAll(prev.transactions, rules)
-      return { ...prev, rules, transactions }
-    })
+    updateAndSave(prev => ({
+      ...prev,
+      rules: [...prev.rules, { ...rule, id: `custom_${Date.now()}` }],
+    }))
   }, [updateAndSave])
 
   const deleteRule = useCallback((ruleId) => {
-    updateAndSave(prev => {
-      const rules = prev.rules.filter(r => r.id !== ruleId)
-      const transactions = categorizeAll(prev.transactions, rules)
-      return { ...prev, rules, transactions }
-    })
+    updateAndSave(prev => ({
+      ...prev,
+      rules: prev.rules.filter(r => r.id !== ruleId),
+    }))
   }, [updateAndSave])
 
   const markAsTransfer = useCallback((hash) => {
@@ -144,12 +189,12 @@ export function BankProvider({ children }) {
   }, [updateAndSave])
 
   const unmarkTransfer = useCallback((hash) => {
-    updateAndSave(prev => {
-      const transactions = prev.transactions.map(t =>
+    updateAndSave(prev => ({
+      ...prev,
+      transactions: prev.transactions.map(t =>
         t.hash === hash ? { ...t, isTransfer: false, transferPairHash: null } : t
-      )
-      return { ...prev, transactions: categorizeAll(transactions, prev.rules) }
-    })
+      ),
+    }))
   }, [updateAndSave])
 
   const setInitialBalance = useCallback((accountId, balance, date) => {
@@ -177,33 +222,88 @@ export function BankProvider({ children }) {
     }))
   }, [updateAndSave])
 
-  const refreshCategories = useCallback(() => {
-    updateAndSave(prev => ({
-      ...prev,
-      transactions: categorizeAll(detectTransfers(prev.transactions), prev.rules)
-    }))
+  // Correct a category → learn from merchant_key
+  const correctCategory = useCallback((hash, newCategory, newSubcategory) => {
+    updateAndSave(prev => {
+      const tx = prev.transactions.find(t => t.hash === hash)
+      if (!tx) return prev
+
+      const merchantKey = tx.merchant_key || tx.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
+
+      const learnedRules = {
+        ...prev.learnedRules,
+        [merchantKey]: { category: newCategory, subcategory: newSubcategory || null, learnedAt: new Date().toISOString() },
+      }
+
+      // Apply to all transactions with same merchant_key
+      const transactions = prev.transactions.map(t => {
+        const mk = t.merchant_key || t.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
+        if (mk === merchantKey) {
+          return { ...t, category: newCategory, subcategory: newSubcategory || null, confidence: 0.95, reason: `Règle apprise: ${merchantKey}`, method: 'user_learned' }
+        }
+        return t
+      })
+
+      return { ...prev, transactions, learnedRules }
+    })
   }, [updateAndSave])
 
-  // Computed values
-  const aggregates = computeMonthlyAggregates(bankHistory.transactions)
-  const healthScore = computeHealthScore(aggregates)
-  const coachInsights = bankHistory.transactions.length > 0
-    ? generateCoachInsights(bankHistory.transactions, aggregates)
-    : null
+  const deleteLearnedRule = useCallback((merchantKey) => {
+    updateAndSave(prev => {
+      const learnedRules = { ...prev.learnedRules }
+      delete learnedRules[merchantKey]
+      return { ...prev, learnedRules }
+    })
+  }, [updateAndSave])
 
-  // Auto-compute finance profile from bank data when available
+  const clearAICache = useCallback(() => {
+    updateAndSave(prev => ({ ...prev, aiCache: {} }))
+  }, [updateAndSave])
+
+  // Request AI categorization for low-confidence merchants
+  const requestAICategorization = useCallback(async () => {
+    const lowConf = workerResults?.lowConfidence
+    if (!lowConf || lowConf.length === 0) return { count: 0 }
+
+    try {
+      const aiResults = await aiCategorizeBatch(lowConf)
+      if (aiResults.size === 0) return { count: 0 }
+
+      updateAndSave(prev => {
+        const aiCache = { ...prev.aiCache }
+        const now = new Date().toISOString()
+        for (const [key, val] of aiResults) {
+          aiCache[key] = { ...val, cachedAt: now }
+        }
+        return { ...prev, aiCache }
+      })
+      return { count: aiResults.size }
+    } catch (err) {
+      console.error('AI categorization error:', err)
+      return { count: 0, error: err.message }
+    }
+  }, [workerResults, updateAndSave])
+
+  const refreshCategories = useCallback(() => {
+    invalidateWorkerCache()
+    // Trigger reprocessing by bumping state
+    setBankHistory(prev => ({ ...prev }))
+  }, [])
+
+  // Use worker results for computed values (all computed off main thread)
+  const aggregates = useMemo(() => workerResults?.aggregates || [], [workerResults])
+  const healthScore = useMemo(() => workerResults?.healthScore ?? 50, [workerResults])
+  const coachInsights = useMemo(() => workerResults?.insights || null, [workerResults])
+  const accountBalances = useMemo(() => workerResults?.accountBalances || bankHistory.accounts.map(acc => ({ ...acc, balance: acc.initialBalance || 0, txCount: 0 })), [workerResults, bankHistory.accounts])
+
+  // Auto-compute finance profile
   const autoFinanceProfile = useMemo(() => {
     const manual = bankHistory.financeProfile
-    // If we have bank aggregates, auto-compute income/expenses from last 3 months average
     if (aggregates.length > 0) {
       const recent = aggregates.slice(-3)
       const avgIncome = recent.reduce((s, a) => s + a.income, 0) / recent.length
       const avgExpenses = recent.reduce((s, a) => s + a.expenses, 0) / recent.length
-      // Cash = sum of all account balances
-      const totalCash = bankHistory.accounts.reduce((s, acc) => {
-        const txTotal = bankHistory.transactions.filter(t => t.accountId === acc.id).reduce((sum, t) => sum + t.amount, 0)
-        return s + (acc.initialBalance || 0) + txTotal
-      }, 0)
+      const totalCash = accountBalances.reduce((s, acc) => s + (acc.balance || 0), 0)
       return {
         monthlyIncome: Math.round(avgIncome),
         monthlyExpenses: Math.round(avgExpenses),
@@ -213,24 +313,28 @@ export function BankProvider({ children }) {
       }
     }
     return manual || EMPTY_PROFILE
-  }, [aggregates, bankHistory])
+  }, [aggregates, bankHistory.financeProfile, accountBalances])
 
-  // Account balances
-  const accountBalances = bankHistory.accounts.map(acc => {
-    const txs = bankHistory.transactions.filter(t => t.accountId === acc.id)
-    const txTotal = txs.reduce((s, t) => s + t.amount, 0)
-    return { ...acc, balance: acc.initialBalance + txTotal, txCount: txs.length }
-  })
+  // Enriched transactions from worker (with category, confidence, etc.)
+  const enrichedTransactions = useMemo(
+    () => workerResults?.transactions || bankHistory.transactions,
+    [workerResults, bankHistory.transactions]
+  )
 
   return (
     <BankContext.Provider value={{
-      bankHistory, loading, accountBalances,
+      bankHistory: { ...bankHistory, transactions: enrichedTransactions },
+      loading, processing, accountBalances,
       aggregates, healthScore, coachInsights,
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
       setInitialBalance, updateAccount, refreshCategories,
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
+      correctCategory, deleteLearnedRule, clearAICache,
+      requestAICategorization,
+      flaggedTransfers: workerResults?.flaggedTransfers || [],
+      lowConfidenceCount: workerResults?.lowConfidence?.length || 0,
     }}>
       {children}
     </BankContext.Provider>

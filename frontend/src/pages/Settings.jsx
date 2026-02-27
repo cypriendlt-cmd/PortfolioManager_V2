@@ -38,7 +38,7 @@ function Section({ title, icon: Icon, children }) {
 
 export default function Settings() {
   const { theme, darkMode, toggleDarkMode, changeTheme, THEMES } = useTheme()
-  const { user, logout } = useAuth()
+  const { user, login, logout, isGuest } = useAuth()
   const { driveConnected, driveError, portfolio } = usePortfolio()
   const [binanceKey, setBinanceKey] = useState(() => localStorage.getItem(BINANCE_KEY_STORAGE) || '')
   const [binanceSecret, setBinanceSecret] = useState(() => localStorage.getItem(BINANCE_SECRET_STORAGE) || '')
@@ -187,7 +187,7 @@ export default function Settings() {
     <div className="settings animate-fade-in">
       {/* Google Connection Status */}
       <Section title="Connexion Google" icon={User}>
-        {user ? (
+        {user && !isGuest ? (
           <div className="settings-account">
             {user.avatar ? (
               <img src={user.avatar} alt={user.name} style={{ width: 56, height: 56, borderRadius: '50%' }} />
@@ -203,13 +203,18 @@ export default function Settings() {
             </div>
           </div>
         ) : (
-          <p className="text-muted text-sm">Non connecté.</p>
+          <div>
+            <p className="text-muted text-sm" style={{ marginBottom: 12 }}>{isGuest ? 'Mode invité — connectez-vous pour synchroniser vos données.' : 'Non connecté.'}</p>
+            <button className="btn btn-primary" onClick={login} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Globe size={16} /> Se connecter avec Google Drive
+            </button>
+          </div>
         )}
 
         <div className="gc-status mt-16">
-          <div className={`gc-status-item ${user ? 'gc-ok' : 'gc-warn'}`}>
-            {user ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-            <span>Compte Google {user ? `connecté (${user.email})` : 'non connecté'}</span>
+          <div className={`gc-status-item ${user && !isGuest ? 'gc-ok' : 'gc-warn'}`}>
+            {user && !isGuest ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Compte Google {user && !isGuest ? `connecté (${user.email})` : 'non connecté'}</span>
           </div>
           <div className={`gc-status-item ${driveConnected ? 'gc-ok' : driveError ? 'gc-error' : 'gc-warn'}`}>
             {driveConnected ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
