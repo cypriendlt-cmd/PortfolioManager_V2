@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from './AuthContext'
 import { loadPortfolioFromDrive, savePortfolioToDrive, loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
+import { GUEST_DEMO_PORTFOLIO } from '../data/guestDemoData'
 import { getAllCurrentRates } from '../services/rateProvider'
 
 const PortfolioContext = createContext(null)
@@ -14,7 +15,7 @@ const EMPTY_PORTFOLIO = {
 }
 
 export function PortfolioProvider({ children }) {
-  const { user, accessToken, gapiReady } = useAuth()
+  const { user, accessToken, gapiReady, isGuest } = useAuth()
   const [portfolio, setPortfolio] = useState(EMPTY_PORTFOLIO)
   const [loading, setLoading] = useState(false)
   const [driveConnected, setDriveConnected] = useState(false)
@@ -92,12 +93,16 @@ export function PortfolioProvider({ children }) {
       fetchInsightsFromDrive()
       fetchDcaConfigFromDrive()
     } else {
-      setPortfolio(EMPTY_PORTFOLIO)
+      if (isGuest) {
+        setPortfolio(GUEST_DEMO_PORTFOLIO)
+      } else {
+        setPortfolio(EMPTY_PORTFOLIO)
+      }
       setDriveConnected(false)
       setInsightsData(null)
       setDcaConfig(null)
     }
-  }, [user, accessToken, gapiReady, fetchPortfolio, fetchInsightsFromDrive, fetchDcaConfigFromDrive])
+  }, [user, accessToken, gapiReady, isGuest, fetchPortfolio, fetchInsightsFromDrive, fetchDcaConfigFromDrive])
 
   // Debounced save to Drive
   const saveToDrive = useCallback((data) => {

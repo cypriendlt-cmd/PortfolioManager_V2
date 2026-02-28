@@ -186,6 +186,7 @@ export function AuthProvider({ children }) {
   const loginAsGuest = useCallback(() => {
     setUser(GUEST_USER)
     setIsGuest(true)
+    setLoading(false)
     sessionStorage.setItem(GUEST_KEY, 'true')
   }, [])
 

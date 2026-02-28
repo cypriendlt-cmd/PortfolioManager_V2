@@ -22,6 +22,26 @@ const EMPTY_BANK = {
   financeProfile: null,
 }
 
+const DEMO_BANK_DATA = {
+  version: 2,
+  accounts: [
+    { id: 'demo_courant', name: 'Compte Courant BNP', type: 'courant', iban: 'FR76****', initialBalance: 2847.32, lastBalanceDate: '2024-01-01' },
+    { id: 'demo_joint', name: 'Compte Joint CIC', type: 'courant', iban: 'FR76****', initialBalance: 1203.54, lastBalanceDate: '2024-01-01' },
+  ],
+  transactions: [],
+  rules: [],
+  learnedRules: {},
+  aiCache: {},
+  lastImport: null,
+  financeProfile: {
+    monthlyIncome: 3200,
+    monthlyExpenses: 1850,
+    currentCash: 4050,
+    investmentHorizon: 'long',
+    riskTolerance: 'modere',
+  },
+}
+
 const EMPTY_PROFILE = {
   monthlyIncome: 0,
   monthlyExpenses: 0,
@@ -49,7 +69,7 @@ function migrateData(data) {
 }
 
 export function BankProvider({ children }) {
-  const { user, accessToken, gapiReady } = useAuth()
+  const { user, accessToken, gapiReady, isGuest } = useAuth()
   const [bankHistory, setBankHistory] = useState(EMPTY_BANK)
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -61,7 +81,11 @@ export function BankProvider({ children }) {
   // Load from Drive
   useEffect(() => {
     if (!user || !accessToken || !gapiReady) {
-      setBankHistory(EMPTY_BANK)
+      if (isGuest) {
+        setBankHistory(DEMO_BANK_DATA)
+      } else {
+        setBankHistory(EMPTY_BANK)
+      }
       setWorkerResults(null)
       return
     }
@@ -89,7 +113,7 @@ export function BankProvider({ children }) {
       .finally(() => setLoading(false))
 
     return () => terminateWorker()
-  }, [user, accessToken, gapiReady])
+  }, [user, accessToken, gapiReady, isGuest])
 
   // Process transactions in worker whenever bankHistory changes
   useEffect(() => {
