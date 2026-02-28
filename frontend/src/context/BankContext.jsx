@@ -12,7 +12,7 @@ const BANK_FILE = 'bank_history.json'
 const CACHE_KEY = 'pm_bank_cache'
 
 const EMPTY_BANK = {
-  version: 2,
+  version: 3,
   accounts: [],
   transactions: [],
   rules: [],
@@ -21,6 +21,11 @@ const EMPTY_BANK = {
   corrections: [],    // audit log — [{ id, tx_hash, raw_label, merchant_key, before, after, corrected_at, source }]
   lastImport: null,
   financeProfile: null,
+  // ── Coach budgétaire ──────────────────────────────────────────────────────
+  budgetProfile: null,        // { profileType, targetAllocation }
+  financialGoals: [],         // [{ id, type, label, targetAmount, currentAmount, monthlyContribution, createdAt }]
+  coachHistory: [],           // [{ id, date, action, recommendationId, recommendation }]
+  allocationSnapshots: [],    // [{ month, income, allocation, score }]
 }
 
 const DEMO_BANK_DATA = {
@@ -61,14 +66,16 @@ function stripDerived(transactions) {
 // Migrate v1 → v2
 function migrateData(data) {
   if (!data || !data.version) return EMPTY_BANK
-  if (data.version >= 2) return { ...data, corrections: data.corrections || [] }
+  // Always merge with EMPTY_BANK to ensure all new fields exist
   return {
     ...EMPTY_BANK,
     ...data,
-    version: 2,
-    learnedRules: data.learnedRules || {},
-    aiCache: data.aiCache || {},
-    corrections: data.corrections || [],
+    version: 3,
+    corrections:          data.corrections          || [],
+    budgetProfile:        data.budgetProfile        || null,
+    financialGoals:       data.financialGoals        || [],
+    coachHistory:         data.coachHistory          || [],
+    allocationSnapshots:  data.allocationSnapshots   || [],
   }
 }
 
@@ -467,6 +474,56 @@ export function BankProvider({ children }) {
     }
   }, [workerResults, updateAndSave])
 
+  // ── Coach budgétaire ────────────────────────────────────────────────────────
+
+  const updateBudgetProfile = useCallback((data) => {
+    updateAndSave(prev => ({
+      ...prev,
+      budgetProfile: { ...(prev.budgetProfile || {}), ...data },
+    }))
+  }, [updateAndSave])
+
+  const addGoal = useCallback((goal) => {
+    updateAndSave(prev => ({
+      ...prev,
+      financialGoals: [...(prev.financialGoals || []), { ...goal, id: goal.id || `goal_${Date.now()}`, createdAt: new Date().toISOString() }],
+    }))
+  }, [updateAndSave])
+
+  const updateGoal = useCallback((goalId, data) => {
+    updateAndSave(prev => ({
+      ...prev,
+      financialGoals: (prev.financialGoals || []).map(g => g.id === goalId ? { ...g, ...data } : g),
+    }))
+  }, [updateAndSave])
+
+  const deleteGoal = useCallback((goalId) => {
+    updateAndSave(prev => ({
+      ...prev,
+      financialGoals: (prev.financialGoals || []).filter(g => g.id !== goalId),
+    }))
+  }, [updateAndSave])
+
+  const recordCoachAction = useCallback((action, recommendation) => {
+    updateAndSave(prev => ({
+      ...prev,
+      coachHistory: [...(prev.coachHistory || []), {
+        id: `ch_${Date.now()}`,
+        date: new Date().toISOString(),
+        action,
+        recommendationId: recommendation.id,
+        recommendation,
+      }].slice(-200),
+    }))
+  }, [updateAndSave])
+
+  const saveAllocationSnapshot = useCallback((snapshot) => {
+    updateAndSave(prev => ({
+      ...prev,
+      allocationSnapshots: [...(prev.allocationSnapshots || []).filter(s => s.month !== snapshot.month), snapshot].slice(-24),
+    }))
+  }, [updateAndSave])
+
   const refreshCategories = useCallback(() => {
     invalidateWorkerCache()
     // Trigger reprocessing by bumping state
@@ -536,6 +593,9 @@ export function BankProvider({ children }) {
       requestAICategorization, applyAIProposals,
       flaggedTransfers: workerResults?.flaggedTransfers || [],
       lowConfidenceCount: workerResults?.lowConfidence?.length || 0,
+      // Coach budgétaire
+      updateBudgetProfile, addGoal, updateGoal, deleteGoal,
+      recordCoachAction, saveAllocationSnapshot,
     }}>
       {children}
     </BankContext.Provider>

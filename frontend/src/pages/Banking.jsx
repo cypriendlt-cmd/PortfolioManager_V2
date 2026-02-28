@@ -5,9 +5,13 @@ import {
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
   ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles, RotateCcw, History,
-  ChevronDown
+  ChevronDown, Lightbulb, Home, Award, Edit3
 } from 'lucide-react'
 import { aiCategorizeLines } from '../services/bankAI'
+import { computeCurrentAllocation, getAllocationGaps, ALLOCATION_MODELS, MACRO_BUCKETS } from '../services/allocationEngine'
+import { computeFinancialHealthScore } from '../services/financialHealthScoring'
+import { projectGoal, getDefaultGoals, fmtMonths, GOAL_TYPES } from '../services/goalProjectionEngine'
+import { generateRuleBasedRecommendations } from '../services/budgetCoachEngine'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts'
@@ -30,6 +34,7 @@ const TABS = [
   { key: 'securite', label: 'Matelas', icon: Shield },
   { key: 'liberte', label: 'Liberte', icon: Sunrise },
   { key: 'investissements', label: 'Allocation', icon: PieChartIcon },
+  { key: 'coach', label: 'Coach', icon: Lightbulb },
   { key: 'regles', label: 'Regles', icon: Settings2 },
 ]
 
@@ -223,6 +228,8 @@ export default function Banking() {
     correctCategory, deleteLearnedRule, undoCorrection, clearAICache,
     requestAICategorization, lowConfidenceCount, applyAIProposals,
     forceRecategorize,
+    updateBudgetProfile, addGoal, updateGoal, deleteGoal,
+    recordCoachAction, saveAllocationSnapshot,
   } = useBank()
   const { m, mp } = usePrivacyMask()
   const [tab, setTab] = useState('synthese')
@@ -261,6 +268,7 @@ export default function Banking() {
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
       {tab === 'investissements' && <InvestmentsTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
+      {tab === 'coach' && <CoachTab bankHistory={bankHistory} aggregates={aggregates} accountBalances={accountBalances} financeProfile={financeProfile} updateBudgetProfile={updateBudgetProfile} addGoal={addGoal} updateGoal={updateGoal} deleteGoal={deleteGoal} recordCoachAction={recordCoachAction} saveAllocationSnapshot={saveAllocationSnapshot} m={m} />}
       {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} forceRecategorize={forceRecategorize} deleteLearnedRule={deleteLearnedRule} undoCorrection={undoCorrection} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
 
       {(tab === 'securite' || tab === 'liberte' || tab === 'investissements') && !hasProfile && (
@@ -1162,6 +1170,362 @@ function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
 }
 
 /* ─── REGLES & CATEGORIES ─── */
+/* ─── SCORE GAUGE (SVG circulaire) ─── */
+function ScoreGauge({ score, color, label, grade }) {
+  const R   = 44
+  const circ = 2 * Math.PI * R
+  const dash = circ * (score / 100)
+  return (
+    <div className="coach-gauge-wrap">
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        <circle cx={60} cy={60} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />
+        <circle cx={60} cy={60} r={R} fill="none" stroke={color} strokeWidth={10}
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          transform="rotate(-90 60 60)" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+        <text x={60} y={55} textAnchor="middle" fill={color} fontSize={22} fontWeight={700}>{score}</text>
+        <text x={60} y={72} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>{grade}</text>
+      </svg>
+      <div className="coach-gauge-label" style={{ color }}>{label}</div>
+    </div>
+  )
+}
+
+/* ─── ALLOCATION BAR ─── */
+function AllocationBar({ buckets, model, income }) {
+  return (
+    <div className="coach-alloc-wrap">
+      {Object.entries(MACRO_BUCKETS).map(([id, bucket]) => {
+        const cur = buckets[id]?.pct || 0
+        const rec = model[id] || 0
+        const diff = cur - rec
+        const diffColor = Math.abs(diff) < 2 ? 'var(--success)' : diff > 0 ? 'var(--danger)' : 'var(--warning)'
+        return (
+          <div key={id} className="coach-alloc-row">
+            <div className="coach-alloc-label">
+              <span style={{ color: bucket.color, fontWeight: 600, fontSize: '0.78rem' }}>{bucket.label}</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 4 }}>{fmt(buckets[id]?.amount || 0)}/mois</span>
+            </div>
+            <div className="coach-alloc-bars">
+              <div className="coach-bar-row">
+                <span className="coach-bar-tag">Actuel</span>
+                <div className="coach-bar-track">
+                  <div className="coach-bar-fill" style={{ width: `${Math.min(cur, 60)}%`, background: bucket.color }} />
+                </div>
+                <span className="coach-bar-pct">{cur.toFixed(1)}%</span>
+              </div>
+              <div className="coach-bar-row">
+                <span className="coach-bar-tag coach-bar-tag-rec">Cible</span>
+                <div className="coach-bar-track">
+                  <div className="coach-bar-fill coach-bar-fill-rec" style={{ width: `${Math.min(rec, 60)}%`, background: bucket.color + '55' }} />
+                </div>
+                <span className="coach-bar-pct" style={{ color: diffColor }}>{rec}% {Math.abs(diff) >= 2 && <span>({diff > 0 ? '+' : ''}{diff.toFixed(1)}%)</span>}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── GOAL CARD ─── */
+function GoalCard({ goal, onUpdate, onDelete, m }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm]       = useState({ label: goal.label, targetAmount: goal.targetAmount, currentAmount: goal.currentAmount, monthlyContribution: goal.monthlyContribution })
+  const proj  = projectGoal(goal)
+  const gtype = GOAL_TYPES[goal.type] || GOAL_TYPES.other
+
+  const handleSave = () => { onUpdate(goal.id, form); setEditing(false) }
+
+  return (
+    <div className="coach-goal-card">
+      <div className="coach-goal-header">
+        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: gtype.color }}>{goal.label}</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setEditing(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Edit3 size={13} /></button>
+          <button onClick={() => onDelete(goal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}><Trash2 size={13} /></button>
+        </div>
+      </div>
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="Nom" className="coach-input" />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input type="number" value={form.targetAmount} onChange={e => setForm(f => ({ ...f, targetAmount: +e.target.value }))} placeholder="Objectif €" className="coach-input" style={{ flex: 1 }} />
+            <input type="number" value={form.currentAmount} onChange={e => setForm(f => ({ ...f, currentAmount: +e.target.value }))} placeholder="Actuel €" className="coach-input" style={{ flex: 1 }} />
+          </div>
+          <input type="number" value={form.monthlyContribution} onChange={e => setForm(f => ({ ...f, monthlyContribution: +e.target.value }))} placeholder="Versement mensuel €" className="coach-input" />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.78rem', padding: '5px 10px' }} onClick={handleSave}>Sauvegarder</button>
+            <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => setEditing(false)}>Annuler</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="coach-goal-progress-bar">
+            <div style={{ width: `${proj.progressPct}%`, background: gtype.color, borderRadius: 99, height: '100%', transition: 'width 0.5s ease' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            <span>{m(fmt(goal.currentAmount))} / {m(fmt(goal.targetAmount))}</span>
+            <span style={{ fontWeight: 600, color: gtype.color }}>{proj.progressPct.toFixed(0)}%</span>
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            {goal.monthlyContribution > 0
+              ? <>Atteint dans <strong style={{ color: gtype.color }}>{fmtMonths(proj.monthsToReach)}</strong> · {proj.projectedDate}</>
+              : 'Renseigner un versement mensuel pour la projection'}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ─── RECOMMENDATION CARD ─── */
+function RecCard({ rec, onApply, onIgnore }) {
+  const priorityColor = rec.priority === 'high' ? 'var(--danger)' : rec.priority === 'medium' ? 'var(--warning)' : 'var(--text-muted)'
+  return (
+    <div className="coach-rec-card">
+      <div className="coach-rec-header">
+        <span className="coach-rec-priority" style={{ color: priorityColor, borderColor: priorityColor + '44' }}>
+          {rec.priority === 'high' ? '● Priorité haute' : rec.priority === 'medium' ? '◉ Priorité moyenne' : '○ Suggestion'}
+        </span>
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{Math.round((rec.confidence || 0.7) * 100)}% confiance</span>
+      </div>
+      <p className="coach-rec-action">{rec.action}</p>
+      <div className="coach-rec-impact">
+        <span><strong>{rec.estimated_monthly_impact}</strong></span>
+        <span style={{ color: 'var(--text-muted)' }}>{rec.long_term_impact}</span>
+      </div>
+      <div className="coach-rec-actions">
+        <button className="btn btn-primary coach-rec-btn" onClick={() => onApply(rec)} style={{ background: rec.color + 'cc', borderColor: rec.color }}>
+          <CheckCircle size={13} /> Appliquer
+        </button>
+        <button className="btn btn-ghost coach-rec-btn" onClick={() => onIgnore(rec)}>
+          <X size={13} /> Ignorer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ─── COACH TAB ─── */
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+function CoachTab({ bankHistory, aggregates, accountBalances, financeProfile, updateBudgetProfile, addGoal, updateGoal, deleteGoal, recordCoachAction, saveAllocationSnapshot, m }) {
+  const profileType  = bankHistory.budgetProfile?.profileType || 'equilibre'
+  const goals        = bankHistory.financialGoals || []
+  const coachHistory = bankHistory.coachHistory   || []
+
+  const totalCash = useMemo(() => accountBalances.reduce((s, a) => s + (a.balance || 0), 0), [accountBalances])
+  const avgIncome = useMemo(() => {
+    const last3 = aggregates.slice(-3)
+    return last3.length > 0 ? last3.reduce((s, m) => s + m.income, 0) / last3.length : financeProfile?.monthlyIncome || 0
+  }, [aggregates, financeProfile])
+  const avgExpenses = useMemo(() => {
+    const last3 = aggregates.slice(-3)
+    return last3.length > 0 ? last3.reduce((s, m) => s + m.expenses, 0) / last3.length : financeProfile?.monthlyExpenses || 0
+  }, [aggregates, financeProfile])
+
+  const { buckets, byCategory } = useMemo(() =>
+    computeCurrentAllocation(bankHistory.transactions, avgIncome, 3),
+    [bankHistory.transactions, avgIncome]
+  )
+
+  const allocationGaps = useMemo(() =>
+    getAllocationGaps(buckets, profileType, avgIncome),
+    [buckets, profileType, avgIncome]
+  )
+
+  const healthData = useMemo(() =>
+    computeFinancialHealthScore({ aggregates, totalCash, financialGoals: goals }),
+    [aggregates, totalCash, goals]
+  )
+
+  const { recommendations, riskFlags } = useMemo(() =>
+    generateRuleBasedRecommendations({ currentBuckets: buckets, allocationGaps, aggregates, financialGoals: goals, coachHistory }),
+    [buckets, allocationGaps, aggregates, goals, coachHistory]
+  )
+
+  const model = ALLOCATION_MODELS[profileType] || ALLOCATION_MODELS.equilibre
+
+  // AI Coach
+  const [aiLoading,  setAiLoading]  = useState(false)
+  const [aiRecs,     setAiRecs]     = useState(null)
+  const [aiError,    setAiError]    = useState(null)
+
+  // Goals auto-init
+  useEffect(() => {
+    if (goals.length === 0 && avgExpenses > 0) {
+      const defaults = getDefaultGoals(avgExpenses, totalCash)
+      defaults.forEach(g => addGoal(g))
+    }
+  }, [])   // eslint-disable-line
+
+  const handleAICoach = async () => {
+    setAiLoading(true); setAiError(null); setAiRecs(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/bank/coach/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          monthly_income:     Math.round(avgIncome),
+          expenses_by_category: Object.fromEntries(Object.entries(byCategory).map(([k, v]) => [k, Math.round(v)])),
+          savings_rate:       aggregates.slice(-3).reduce((s, m) => s + m.savingsRate, 0) / Math.max(1, aggregates.slice(-3).length),
+          goals,
+          financial_health_score: healthData.score,
+          profile_type:       profileType,
+          current_allocation: Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, v.pct])),
+          recent_months:      aggregates.slice(-3).map(a => ({ month: a.month, income: Math.round(a.income), expenses: Math.round(a.expenses), savingsRate: Math.round(a.savingsRate) })),
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setAiRecs(data.recommendations || [])
+    } catch (e) {
+      setAiError('Coach IA indisponible — vérifiez que le backend est démarré.')
+    }
+    setAiLoading(false)
+  }
+
+  const handleApply = (rec) => { recordCoachAction('applied', rec); setAiRecs(r => r ? r.filter(x => x.id !== rec.id) : r) }
+  const handleIgnore = (rec) => { recordCoachAction('ignored', rec); setAiRecs(r => r ? r.filter(x => x.id !== rec.id) : r) }
+  const handleApplyLocal  = (rec) => recordCoachAction('applied', rec)
+  const handleIgnoreLocal = (rec) => recordCoachAction('ignored', rec)
+
+  const noData = avgIncome === 0 && bankHistory.transactions.length === 0
+
+  if (noData) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+        <Brain size={40} style={{ margin: '0 auto 16px', display: 'block', opacity: 0.4 }} />
+        <p style={{ fontSize: '0.9rem' }}>Importez des relevés bancaires pour activer le Coach Budgétaire.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="coach-tab">
+
+      {/* ── Score + Profil ── */}
+      <div className="coach-top-row">
+        <div className="bank-account-card coach-score-card">
+          <h4 style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>Santé Financière</h4>
+          <ScoreGauge score={healthData.score} color={healthData.color} label={healthData.label} grade={healthData.grade} />
+          <div className="coach-breakdown">
+            {Object.entries(healthData.breakdown).map(([k, d]) => (
+              <div key={k} className="coach-breakdown-row">
+                <span className="coach-breakdown-label">{d.label}</span>
+                <div className="coach-breakdown-bar">
+                  <div style={{ width: `${(d.pts / d.max) * 100}%`, background: d.pts / d.max >= 0.7 ? 'var(--success)' : d.pts / d.max >= 0.4 ? 'var(--warning)' : 'var(--danger)', borderRadius: 99, height: '100%' }} />
+                </div>
+                <span className="coach-breakdown-pts">{d.pts}/{d.max}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bank-account-card coach-profile-card">
+          <h4 style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>Profil budgétaire</h4>
+          <div className="coach-profile-btns">
+            {Object.entries(ALLOCATION_MODELS).map(([key, mod]) => (
+              <button key={key}
+                className={`coach-profile-btn ${profileType === key ? 'active' : ''}`}
+                onClick={() => updateBudgetProfile({ profileType: key })}
+              >
+                <strong>{mod.label}</strong>
+                <span>{mod.description}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            <div>Revenus moy. : <strong style={{ color: 'var(--text-primary)' }}>{m(fmt(avgIncome))}/mois</strong></div>
+            <div>Dépenses moy. : <strong style={{ color: 'var(--text-primary)' }}>{m(fmt(avgExpenses))}/mois</strong></div>
+            <div>Trésorerie : <strong style={{ color: 'var(--text-primary)' }}>{m(fmt(totalCash))}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Risk flags ── */}
+      {riskFlags.length > 0 && (
+        <div className="coach-risk-flags">
+          {riskFlags.map((f, i) => (
+            <div key={i} className={`coach-risk-flag ${f.severity}`}>
+              <AlertTriangle size={13} /> {f.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Répartition ── */}
+      <CollapsibleCard title="Répartition budgétaire — Actuel vs Cible" defaultOpen={true}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+          Modèle <strong>{model.label}</strong> — en % des revenus mensuels ({m(fmt(avgIncome))})
+        </p>
+        <AllocationBar buckets={buckets} model={model} income={avgIncome} />
+      </CollapsibleCard>
+
+      {/* ── Recommandations locales ── */}
+      <CollapsibleCard title={<><Lightbulb size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Recommandations</>} badge={`(${recommendations.length})`} defaultOpen={true}>
+        {recommendations.length === 0 ? (
+          <p style={{ fontSize: '0.82rem', color: 'var(--success)' }}>
+            <CheckCircle size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Votre répartition est proche des objectifs pour le profil {model.label}. Continuez ainsi !
+          </p>
+        ) : (
+          <div className="coach-recs-grid">
+            {recommendations.map(rec => (
+              <RecCard key={rec.id} rec={rec} onApply={handleApplyLocal} onIgnore={handleIgnoreLocal} />
+            ))}
+          </div>
+        )}
+
+        {/* Coach IA bouton */}
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={handleAICoach} disabled={aiLoading} style={{ padding: '7px 16px' }}>
+              {aiLoading ? <Loader2 size={14} className="spin" /> : <Brain size={14} />}
+              {aiLoading ? ' Analyse IA...' : ' Analyse approfondie (Groq)'}
+            </button>
+            {aiError && <span style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{aiError}</span>}
+          </div>
+          {aiRecs && aiRecs.length > 0 && (
+            <div className="coach-recs-grid" style={{ marginTop: 12 }}>
+              {aiRecs.map(rec => (
+                <RecCard key={rec.id} rec={rec} onApply={handleApply} onIgnore={handleIgnore} />
+              ))}
+            </div>
+          )}
+          {aiRecs && aiRecs.length === 0 && (
+            <p style={{ fontSize: '0.82rem', color: 'var(--success)', marginTop: 10 }}>
+              <CheckCircle size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              L'IA ne détecte pas d'amélioration majeure pour votre profil actuel.
+            </p>
+          )}
+        </div>
+      </CollapsibleCard>
+
+      {/* ── Objectifs ── */}
+      <CollapsibleCard title={<><Target size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Objectifs financiers</>} badge={`(${goals.length})`} defaultOpen={goals.length > 0}
+        action={
+          <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => addGoal({ type: 'other', label: 'Nouvel objectif', targetAmount: 0, currentAmount: 0, monthlyContribution: 0 })}>
+            <Plus size={12} /> Ajouter
+          </button>
+        }
+      >
+        {goals.length === 0 ? (
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Aucun objectif défini. Cliquez sur "Ajouter" pour commencer.</p>
+        ) : (
+          <div className="coach-goals-grid">
+            {goals.map(g => (
+              <GoalCard key={g.id} goal={g} onUpdate={updateGoal} onDelete={deleteGoal} m={m} />
+            ))}
+          </div>
+        )}
+      </CollapsibleCard>
+
+    </div>
+  )
+}
+
 function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceRecategorize, deleteLearnedRule, undoCorrection, clearAICache, requestAICategorization, lowConfidenceCount }) {
   const [pattern, setPattern] = useState('')
   const [category, setCategory] = useState('autre')

@@ -5821,3 +5821,102 @@ tbody tr:hover {
   }
 }
 
+
+/* ======================================================
+   COACH BUDGÉTAIRE
+   ====================================================== */
+
+.coach-tab { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Top row: Score + Profil ── */
+.coach-top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 640px) {
+  .coach-top-row { grid-template-columns: 1fr; }
+}
+
+/* ── Score gauge ── */
+.coach-score-card { display: flex; flex-direction: column; align-items: center; }
+.coach-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; }
+.coach-gauge-label { font-size: 0.85rem; font-weight: 700; }
+
+.coach-breakdown { width: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.coach-breakdown-row { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; }
+.coach-breakdown-label { color: var(--text-muted); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coach-breakdown-bar { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.coach-breakdown-pts { color: var(--text-secondary); width: 36px; text-align: right; flex-shrink: 0; }
+
+/* ── Profile buttons ── */
+.coach-profile-card {}
+.coach-profile-btns { display: flex; flex-direction: column; gap: 6px; }
+.coach-profile-btn {
+  width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.coach-profile-btn strong { font-size: 0.82rem; color: var(--text-primary); }
+.coach-profile-btn span { font-size: 0.72rem; color: var(--text-muted); }
+.coach-profile-btn.active { border-color: var(--accent); background: var(--accent-light); }
+.coach-profile-btn.active strong { color: var(--accent); }
+.coach-profile-btn:hover:not(.active) { border-color: var(--border-strong); background: var(--bg-card-hover); }
+
+/* ── Risk flags ── */
+.coach-risk-flags { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.coach-risk-flag {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 500;
+}
+.coach-risk-flag.high   { background: var(--danger-light);  color: var(--danger);  border: 1px solid var(--danger)22; }
+.coach-risk-flag.medium { background: var(--warning-light); color: var(--warning); border: 1px solid var(--warning)22; }
+.coach-risk-flag.low    { background: var(--bg-secondary);  color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ── Allocation bars ── */
+.coach-alloc-wrap { display: flex; flex-direction: column; gap: 14px; }
+.coach-alloc-row  { display: flex; flex-direction: column; gap: 4px; }
+.coach-alloc-label { display: flex; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+.coach-alloc-bars { display: flex; flex-direction: column; gap: 3px; }
+.coach-bar-row  { display: flex; align-items: center; gap: 6px; }
+.coach-bar-tag  { font-size: 0.65rem; width: 36px; flex-shrink: 0; color: var(--text-secondary); text-align: right; }
+.coach-bar-tag-rec { color: var(--text-muted); }
+.coach-bar-track { flex: 1; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; max-width: 260px; }
+.coach-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+.coach-bar-fill-rec { opacity: 0.5; }
+.coach-bar-pct   { font-size: 0.72rem; width: 70px; flex-shrink: 0; color: var(--text-secondary); }
+
+/* ── Recommendations ── */
+.coach-recs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .coach-recs-grid { grid-template-columns: 1fr; } }
+.coach-rec-card {
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.15s;
+}
+.coach-rec-card:hover { border-color: var(--border-strong); }
+.coach-rec-header { display: flex; justify-content: space-between; align-items: center; }
+.coach-rec-priority { font-size: 0.72rem; font-weight: 700; border: 1px solid; padding: 2px 6px; border-radius: 99px; }
+.coach-rec-action { font-size: 0.82rem; color: var(--text-primary); margin: 0; line-height: 1.4; }
+.coach-rec-impact { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; }
+.coach-rec-actions { display: flex; gap: 6px; margin-top: 2px; }
+.coach-rec-btn { font-size: 0.75rem; padding: 5px 10px; display: flex; align-items: center; gap: 4px; }
+
+/* ── Goals ── */
+.coach-goals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 640px) { .coach-goals-grid { grid-template-columns: 1fr; } }
+.coach-goal-card {
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.coach-goal-header { display: flex; justify-content: space-between; align-items: center; }
+.coach-goal-progress-bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.coach-input {
+  width: 100%; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-card);
+  color: var(--text-primary); font-size: 0.8rem;
+  box-sizing: border-box;
+}
+.coach-input:focus { outline: none; border-color: var(--accent); }
