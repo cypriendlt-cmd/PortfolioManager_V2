@@ -330,7 +330,7 @@ export default function Dashboard() {
       const prog = computeDcaProgress(plan, asset, t)
       totalInvested += prog.actual_contribution
       totalExpected += prog.expected_contribution
-      if (prog.on_track) onTrack++
+      if (prog.on_track || prog.status === 'ahead') onTrack++
       if (prog.upcoming_dates?.[0]) nextDates.push({
         date: prog.upcoming_dates[0], label: plan.label, amount: plan.amount_per_period,
       })

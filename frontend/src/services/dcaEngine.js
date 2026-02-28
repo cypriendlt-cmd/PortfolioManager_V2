@@ -165,19 +165,39 @@ function buildMonthlySeries(plan, contributions, asOfDate, futureLookAhead = 3) 
     contribByMonth[m] = (contribByMonth[m] || 0) + c.amount
   }
 
+  // Contributions non encore assignées (pour matcher avec tolérance)
+  const tol = plan.tolerance_days || 7
+  const unmatched = [...contributions]
+
+  const matchContrib = (dateStr) => {
+    // 1) Match exact par mois
+    const month = dateStr.slice(0, 7)
+    if (contribByMonth[month]) return contribByMonth[month]
+    // 2) Match par tolérance (jours)
+    let total = 0
+    for (let i = unmatched.length - 1; i >= 0; i--) {
+      if (daysBetween(dateStr, unmatched[i].date) <= tol) {
+        total += unmatched[i].amount
+        unmatched.splice(i, 1)
+      }
+    }
+    return total
+  }
+
   const series = []
   let cumExpected = 0
   let cumActual   = 0
 
   for (const dateStr of pastDates) {
     const month = dateStr.slice(0, 7)
+    const actual = matchContrib(dateStr)
     cumExpected += plan.amount_per_period
-    cumActual   += contribByMonth[month] || 0
+    cumActual   += actual
     series.push({
       month,
       date:           dateStr,
       expected:       plan.amount_per_period,
-      actual:         contribByMonth[month] || 0,
+      actual,
       cumul_expected: Math.round(cumExpected),
       cumul_actual:   Math.round(cumActual),
       future:         false,
@@ -187,16 +207,20 @@ function buildMonthlySeries(plan, contributions, asOfDate, futureLookAhead = 3) 
 
   for (const dateStr of futureDates) {
     const month = dateStr.slice(0, 7)
+    // Vérifier si un versement a déjà été fait pour cette date future
+    const actual = matchContrib(dateStr)
+    const hasActual = actual > 0
     cumExpected += plan.amount_per_period
+    if (hasActual) cumActual += actual
     series.push({
       month,
       date:           dateStr,
       expected:       plan.amount_per_period,
-      actual:         null,
+      actual:         hasActual ? actual : null,
       cumul_expected: Math.round(cumExpected),
-      cumul_actual:   null,
-      future:         true,
-      on_track:       null,
+      cumul_actual:   hasActual ? Math.round(cumActual) : null,
+      future:         !hasActual,  // si déjà versé, ce n'est plus "futur"
+      on_track:       hasActual ? Math.abs(cumActual - cumExpected) <= plan.amount_per_period : null,
     })
   }
 
@@ -442,16 +466,18 @@ export function migrateLegacyConfig(legacy, portfolio) {
  * Utilisé dans CoachTab / Dashboard.
  */
 export function getMonthlyDcaSummary(plans, portfolio, month) {
-  const today = new Date().toISOString().slice(0, 10)
+  // Fin du mois demandé pour inclure les dates planifiées pas encore passées
+  const monthEnd = month + '-31'
   let planned_total = 0, actual_total = 0
   const details = []
 
   for (const plan of plans) {
     if (!plan.enabled) continue
 
-    // Y a-t-il une date planifiée dans ce mois ?
-    const { past } = computeScheduledDates(plan, today, 0)
-    const hasPeriod = past.some(d => d.startsWith(month))
+    // Vérifier si ce plan a une date planifiée dans ce mois (passée OU future)
+    const { past, upcoming } = computeScheduledDates(plan, monthEnd, 3)
+    const allDates = [...past, ...upcoming]
+    const hasPeriod = allDates.some(d => d.startsWith(month))
     if (!hasPeriod) continue
 
     planned_total += plan.amount_per_period
