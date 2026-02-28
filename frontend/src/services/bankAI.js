@@ -72,6 +72,7 @@ export async function aiCategorizeLines(transactions) {
               confidence: typeof item.confidence === 'number'
                 ? Math.min(1, Math.max(0, item.confidence))
                 : 0.75,
+              ruleHit: item.rule_hit || null,
             })
           }
         }

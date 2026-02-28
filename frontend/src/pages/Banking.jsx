@@ -156,7 +156,11 @@ function AICategorizePanel({ proposals, onClose, onApply }) {
                     {currentCat.label}
                   </span>
                   <ArrowRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                  <span className="tx-category ai-proposed" style={{ background: proposedCat.color + '22', color: proposedCat.color, border: `1px solid ${proposedCat.color}44` }}>
+                  <span
+                    className="tx-category ai-proposed"
+                    style={{ background: proposedCat.color + '22', color: proposedCat.color, border: `1px solid ${proposedCat.color}44` }}
+                    title={p.ruleHit ? `Règle: ${p.ruleHit} · Confiance: ${Math.round(p.confidence * 100)}%` : `Confiance: ${Math.round(p.confidence * 100)}%`}
+                  >
                     <ConfidenceDot confidence={p.confidence} />
                     {proposedCat.label}
                   </span>
@@ -816,6 +820,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
             proposedSubcategory: r.subcategory,
             merchantName: r.merchantName,
             confidence: r.confidence,
+            ruleHit: r.ruleHit,
           }
         })
         .filter(Boolean)
