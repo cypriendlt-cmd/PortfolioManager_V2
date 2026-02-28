@@ -499,8 +499,7 @@ export default function Crypto() {
   const handleSubmit = (data) => {
     if (editAsset) {
       // Update existing asset — preserve movements and currentPrice
-      updateCrypto({
-        ...editAsset,
+      updateCrypto(editAsset.id, {
         ...data,
         currentPrice: editAsset.currentPrice, // keep live price
         movements: editAsset.movements,
