@@ -388,6 +388,24 @@ export function BankProvider({ children }) {
     setBankHistory(prev => ({ ...prev }))
   }, [])
 
+  // Force full re-extraction of merchant_key + recategorization for ALL transactions.
+  // Use this after improving the extraction algorithm or importing new rules.
+  // learnedRules are preserved so user corrections still apply.
+  const forceRecategorize = useCallback(() => {
+    invalidateWorkerCache()
+    setBankHistory(prev => ({
+      ...prev,
+      aiCache: {},  // clear AI cache so stale category suggestions are dropped
+      transactions: prev.transactions.map(({ merchant_key, label_norm, payment_type, tokens, category, subcategory, confidence, reason, method, ...rest }) => ({
+        ...rest,
+        // Reset derived + categorization fields → worker recomputes from scratch
+        // Preserve isTransfer so manually-marked transfers stay as virements
+        category: rest.isTransfer ? 'virement' : 'autre',
+        isTransfer: rest.isTransfer || false,
+      })),
+    }))
+  }, [])
+
   // Use worker results for computed values (all computed off main thread)
   const aggregates = useMemo(() => workerResults?.aggregates || [], [workerResults])
   const healthScore = useMemo(() => workerResults?.healthScore ?? 50, [workerResults])
@@ -426,7 +444,7 @@ export function BankProvider({ children }) {
       aggregates, healthScore, coachInsights,
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
-      setInitialBalance, updateAccount, deleteAccount, refreshCategories,
+      setInitialBalance, updateAccount, deleteAccount, refreshCategories, forceRecategorize,
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
       correctCategory, deleteLearnedRule, clearAICache,

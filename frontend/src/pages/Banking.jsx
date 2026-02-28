@@ -196,6 +196,7 @@ export default function Banking() {
     financeProfile, updateFinanceProfile,
     correctCategory, deleteLearnedRule, clearAICache,
     requestAICategorization, lowConfidenceCount, applyAIProposals,
+    forceRecategorize,
   } = useBank()
   const { m, mp } = usePrivacyMask()
   const [tab, setTab] = useState('synthese')
@@ -234,7 +235,7 @@ export default function Banking() {
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
       {tab === 'investissements' && <InvestmentsTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
-      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} deleteLearnedRule={deleteLearnedRule} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
+      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} forceRecategorize={forceRecategorize} deleteLearnedRule={deleteLearnedRule} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
 
       {(tab === 'securite' || tab === 'liberte' || tab === 'investissements') && !hasProfile && (
         <ProfileSetup profile={financeProfile} updateProfile={updateFinanceProfile} hasAggregates={aggregates.length > 0} />
@@ -1112,7 +1113,7 @@ function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
 }
 
 /* ─── REGLES & CATEGORIES ─── */
-function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, deleteLearnedRule, clearAICache, requestAICategorization, lowConfidenceCount }) {
+function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceRecategorize, deleteLearnedRule, clearAICache, requestAICategorization, lowConfidenceCount }) {
   const [pattern, setPattern] = useState('')
   const [category, setCategory] = useState('autre')
   const [priority, setPriority] = useState(50)
@@ -1120,6 +1121,7 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, delete
   const [testResult, setTestResult] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
+  const [confirmForce, setConfirmForce] = useState(false)
 
   const learnedRules = bankHistory.learnedRules || {}
   const learnedEntries = Object.entries(learnedRules)
@@ -1180,7 +1182,26 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, delete
       <div className="bank-account-card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h4 style={{ fontSize: '0.85rem', fontWeight: 600 }}>Regles personnalisees</h4>
-          <button className="btn btn-ghost" onClick={refreshCategories} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>Recategoriser tout</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-ghost" onClick={refreshCategories} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+              Appliquer les regles
+            </button>
+            {!confirmForce ? (
+              <button className="btn btn-ghost" onClick={() => setConfirmForce(true)} style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--warning)' }}>
+                <Zap size={12} /> Tout recategoriser
+              </button>
+            ) : (
+              <span style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Confirmer ?</span>
+                <button className="btn btn-primary" onClick={() => { forceRecategorize(); setConfirmForce(false) }} style={{ fontSize: '0.72rem', padding: '3px 8px', background: 'var(--warning)', borderColor: 'var(--warning)' }}>
+                  Oui
+                </button>
+                <button className="btn btn-ghost" onClick={() => setConfirmForce(false)} style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
+                  Non
+                </button>
+              </span>
+            )}
+          </div>
         </div>
         {bankHistory.rules.length === 0 ? (
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Aucune regle personnalisee</p>
