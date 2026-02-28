@@ -19,6 +19,22 @@ const fmtPct = (n) => n != null ? `${n >= 0 ? '+' : ''}${n.toFixed(2)}%` : '\u20
 const fmtTime = (d) => d ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d) : null
 const fmtDate = (d) => new Intl.DateTimeFormat('fr-FR').format(new Date(d))
 
+/* ===== Running PRU per movement ===== */
+function computeRunningPRU(movements) {
+  let cumQty = 0, cumCost = 0
+  return movements.map(mv => {
+    if (mv.type === 'buy') {
+      cumQty += mv.quantity
+      cumCost += mv.quantity * mv.price + (mv.fees || 0)
+    } else {
+      const oldQty = cumQty
+      cumQty = Math.max(cumQty - mv.quantity, 0)
+      if (oldQty > 0) cumCost = cumCost * (cumQty / oldQty)
+    }
+    return cumQty > 0 ? cumCost / cumQty : 0
+  })
+}
+
 function buildChartData(asset) {
   const movements = [...(asset.movements || [])].sort((a, b) => a.date.localeCompare(b.date))
   if (movements.length === 0) return []
@@ -198,10 +214,16 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
   const { m, mp } = usePrivacyMask()
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
-  const totalInvested = asset.buyPrice * asset.quantity
+  // Compute totalInvested from movements for accuracy
+  const rawMovements = asset.movements || []
+  const totalInvested = rawMovements.length > 0
+    ? rawMovements.reduce((sum, mv) => mv.type === 'buy' ? sum + mv.quantity * mv.price + (mv.fees || 0) : sum, 0)
+    : asset.buyPrice * asset.quantity
   const gain = totalValue - totalInvested
   const gainPct = totalInvested > 0 ? (gain / totalInvested) * 100 : 0
-  const movements = asset.movements || []
+  // Sort movements chronologically for display
+  const movements = [...rawMovements].sort((a, b) => a.date.localeCompare(b.date))
+  const prusPerMovement = computeRunningPRU(movements)
   const borderClass = gain > 0 ? 'pea-card--positive' : gain < 0 ? 'pea-card--negative' : 'pea-card--neutral'
 
   return (
@@ -295,6 +317,7 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                       <th>Type</th>
                       <th>Qte</th>
                       <th>Prix</th>
+                      <th>PRU</th>
                       <th className="pea-col-fees">Frais</th>
                       <th className="pea-col-total">Total</th>
                       <th></th>
@@ -304,7 +327,7 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                     {movements.map((mv, idx) => {
                       const total = mv.quantity * mv.price + (mv.fees || 0)
                       return (
-                        <tr key={idx}>
+                        <tr key={`${mv.date}-${mv.type}-${mv.quantity}-${mv.price}-${idx}`}>
                           <td>{fmtDate(mv.date)}</td>
                           <td>
                             <span className={mv.type === 'buy' ? 'pea-badge-buy' : 'pea-badge-sell'}>
@@ -313,10 +336,11 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
                           </td>
                           <td className="font-mono">{mv.quantity}</td>
                           <td className="font-mono">{fmt(mv.price)}</td>
+                          <td className="font-mono text-muted">{prusPerMovement[idx] > 0 ? fmt(prusPerMovement[idx]) : '—'}</td>
                           <td className="font-mono pea-col-fees">{fmt(mv.fees || 0)}</td>
                           <td className="font-mono font-semibold pea-col-total">{m(fmt(total))}</td>
                           <td>
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, rawMovements.indexOf(mv))}>
                               <Trash2 size={12} />
                             </button>
                           </td>

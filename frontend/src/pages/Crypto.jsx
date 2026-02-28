@@ -21,6 +21,22 @@ const fmtPct = (n) => n != null ? `${n >= 0 ? '+' : ''}${n.toFixed(2)}%` : '—'
 const fmtTime = (d) => d ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(d) : null
 const fmtDate = (d) => d ? new Intl.DateTimeFormat('fr-FR').format(new Date(d)) : '—'
 
+/* ===== Running PRU per movement ===== */
+function computeRunningPRU(movements) {
+  let cumQty = 0, cumCost = 0
+  return movements.map(mv => {
+    if (mv.type === 'buy') {
+      cumQty += mv.quantity
+      cumCost += mv.quantity * mv.price + (mv.fees || 0)
+    } else {
+      const oldQty = cumQty
+      cumQty = Math.max(cumQty - mv.quantity, 0)
+      if (oldQty > 0) cumCost = cumCost * (cumQty / oldQty)
+    }
+    return cumQty > 0 ? cumCost / cumQty : 0
+  })
+}
+
 /* ===== Chart data builder ===== */
 function buildChartData(asset) {
   const movements = [...(asset.movements || [])].sort((a, b) => a.date.localeCompare(b.date))
@@ -254,10 +270,16 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
   const { m, mp } = usePrivacyMask()
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
-  const totalInvested = asset.buyPrice * asset.quantity
+  // Compute totalInvested from movements for accuracy (avoids PRU rounding drift)
+  const rawMovements = asset.movements || []
+  const totalInvested = rawMovements.length > 0
+    ? rawMovements.reduce((sum, mv) => mv.type === 'buy' ? sum + mv.quantity * mv.price + (mv.fees || 0) : sum, 0)
+    : asset.buyPrice * asset.quantity
   const gain = totalValue - totalInvested
   const gainPct = totalInvested > 0 ? (gain / totalInvested) * 100 : 0
-  const movements = asset.movements || []
+  // Sort movements chronologically for display
+  const movements = [...rawMovements].sort((a, b) => a.date.localeCompare(b.date))
+  const prusPerMovement = computeRunningPRU(movements)
   const borderClass = gain > 0 ? 'crypto-card--positive' : gain < 0 ? 'crypto-card--negative' : 'crypto-card--neutral'
 
   return (
@@ -355,6 +377,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                       <th>Type</th>
                       <th>Quantite</th>
                       <th>Prix</th>
+                      <th>PRU</th>
                       <th className="col-fees">Frais</th>
                       <th className="col-total">Total</th>
                       <th></th>
@@ -362,7 +385,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                   </thead>
                   <tbody>
                     {movements.map((mv, idx) => (
-                      <tr key={idx}>
+                      <tr key={`${mv.date}-${mv.type}-${mv.quantity}-${mv.price}-${idx}`}>
                         <td>{fmtDate(mv.date)}</td>
                         <td>
                           <span className={`badge ${mv.type === 'buy' ? 'badge-success' : 'badge-danger'}`}>
@@ -372,10 +395,11 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
                         </td>
                         <td className="font-mono">{fmtQty(mv.quantity)}</td>
                         <td className="font-mono">{fmt(mv.price)}</td>
+                        <td className="font-mono text-muted">{prusPerMovement[idx] > 0 ? fmt(prusPerMovement[idx]) : '—'}</td>
                         <td className="font-mono text-muted col-fees">{mv.fees ? fmt(mv.fees) : '—'}</td>
                         <td className="font-mono font-semibold col-total">{m(fmt(mv.quantity * mv.price + (mv.fees || 0)))}</td>
                         <td>
-                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, idx)}>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDeleteMovement(asset.id, rawMovements.indexOf(mv))}>
                             <Trash2 size={12} />
                           </button>
                         </td>
@@ -452,7 +476,7 @@ export default function Crypto() {
         if (existing) {
           // Update quantity if different
           if (Math.abs(existing.quantity - bal.total) > 0.00001) {
-            updateCrypto({ ...existing, quantity: bal.total, source: 'binance' })
+            updateCrypto(existing.id, { quantity: bal.total, source: 'binance' })
             updated++
           }
         } else {
