@@ -4,7 +4,7 @@ import {
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
-  ArrowRight, ArrowLeft, Zap, Brain, Loader2
+  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
@@ -78,7 +78,7 @@ export default function Banking() {
     bankHistory, loading, processing, accountBalances,
     aggregates, healthScore, coachInsights,
     importExcel, addRule, deleteRule,
-    setInitialBalance, refreshCategories,
+    setInitialBalance, updateAccount, deleteAccount, refreshCategories,
     financeProfile, updateFinanceProfile,
     correctCategory, deleteLearnedRule, clearAICache,
     requestAICategorization, lowConfidenceCount,
@@ -114,8 +114,8 @@ export default function Banking() {
       </div>
 
       {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} m={m} mp={mp} />}
-      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} correctCategory={correctCategory} m={m} />}
-      {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} m={m} />}
+      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} correctCategory={correctCategory} m={m} />}
+      {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} m={m} />}
       {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} m={m} />}
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
@@ -610,12 +610,53 @@ function SyntheseTab({ accountBalances, aggregates, healthScore, coachInsights, 
   )
 }
 
+/* ─── CONFIRM DELETE MODAL ─── */
+function ConfirmDeleteModal({ account, txCount, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 400 }}>
+        <div className="modal-header">
+          <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={18} style={{ color: 'var(--danger)' }} />
+            Supprimer le compte
+          </h3>
+          <button className="btn btn-ghost btn-icon" onClick={onCancel}><X size={18} /></button>
+        </div>
+        <div style={{ padding: '8px 0 16px' }}>
+          <p style={{ marginBottom: 8 }}>
+            Voulez-vous vraiment supprimer <strong>{account.alias}</strong> ?
+          </p>
+          {txCount > 0 && (
+            <p style={{ fontSize: '0.85rem', color: 'var(--danger)', background: 'rgba(239,68,68,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+              Cette action supprimera également <strong>{txCount} transaction{txCount > 1 ? 's' : ''}</strong> associée{txCount > 1 ? 's' : ''}.
+            </p>
+          )}
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 8 }}>
+            Cette action est irréversible.
+          </p>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onCancel}>Annuler</button>
+          <button
+            className="btn btn-primary"
+            style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
+            onClick={onConfirm}
+          >
+            <Trash2 size={14} /> Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── COMPTE COURANT ─── */
-function CourantTab({ bankHistory, accountBalances, setInitialBalance, correctCategory, m }) {
+function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAccount, correctCategory, m }) {
   const [monthFilter, setMonthFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [search, setSearch] = useState('')
   const [balanceInput, setBalanceInput] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const courantAccounts = useMemo(() => accountBalances.filter(a => a.type === 'courant'), [accountBalances])
   const courantIds = useMemo(() => new Set(courantAccounts.map(a => a.id)), [courantAccounts])
@@ -640,7 +681,16 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, correctCa
     <>
       <div className="bank-accounts-grid">
         {courantAccounts.map(a => (
-          <div key={a.id} className="bank-account-card">
+          <div key={a.id} className="bank-account-card" style={{ position: 'relative' }}>
+            <button
+              onClick={() => setConfirmDelete(a)}
+              title="Supprimer ce compte"
+              style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, lineHeight: 1 }}
+              onMouseOver={e => e.currentTarget.style.color = 'var(--danger)'}
+              onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <X size={14} />
+            </button>
             <div className="account-type">Courant</div>
             <div className="account-alias">{a.alias}</div>
             <div className="account-balance" style={{ color: a.balance >= 0 ? 'var(--success)' : 'var(--danger)' }}>{m(fmt(a.balance))}</div>
@@ -694,13 +744,23 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, correctCa
         {txs.length > 200 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: 12 }}>Affichage limite a 200 transactions</p>}
         {txs.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Aucune transaction. Importez un releve bancaire.</p>}
       </div>
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          account={confirmDelete}
+          txCount={bankHistory.transactions.filter(t => t.accountId === confirmDelete.id).length}
+          onConfirm={() => { deleteAccount(confirmDelete.id); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </>
   )
 }
 
 /* ─── LIVRETS BANCAIRES ─── */
-function LivretsTab({ bankHistory, accountBalances, setInitialBalance, m }) {
+function LivretsTab({ bankHistory, accountBalances, setInitialBalance, deleteAccount, m }) {
   const [balanceInput, setBalanceInput] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const livretAccounts = accountBalances.filter(a => a.type !== 'courant')
 
   const monthlyData = useMemo(() => {
@@ -720,7 +780,16 @@ function LivretsTab({ bankHistory, accountBalances, setInitialBalance, m }) {
     <>
       <div className="bank-accounts-grid">
         {livretAccounts.map(a => (
-          <div key={a.id} className="bank-account-card">
+          <div key={a.id} className="bank-account-card" style={{ position: 'relative' }}>
+            <button
+              onClick={() => setConfirmDelete(a)}
+              title="Supprimer ce livret"
+              style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, lineHeight: 1 }}
+              onMouseOver={e => e.currentTarget.style.color = 'var(--danger)'}
+              onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <X size={14} />
+            </button>
             <div className="account-type">{a.type}</div>
             <div className="account-alias">{a.alias}</div>
             <div className="account-balance" style={{ color: 'var(--accent)' }}>{m(fmt(a.balance))}</div>
@@ -753,6 +822,15 @@ function LivretsTab({ bankHistory, accountBalances, setInitialBalance, m }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          account={confirmDelete}
+          txCount={bankHistory.transactions.filter(t => t.accountId === confirmDelete.id).length}
+          onConfirm={() => { deleteAccount(confirmDelete.id); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </>
   )

@@ -239,6 +239,14 @@ export function BankProvider({ children }) {
     }))
   }, [updateAndSave])
 
+  const deleteAccount = useCallback((accountId) => {
+    updateAndSave(prev => ({
+      ...prev,
+      accounts: prev.accounts.filter(a => a.id !== accountId),
+      transactions: prev.transactions.filter(t => t.accountId !== accountId),
+    }))
+  }, [updateAndSave])
+
   const updateFinanceProfile = useCallback((data) => {
     updateAndSave(prev => ({
       ...prev,
@@ -352,7 +360,7 @@ export function BankProvider({ children }) {
       aggregates, healthScore, coachInsights,
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
-      setInitialBalance, updateAccount, refreshCategories,
+      setInitialBalance, updateAccount, deleteAccount, refreshCategories,
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
       correctCategory, deleteLearnedRule, clearAICache,
