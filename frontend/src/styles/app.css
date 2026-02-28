@@ -6094,8 +6094,41 @@ tbody tr:hover {
   border-radius: 14px; margin-top: 8px;
 }
 
+/* ── Sélecteur d'échelle temporelle (graphique) ── */
+.dca-time-range-selector {
+  display: flex; gap: 3px; background: var(--bg-secondary, var(--bg-card));
+  border-radius: 8px; padding: 2px; border: 1px solid var(--border);
+}
+.dca-time-range-btn {
+  padding: 2px 8px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 0.68rem; font-weight: 600; background: transparent;
+  color: var(--text-muted); transition: all 0.15s;
+}
+.dca-time-range-btn.active {
+  background: var(--accent); color: #fff;
+}
+.dca-time-range-btn:hover:not(.active) { color: var(--text-primary); }
+
+/* ── Dashboard DCA synthèse ── */
+.dca-dashboard-card { margin-bottom: 16px; }
+.dca-dash-stats {
+  display: flex; gap: 0; flex-wrap: wrap;
+}
+.dca-dash-stat {
+  flex: 1; min-width: 90px; padding: 10px 14px;
+  border-right: 1px solid var(--border);
+}
+.dca-dash-stat:last-child { border-right: none; }
+.dca-dash-stat-label {
+  font-size: 0.7rem; color: var(--text-muted); font-weight: 500; margin-bottom: 4px;
+}
+.dca-dash-stat-value {
+  font-size: 1rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+}
+
 @media (max-width: 600px) {
   .dca-plans-grid { grid-template-columns: 1fr; }
   .dca-stats-row { gap: 6px; }
   .dca-stat { min-width: 50px; }
+  .dca-dash-stat { min-width: 80px; padding: 8px 10px; }
 }

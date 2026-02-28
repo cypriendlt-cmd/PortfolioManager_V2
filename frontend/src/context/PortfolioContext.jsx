@@ -28,12 +28,14 @@ export function PortfolioProvider({ children }) {
   const saveTimer = useRef(null)
 
   // Insights + DCA Drive persistence
-  const [insightsData, setInsightsData] = useState(null)
-  const [dcaConfig, setDcaConfig] = useState(null)        // legacy (lecture seule après migration)
-  const [dcaPlans, setDcaPlans]   = useState(null)        // nouveau format { version, plans }
-  const insightsSaveTimer = useRef(null)
-  const dcaSaveTimer      = useRef(null)
-  const dcaPlansSaveTimer = useRef(null)
+  const [insightsData, setInsightsData]   = useState(null)
+  const [dcaConfig, setDcaConfig]         = useState(null)  // legacy (lecture seule après migration)
+  const [dcaPlans, setDcaPlans]           = useState(null)  // nouveau format { version, plans }
+  const [dcaSnapshots, setDcaSnapshots]   = useState(null)  // cache calculs dca_snapshots.json
+  const insightsSaveTimer     = useRef(null)
+  const dcaSaveTimer          = useRef(null)
+  const dcaPlansSaveTimer     = useRef(null)
+  const dcaSnapshotsSaveTimer = useRef(null)
 
   const rates = useMemo(() => getAllCurrentRates(), [])
 
@@ -182,6 +184,15 @@ export function PortfolioProvider({ children }) {
     dcaSaveTimer.current = setTimeout(async () => {
       try { await saveFileToDrive('dca-config.json', data) } catch (e) { console.warn('Drive DCA save error:', e) }
     }, 1500)
+  }, [user, accessToken, gapiReady])
+
+  const saveDcaSnapshots = useCallback((snapshotsObj) => {
+    setDcaSnapshots(snapshotsObj)
+    if (!user || !accessToken || !gapiReady) return
+    if (dcaSnapshotsSaveTimer.current) clearTimeout(dcaSnapshotsSaveTimer.current)
+    dcaSnapshotsSaveTimer.current = setTimeout(async () => {
+      try { await saveFileToDrive('dca_snapshots.json', snapshotsObj) } catch (e) { console.warn('Drive DCA snapshots save error:', e) }
+    }, 2000)
   }, [user, accessToken, gapiReady])
 
   // ── DCA Plans CRUD ────────────────────────────────────────────────────────────
@@ -520,6 +531,7 @@ export function PortfolioProvider({ children }) {
       dcaConfig, saveDcaConfig,
       dcaPlans: dcaPlans || { version: 1, plans: [] },
       createDcaPlan, updateDcaPlan, deleteDcaPlan, linkPlanToAsset, unlinkPlan,
+      dcaSnapshots, saveDcaSnapshots,
       updatePrices, pricesLastUpdated,
       isRefreshingPrices, setIsRefreshingPrices,
       priceRefreshError, setPriceRefreshError,

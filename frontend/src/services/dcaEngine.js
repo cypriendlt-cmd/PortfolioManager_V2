@@ -482,6 +482,43 @@ export function getMonthlyDcaSummary(plans, portfolio, month) {
   }
 }
 
+// ─── Série étendue (pour graph avec sélecteur d'échelle) ──────────────────────
+
+/**
+ * Construit une série mensuelle complète : passé réel + N mois futurs planifiés.
+ * Utilisé pour le graph avec sélecteur d'échelle temporelle.
+ *
+ * @param {Object}      plan
+ * @param {Object|null} asset          actif portfolio (avec movements[])
+ * @param {string}      asOfDate       date de référence
+ * @param {number}      futureLookAhead nombre de mois futurs à projeter
+ * @returns {Array} monthly_series avec cumul_expected et cumul_actual
+ */
+export function computeExtendedSeries(plan, asset, asOfDate, futureLookAhead = 24) {
+  const today = asOfDate || new Date().toISOString().slice(0, 10)
+  const contributions = extractContributions(plan, asset, today)
+  return buildMonthlySeries(plan, contributions, today, futureLookAhead)
+}
+
+/**
+ * Calcule le nombre de mois futurs à projeter selon le sélecteur et l'end_date du plan.
+ * @param {'6M'|'1Y'|'2Y'|'5Y'|'Max'} rangeKey
+ * @param {string|null} endDate  plan.end_date
+ * @returns {number}
+ */
+export function futureLookAheadForRange(rangeKey, endDate) {
+  if (rangeKey === 'Max') {
+    if (endDate) {
+      const ms  = new Date(endDate).getTime() - Date.now()
+      const mth = Math.round(ms / (30.44 * 86_400_000))
+      return Math.max(1, mth)
+    }
+    return 60  // 5 ans par défaut
+  }
+  const map = { '6M': 6, '1Y': 12, '2Y': 24, '5Y': 60 }
+  return map[rangeKey] ?? 24
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Récupère l'actif portfolio lié à un plan (depuis asset_link ou auto-match). */

@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   LineChart, Line, PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb, Landmark, CreditCard, Heart } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb, Landmark, CreditCard, Heart, Calendar } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
 import { useBank } from '../context/BankContext'
 import { useAuth } from '../context/AuthContext'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
+import { getMonthlyDcaSummary, getLinkedAsset, computeDcaProgress } from '../services/dcaEngine'
 import { Link } from 'react-router-dom'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -216,7 +217,7 @@ function GaugeChart({ value, label }) {
 }
 
 export default function Dashboard() {
-  const { portfolio, totals } = usePortfolio()
+  const { portfolio, totals, dcaPlans } = usePortfolio()
   const { accountBalances, aggregates, healthScore, coachInsights } = useBank() || {}
   const { isGuest } = useAuth()
   const { m, mp } = usePrivacyMask()
@@ -314,6 +315,34 @@ export default function Dashboard() {
   const monthSavings = monthIncome - monthExpenses
   const monthFees = coachInsights?.fees?.total || 0
   const patrimoineNet = totals.total + bankLivrets + bankTotal
+
+  // DCA summary
+  const dcaSummary = useMemo(() => {
+    const plans = dcaPlans?.plans || []
+    const enabled = plans.filter(p => p.enabled)
+    if (enabled.length === 0) return null
+    const t = new Date().toISOString().slice(0, 10)
+    const currentMonth = t.slice(0, 7)
+    let totalInvested = 0, totalExpected = 0, onTrack = 0
+    const nextDates = []
+    for (const plan of enabled) {
+      const asset = getLinkedAsset(plan, portfolio)
+      const prog = computeDcaProgress(plan, asset, t)
+      totalInvested += prog.actual_contribution
+      totalExpected += prog.expected_contribution
+      if (prog.on_track) onTrack++
+      if (prog.upcoming_dates?.[0]) nextDates.push({
+        date: prog.upcoming_dates[0], label: plan.label, amount: plan.amount_per_period,
+      })
+    }
+    nextDates.sort((a, b) => a.date.localeCompare(b.date))
+    const monthly = getMonthlyDcaSummary(enabled, portfolio, currentMonth)
+    return {
+      totalInvested, totalExpected, onTrack, total: enabled.length,
+      nextDates: nextDates.slice(0, 3),
+      monthPlanned: monthly.planned_total, monthActual: monthly.actual_total,
+    }
+  }, [dcaPlans, portfolio])
 
   return (
     <div className="dashboard">
@@ -521,6 +550,55 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ═══ DCA Synthèse ═══ */}
+      {dcaSummary && (
+        <div className="dash-card dca-dashboard-card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Calendar size={15} style={{ color: 'var(--accent)' }} />
+              <span className="dash-card-title" style={{ margin: 0 }}>Plans DCA</span>
+            </div>
+            <Link to="/dca" style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>Voir les plans →</Link>
+          </div>
+
+          <div className="dca-dash-stats">
+            <div className="dca-dash-stat">
+              <div className="dca-dash-stat-label">Versé total</div>
+              <div className="dca-dash-stat-value">{m(fmt(dcaSummary.totalInvested))}</div>
+            </div>
+            <div className="dca-dash-stat">
+              <div className="dca-dash-stat-label">Dans les temps</div>
+              <div className="dca-dash-stat-value" style={{ color: dcaSummary.onTrack === dcaSummary.total ? 'var(--success)' : 'var(--warning)' }}>
+                {dcaSummary.onTrack}/{dcaSummary.total}
+              </div>
+            </div>
+            <div className="dca-dash-stat">
+              <div className="dca-dash-stat-label">Ce mois prévu</div>
+              <div className="dca-dash-stat-value">{m(fmt(dcaSummary.monthPlanned))}</div>
+            </div>
+            <div className="dca-dash-stat">
+              <div className="dca-dash-stat-label">Ce mois versé</div>
+              <div className="dca-dash-stat-value"
+                style={{ color: dcaSummary.monthActual >= dcaSummary.monthPlanned ? 'var(--success)' : 'var(--warning)' }}>
+                {m(fmt(dcaSummary.monthActual))}
+              </div>
+            </div>
+          </div>
+
+          {dcaSummary.nextDates.length > 0 && (
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Prochains :</span>
+              {dcaSummary.nextDates.map((d, i) => (
+                <span key={i} className="dca-upcoming-chip">
+                  {new Date(d.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  {' · '}{d.label}{' · '}{fmt(d.amount)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══ Insight + Performers ═══ */}
       <div className="dashboard-bottom">

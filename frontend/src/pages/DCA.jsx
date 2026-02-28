@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Calculator, TrendingUp, Calendar, Play, BellRing,
   Plus, Trash2, Edit3, Link2, Unlink, ChevronDown, ChevronUp,
@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import { usePortfolio } from '../context/PortfolioContext'
 import {
-  computeDcaProgress, computeScheduledDates,
+  computeDcaProgress, computeExtendedSeries, futureLookAheadForRange,
   matchPlanToAsset, getLinkedAsset,
   fmtScheduledDate, fmtShortDate,
   migrateLegacyConfig,
@@ -105,26 +105,43 @@ function AssetPicker({ portfolio, accountType, onSelect, onCancel }) {
   )
 }
 
+// ─── Sélecteur d'échelle temporelle ───────────────────────────────────────────
+const CHART_RANGES = ['6M', '1Y', '2Y', '5Y', 'Max']
+
 // ─── Carte plan DCA ───────────────────────────────────────────────────────────
 function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink }) {
   const [expanded, setExpanded] = useState(false)
+  const [timeRange, setTimeRange] = useState('1Y')
   const isLinked = !!plan.asset_link
 
-  // Construire les données du graph cumulé
-  const chartData = useMemo(() => {
-    if (!progress) return []
-    return progress.monthly_series.map(row => ({
-      name:     row.month,
-      Attendu:  row.cumul_expected,
-      Réel:     row.cumul_actual,   // null pour les futures
-    }))
-  }, [progress])
+  // Série étendue : recalculée quand timeRange change (pour graph + table)
+  const extendedSeries = useMemo(() => {
+    if (!isLinked || !asset) return progress?.monthly_series || []
+    const futureLookAhead = futureLookAheadForRange(timeRange, plan.end_date)
+    return computeExtendedSeries(plan, asset, today(), futureLookAhead)
+  }, [plan, asset, isLinked, timeRange, progress])
 
-  // Tableau "lignes prévues + réalisées"
-  const tableRows = useMemo(() => {
-    if (!progress) return []
-    return progress.monthly_series
-  }, [progress])
+  const chartData = useMemo(() => {
+    if (extendedSeries.length === 0) return []
+    // Calcule la tendance (rythme actuel projeté dans le futur)
+    const pastRows = extendedSeries.filter(r => !r.future)
+    const nPast    = pastRows.length
+    const lastReal = nPast > 0 ? pastRows[nPast - 1] : null
+    // Taux moyen : contributions réelles / nombre de périodes passées
+    const avgContrib = lastReal && nPast > 0 ? lastReal.cumul_actual / nPast : null
+    let futureIdx = 0
+    return extendedSeries.map(row => {
+      const pt = { name: row.month, Attendu: row.cumul_expected, Réel: row.cumul_actual }
+      // Courbe de tendance uniquement pour les mois futurs (si on n'est pas on_track)
+      if (row.future && avgContrib !== null && progress?.status !== 'on_track' && progress?.status !== 'pending') {
+        futureIdx++
+        pt.Tendance = Math.round(lastReal.cumul_actual + avgContrib * futureIdx)
+      }
+      return pt
+    })
+  }, [extendedSeries, progress?.status])
+
+  const tableRows = extendedSeries
 
   const cadenceLabel = plan.cadence === 'weekly' ? '/sem'
     : plan.cadence === 'biweekly' ? '/2 sem' : '/mois'
@@ -235,8 +252,19 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
           {/* Graph contributions cumulées */}
           {isLinked && chartData.length > 0 && (
             <div className="dca-chart-wrap">
-              <div style={{ fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, color: 'var(--text-secondary)' }}>
-                Contributions cumulées
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Contributions cumulées
+                </span>
+                <div className="dca-time-range-selector">
+                  {CHART_RANGES.map(r => (
+                    <button key={r}
+                      className={`dca-time-range-btn${timeRange === r ? ' active' : ''}`}
+                      onClick={() => setTimeRange(r)}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
               <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={chartData}>
@@ -248,6 +276,10 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
                     <linearGradient id="gradReel" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradTendance" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -264,6 +296,11 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
                     fill="url(#gradAttendu)" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
                   <Area type="monotone" dataKey="Réel" stroke="var(--accent)"
                     fill="url(#gradReel)" strokeWidth={2} dot={false} connectNulls={false} />
+                  {(progress?.status === 'ahead' || progress?.status === 'behind') && (
+                    <Area type="monotone" dataKey="Tendance" stroke="#f59e0b"
+                      fill="url(#gradTendance)" strokeWidth={1.5} strokeDasharray="6 3"
+                      dot={false} connectNulls={false} name="Tendance actuelle" />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -570,6 +607,7 @@ export default function DCA() {
     portfolio,
     dcaPlans,
     createDcaPlan, updateDcaPlan, deleteDcaPlan, linkPlanToAsset, unlinkPlan,
+    saveDcaSnapshots,
   } = usePortfolio()
 
   const plans = dcaPlans?.plans || []
@@ -588,6 +626,34 @@ export default function DCA() {
     }
     return map
   }, [plans, portfolio])
+
+  // Sauvegarde snapshots Drive à chaque recalcul (série 60 mois + métriques)
+  useEffect(() => {
+    if (!saveDcaSnapshots || plans.length === 0) return
+    const t = today()
+    const snapshots = {}
+    for (const plan of plans) {
+      const prog = progressMap[plan.plan_id]
+      if (!prog) continue
+      const asset = getLinkedAsset(plan, portfolio)
+      const full_series = computeExtendedSeries(plan, asset, t, 60)
+      snapshots[plan.plan_id] = {
+        plan_id:               plan.plan_id,
+        as_of_date:            t,
+        expected_contribution: prog.expected_contribution,
+        actual_contribution:   prog.actual_contribution,
+        contribution_gap:      prog.contribution_gap,
+        on_track:              prog.on_track,
+        discipline_score:      prog.discipline_score,
+        pnl_eur:               prog.pnl_eur,
+        pnl_pct:               prog.pnl_pct,
+        full_series,
+        saved_at:              new Date().toISOString(),
+      }
+    }
+    saveDcaSnapshots({ version: 1, snapshots })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progressMap])
 
   // Handlers
   const handleCreate = useCallback((formData) => {
