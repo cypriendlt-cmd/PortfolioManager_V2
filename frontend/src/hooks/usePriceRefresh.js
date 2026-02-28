@@ -29,6 +29,15 @@ export function usePriceRefreshManager(intervalMs = 60000) {
   const isMountedRef = useRef(true)
   const timerRef = useRef(null)
 
+  // Keep a ref to the latest portfolio so refresh() can read current IDs
+  // without depending on portfolio in its useCallback deps (which would cause
+  // an infinite loop: updatePrices → new array ref → refresh recreated → effect
+  // re-runs → refresh() called immediately → updatePrices → ∞).
+  const portfolioRef = useRef(portfolio)
+  useEffect(() => {
+    portfolioRef.current = portfolio
+  }, [portfolio])
+
   // Apply cached prices immediately so the UI shows something before first fetch
   useEffect(() => {
     const cachedCrypto = getCachedCryptoPrices()
@@ -46,14 +55,14 @@ export function usePriceRefreshManager(intervalMs = 60000) {
     try {
       const cryptoIds = [
         ...new Set(
-          (portfolio.crypto || [])
+          (portfolioRef.current.crypto || [])
             .map(c => c.coingeckoId || c.coinId || c.id_coingecko)
             .filter(Boolean)
         )
       ]
       const isins = [
         ...new Set(
-          (portfolio.pea || [])
+          (portfolioRef.current.pea || [])
             .map(p => p.isin)
             .filter(Boolean)
         )
@@ -78,7 +87,7 @@ export function usePriceRefreshManager(intervalMs = 60000) {
     } finally {
       if (isMountedRef.current) setIsRefreshingPrices(false)
     }
-  }, [portfolio.crypto, portfolio.pea, updatePrices, setIsRefreshingPrices, setPriceRefreshError])
+  }, [updatePrices, setIsRefreshingPrices, setPriceRefreshError])
 
   // Expose refresh function via ref so page components can trigger it
   useEffect(() => {

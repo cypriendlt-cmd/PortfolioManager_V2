@@ -3,6 +3,7 @@ import { Brain, RefreshCw, AlertCircle, TrendingUp, Shield, BarChart3, Lightbulb
 import { getFearGreed } from '../services/market'
 import { getInsights, refreshInsights, analyzePortfolio, getProviders } from '../services/insights'
 import { usePortfolio } from '../context/PortfolioContext'
+import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
 import './Insights.css'
 
@@ -80,6 +81,7 @@ function AnalysisCard({ icon: Icon, title, content, color }) {
 
 export default function Insights() {
   const { portfolio, totals, insightsData, saveInsights } = usePortfolio()
+  const { isGuest } = useAuth()
   const [loading, setLoading] = useState(false)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [fearGreed, setFearGreed] = useState(null)
@@ -225,16 +227,18 @@ export default function Insights() {
   }
 
   useEffect(() => {
+    if (isGuest) return
     loadFearGreed()
     checkProviders()
-  }, [])
+  }, [isGuest])
 
   // Load from backend only after Drive data is resolved
   useEffect(() => {
+    if (isGuest) return
     if (!isCacheFresh()) {
       loadCachedInsights()
     }
-  }, [insightsData])
+  }, [insightsData, isGuest])
 
   const fg = fearGreed || {}
   const cryptoFgValue = fg.crypto?.value ?? fg.current?.value ?? 0
@@ -259,12 +263,25 @@ export default function Insights() {
               Mis à jour : {lastUpdated.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <button className="btn btn-secondary" onClick={handleRefresh} disabled={loading || analysisLoading}>
+          <button className="btn btn-secondary" onClick={handleRefresh} disabled={loading || analysisLoading || isGuest}>
             <RefreshCw size={16} className={loading || analysisLoading ? 'animate-pulse' : ''} />
             Régénérer
           </button>
         </div>
       </div>
+
+      {isGuest && (
+        <div className="card mb-24" style={{ background: 'var(--accent-light)', borderColor: 'var(--accent)' }}>
+          <div className="flex items-center gap-12">
+            <Brain size={20} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <p className="text-sm" style={{ color: 'var(--text-primary)', margin: 0 }}>
+              Les analyses IA nécessitent un compte.{' '}
+              <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Connectez-vous</Link>{' '}
+              pour accéder aux insights de marché et à l'analyse de votre portefeuille.
+            </p>
+          </div>
+        </div>
+      )}
 
       {noProvider && !analysis && (
         <div className="card mb-24" style={{ background: 'var(--accent-light)', borderColor: 'var(--accent)' }}>
