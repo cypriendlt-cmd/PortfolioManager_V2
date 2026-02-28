@@ -7,6 +7,44 @@ const express = require('express');
 const router = express.Router();
 const { generateWithFallback } = require('../services/ai');
 
+// ─── LRU cache (merchant-level, TTL 7d, max 500 entries) ─────────────────────
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
+const CACHE_MAX    = 500
+
+class LRUCache {
+  constructor(max) {
+    this.max = max
+    this.map = new Map()
+  }
+  get(key) {
+    if (!this.map.has(key)) return null
+    const entry = this.map.get(key)
+    if (Date.now() - entry.ts > CACHE_TTL_MS) { this.map.delete(key); return null }
+    // LRU: re-insert to make most-recent
+    this.map.delete(key)
+    this.map.set(key, entry)
+    return entry.value
+  }
+  set(key, value) {
+    if (this.map.has(key)) this.map.delete(key)
+    else if (this.map.size >= this.max) this.map.delete(this.map.keys().next().value)
+    this.map.set(key, { value, ts: Date.now() })
+  }
+  invalidate(key) { this.map.delete(key) }
+  get size() { return this.map.size }
+}
+
+const merchantCache    = new LRUCache(CACHE_MAX)
+const lineResultsCache = new LRUCache(CACHE_MAX)
+
+function merchantCacheKey(merchant_key) {
+  return merchant_key.trim().toUpperCase()
+}
+function lineCacheKey(label, amountSign) {
+  const norm = label.toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 80)
+  return `${norm}|${amountSign}`
+}
+
 const VALID_CATEGORIES = [
   'revenus', 'loyer', 'alimentation', 'transport', 'abonnements',
   'achats', 'restauration', 'sante', 'loisirs', 'frais_bancaires',
@@ -73,7 +111,16 @@ router.post('/categorize', async (req, res) => {
       return res.status(400).json({ error: 'merchants must be an array of 1-20 items' });
     }
 
-    const merchantList = merchants
+    // Serve cached results instantly; only call Groq for cache misses
+    const cached = [], uncached = []
+    for (const m of merchants) {
+      const hit = merchantCache.get(merchantCacheKey(m.merchant_key))
+      if (hit) cached.push(hit)
+      else uncached.push(m)
+    }
+    if (uncached.length === 0) return res.json({ results: cached, provider: 'cache' })
+
+    const merchantList = uncached
       .map((m, i) =>
         `${i + 1}. merchant="${m.merchant_key}" | examples: ${(m.sample_labels || []).slice(0, 3).join(' / ')} | sign=${m.amount_sign === 1 ? 'positive/income' : 'negative/expense'}`
       )
@@ -115,7 +162,7 @@ Rules:
       return res.status(502).json({ error: 'AI returned non-array' });
     }
 
-    const results = parsed
+    const freshResults = parsed
       .filter(item => item.merchant_key && VALID_CATEGORIES.includes(item.category))
       .map(item => ({
         merchant_key: String(item.merchant_key),
@@ -127,6 +174,12 @@ Rules:
         rule_hit: item.rule_hit || null,
       }));
 
+    // Store fresh results in cache
+    for (const r of freshResults) {
+      merchantCache.set(merchantCacheKey(r.merchant_key), r)
+    }
+
+    const results = [...cached, ...freshResults]
     res.json({ results, provider: result.provider });
   } catch (err) {
     console.error('[Categorize] Error:', err.message);
@@ -143,7 +196,17 @@ router.post('/categorize-lines', async (req, res) => {
       return res.status(400).json({ error: 'transactions must be an array of 1-50 items' });
     }
 
-    const txList = transactions
+    // Serve cached lines; only send uncached to Groq
+    const cachedLines = [], uncachedTxs = [], indexMap = new Map()
+    for (const tx of transactions) {
+      const ckey = lineCacheKey(tx.label, tx.amount >= 0 ? '+' : '-')
+      const hit = lineResultsCache.get(ckey)
+      if (hit) cachedLines.push({ ...hit, hash: tx.hash })
+      else { indexMap.set(uncachedTxs.length, tx); uncachedTxs.push(tx) }
+    }
+    if (uncachedTxs.length === 0) return res.json({ results: cachedLines, provider: 'cache' })
+
+    const txList = uncachedTxs
       .map((t, i) => `${i + 1}. [${t.date || '?'}] ${t.label} | amount=${t.amount >= 0 ? '+' : ''}${Number(t.amount).toFixed(2)}€`)
       .join('\n');
 
@@ -186,17 +249,17 @@ Rules:
       return res.status(502).json({ error: 'AI returned non-array' });
     }
 
-    const results = parsed
+    const freshLines = parsed
       .filter(item =>
         Number.isInteger(item.index) &&
         item.index >= 1 &&
-        item.index <= transactions.length &&
+        item.index <= uncachedTxs.length &&
         VALID_CATEGORIES.includes(item.category)
       )
       .map(item => {
-        const tx = transactions[item.index - 1];
+        const tx = uncachedTxs[item.index - 1];
         if (!tx) return null;
-        return {
+        const lineResult = {
           hash: tx.hash,
           merchant_name: item.merchant
             ? String(item.merchant).trim().toUpperCase().slice(0, 40)
@@ -208,9 +271,14 @@ Rules:
             : 0.75,
           rule_hit: item.rule_hit || null,
         };
+        // Cache by normalized label so identical labels skip Groq next time
+        const ckey = lineCacheKey(tx.label, tx.amount >= 0 ? '+' : '-')
+        lineResultsCache.set(ckey, lineResult)
+        return lineResult;
       })
       .filter(Boolean);
 
+    const results = [...cachedLines, ...freshLines]
     res.json({ results, provider: result.provider });
   } catch (err) {
     console.error('[Categorize Lines] Error:', err.message);

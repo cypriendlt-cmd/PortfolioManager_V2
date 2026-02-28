@@ -18,6 +18,7 @@ const EMPTY_BANK = {
   rules: [],
   learnedRules: {},   // { merchant_key: { category, subcategory, learnedAt } }
   aiCache: {},        // { merchant_key: { category, subcategory, confidence, cachedAt } }
+  corrections: [],    // audit log — [{ id, tx_hash, raw_label, merchant_key, before, after, corrected_at, source }]
   lastImport: null,
   financeProfile: null,
 }
@@ -60,13 +61,14 @@ function stripDerived(transactions) {
 // Migrate v1 → v2
 function migrateData(data) {
   if (!data || !data.version) return EMPTY_BANK
-  if (data.version >= 2) return data
+  if (data.version >= 2) return { ...data, corrections: data.corrections || [] }
   return {
     ...EMPTY_BANK,
     ...data,
     version: 2,
     learnedRules: data.learnedRules || {},
     aiCache: data.aiCache || {},
+    corrections: data.corrections || [],
   }
 }
 
@@ -272,9 +274,22 @@ export function BankProvider({ children }) {
       const merchantKey = (enrichedMap?.get(hash)) || tx.merchant_key
         || tx.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
 
+      const now = new Date().toISOString()
       const learnedRules = {
         ...prev.learnedRules,
-        [merchantKey]: { category: newCategory, subcategory: newSubcategory || null, learnedAt: new Date().toISOString() },
+        [merchantKey]: { category: newCategory, subcategory: newSubcategory || null, learnedAt: now, source: 'user_correction' },
+      }
+
+      // Correction event for audit log
+      const correctionEvent = {
+        id: `corr_${Date.now()}`,
+        tx_hash: hash,
+        raw_label: tx.label,
+        merchant_key: merchantKey,
+        before: { category: tx.category || 'autre', subcategory: tx.subcategory || null },
+        after: { category: newCategory, subcategory: newSubcategory || null },
+        corrected_at: now,
+        source: 'user_correction',
       }
 
       // Apply to all transactions with same merchant_key + update stored merchant_key
@@ -295,7 +310,8 @@ export function BankProvider({ children }) {
         return t
       })
 
-      return { ...prev, transactions, learnedRules }
+      const corrections = [...(prev.corrections || []), correctionEvent].slice(-500)
+      return { ...prev, transactions, learnedRules, corrections }
     })
   }, [workerResults, updateAndSave])
 
@@ -305,6 +321,63 @@ export function BankProvider({ children }) {
       delete learnedRules[merchantKey]
       return { ...prev, learnedRules }
     })
+  }, [updateAndSave])
+
+  // Undo a correction: remove its learned rule (or restore the previous one),
+  // reset affected transactions so the worker can re-categorize them.
+  const undoCorrection = useCallback((correctionId) => {
+    updateAndSave(prev => {
+      const correction = (prev.corrections || []).find(c => c.id === correctionId)
+      if (!correction) return prev
+
+      const { merchant_key, before } = correction
+      const remaining = (prev.corrections || [])
+        .filter(c => c.id !== correctionId && c.merchant_key === merchant_key)
+        .sort((a, b) => b.corrected_at.localeCompare(a.corrected_at))
+
+      const learnedRules = { ...prev.learnedRules }
+      if (remaining.length > 0) {
+        // Restore the most recent other correction for this merchant
+        const latest = remaining[0]
+        learnedRules[merchant_key] = {
+          category: latest.after.category,
+          subcategory: latest.after.subcategory || null,
+          learnedAt: latest.corrected_at,
+          source: latest.source,
+        }
+      } else {
+        // No other correction → delete rule so worker re-categorizes from builtins
+        delete learnedRules[merchant_key]
+      }
+
+      const restoredCategory = remaining.length > 0
+        ? remaining[0].after.category
+        : (before.category || 'autre')
+      const restoredSubcategory = remaining.length > 0
+        ? (remaining[0].after.subcategory || null)
+        : (before.subcategory || null)
+
+      const transactions = prev.transactions.map(t => {
+        if (t.merchant_key !== merchant_key) return t
+        if (t.method !== 'user_learned' && t.method !== 'ai_accepted') return t
+        return {
+          ...t,
+          category: restoredCategory,
+          subcategory: restoredSubcategory,
+          confidence: remaining.length > 0 ? 0.95 : 0.3,
+          method: remaining.length > 0 ? 'user_learned' : 'rollback',
+          reason: remaining.length > 0 ? `Règle apprise: ${merchant_key}` : `Annulation correction`,
+        }
+      })
+
+      return {
+        ...prev,
+        learnedRules,
+        transactions,
+        corrections: (prev.corrections || []).filter(c => c.id !== correctionId),
+      }
+    })
+    invalidateWorkerCache()
   }, [updateAndSave])
 
   // Apply a batch of AI-accepted category corrections.
@@ -319,6 +392,7 @@ export function BankProvider({ children }) {
       const correctionMap = new Map(corrections.map(c => [c.hash, c]))
       const now = new Date().toISOString()
       const newLearnedRules = { ...prev.learnedRules }
+      const newCorrectionEvents = []
 
       const transactions = prev.transactions.map(t => {
         const correction = correctionMap.get(t.hash)
@@ -337,6 +411,16 @@ export function BankProvider({ children }) {
             learnedAt: now,
             source: 'ai_accepted',
           }
+          newCorrectionEvents.push({
+            id: `corr_ai_${t.hash}_${Date.now()}`,
+            tx_hash: t.hash,
+            raw_label: t.label,
+            merchant_key: merchantKey,
+            before: { category: t.category || 'autre', subcategory: t.subcategory || null },
+            after: { category: correction.category, subcategory: correction.subcategory || null },
+            corrected_at: now,
+            source: 'ai_accepted',
+          })
         }
 
         return {
@@ -350,7 +434,8 @@ export function BankProvider({ children }) {
         }
       })
 
-      return { ...prev, transactions, learnedRules: newLearnedRules }
+      const corrections_log = [...(prev.corrections || []), ...newCorrectionEvents].slice(-500)
+      return { ...prev, transactions, learnedRules: newLearnedRules, corrections: corrections_log }
     })
   }, [workerResults, updateAndSave])
 
@@ -447,7 +532,7 @@ export function BankProvider({ children }) {
       setInitialBalance, updateAccount, deleteAccount, refreshCategories, forceRecategorize,
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
-      correctCategory, deleteLearnedRule, clearAICache,
+      correctCategory, deleteLearnedRule, undoCorrection, clearAICache,
       requestAICategorization, applyAIProposals,
       flaggedTransfers: workerResults?.flaggedTransfers || [],
       lowConfidenceCount: workerResults?.lowConfidence?.length || 0,

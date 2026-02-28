@@ -4,7 +4,7 @@ import {
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
-  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles
+  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles, RotateCcw, History
 } from 'lucide-react'
 import { aiCategorizeLines } from '../services/bankAI'
 import {
@@ -198,7 +198,7 @@ export default function Banking() {
     importExcel, addRule, deleteRule,
     setInitialBalance, updateAccount, deleteAccount, refreshCategories,
     financeProfile, updateFinanceProfile,
-    correctCategory, deleteLearnedRule, clearAICache,
+    correctCategory, deleteLearnedRule, undoCorrection, clearAICache,
     requestAICategorization, lowConfidenceCount, applyAIProposals,
     forceRecategorize,
   } = useBank()
@@ -239,7 +239,7 @@ export default function Banking() {
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
       {tab === 'investissements' && <InvestmentsTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
-      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} forceRecategorize={forceRecategorize} deleteLearnedRule={deleteLearnedRule} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
+      {tab === 'regles' && <ReglesTab bankHistory={bankHistory} addRule={addRule} deleteRule={deleteRule} refreshCategories={refreshCategories} forceRecategorize={forceRecategorize} deleteLearnedRule={deleteLearnedRule} undoCorrection={undoCorrection} clearAICache={clearAICache} requestAICategorization={requestAICategorization} lowConfidenceCount={lowConfidenceCount} />}
 
       {(tab === 'securite' || tab === 'liberte' || tab === 'investissements') && !hasProfile && (
         <ProfileSetup profile={financeProfile} updateProfile={updateFinanceProfile} hasAggregates={aggregates.length > 0} />
@@ -1118,7 +1118,7 @@ function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
 }
 
 /* ─── REGLES & CATEGORIES ─── */
-function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceRecategorize, deleteLearnedRule, clearAICache, requestAICategorization, lowConfidenceCount }) {
+function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceRecategorize, deleteLearnedRule, undoCorrection, clearAICache, requestAICategorization, lowConfidenceCount }) {
   const [pattern, setPattern] = useState('')
   const [category, setCategory] = useState('autre')
   const [priority, setPriority] = useState(50)
@@ -1274,7 +1274,7 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
         </div>
       </div>
 
-      <div className="bank-account-card">
+      <div className="bank-account-card" style={{ marginBottom: 16 }}>
         <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>Categories par defaut</h4>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CATEGORIES.map(c => (
@@ -1282,6 +1282,71 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
           ))}
         </div>
       </div>
+
+      {/* Audit History */}
+      <AuditHistorySection corrections={bankHistory.corrections || []} onUndo={undoCorrection} />
     </>
+  )
+}
+
+/* ─── AUDIT HISTORY ─── */
+function AuditHistorySection({ corrections, onUndo }) {
+  const [showAll, setShowAll] = useState(false)
+  const sorted = [...corrections].sort((a, b) => b.corrected_at.localeCompare(a.corrected_at))
+  const visible = showAll ? sorted : sorted.slice(0, 15)
+
+  return (
+    <div className="bank-account-card">
+      <div className="audit-history-header">
+        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <History size={14} /> Historique des corrections ({sorted.length})
+        </h4>
+        {sorted.length > 15 && (
+          <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setShowAll(v => !v)}>
+            {showAll ? 'Reduire' : `Voir tout (${sorted.length})`}
+          </button>
+        )}
+      </div>
+
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          Aucune correction enregistree. Corrigez une categorie dans Compte Courant pour commencer.
+        </p>
+      ) : (
+        <div className="audit-history-list">
+          {visible.map(c => {
+            const beforeCat = catMap[c.before?.category] || catMap.autre
+            const afterCat  = catMap[c.after?.category]  || catMap.autre
+            const isAI = c.source === 'ai_accepted'
+            return (
+              <div key={c.id} className="audit-row">
+                <div className="audit-row-main">
+                  <span className="audit-date">{c.corrected_at?.slice(0, 10)}</span>
+                  <span className="audit-merchant" title={c.raw_label}>{c.merchant_key || '—'}</span>
+                  <span className="tx-category" style={{ background: beforeCat.color + '18', color: beforeCat.color, fontSize: '0.72rem' }}>
+                    {beforeCat.label}
+                  </span>
+                  <ArrowRight size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <span className="tx-category" style={{ background: afterCat.color + '22', color: afterCat.color, fontSize: '0.72rem', border: `1px solid ${afterCat.color}44` }}>
+                    {afterCat.label}
+                    {c.after?.subcategory && <span style={{ opacity: 0.7 }}> · {c.after.subcategory}</span>}
+                  </span>
+                  <span className={`audit-source-badge ${isAI ? 'ai' : 'user'}`}>
+                    {isAI ? 'IA' : 'Manuel'}
+                  </span>
+                </div>
+                <button
+                  className="btn btn-ghost audit-undo-btn"
+                  onClick={() => onUndo(c.id)}
+                  title={`Annuler cette correction (${c.merchant_key})`}
+                >
+                  <RotateCcw size={12} /> Annuler
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
