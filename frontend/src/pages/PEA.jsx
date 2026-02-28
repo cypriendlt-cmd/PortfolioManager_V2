@@ -224,6 +224,7 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
   // Sort movements chronologically for display
   const movements = [...rawMovements].sort((a, b) => a.date.localeCompare(b.date))
   const prusPerMovement = computeRunningPRU(movements)
+  const currentPRU = prusPerMovement.length > 0 ? prusPerMovement[prusPerMovement.length - 1] : asset.buyPrice
   const borderClass = gain > 0 ? 'pea-card--positive' : gain < 0 ? 'pea-card--negative' : 'pea-card--neutral'
 
   return (
@@ -255,6 +256,10 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
         <div className="pea-summary-item">
           <span className="pea-summary-label">Investi</span>
           <span className="pea-summary-value">{m(fmt(totalInvested))}</span>
+        </div>
+        <div className="pea-summary-item">
+          <span className="pea-summary-label">PRU</span>
+          <span className="pea-summary-value">{m(fmt(currentPRU))}</span>
         </div>
         <div className="pea-summary-item">
           <span className="pea-summary-label">Valeur actuelle</span>

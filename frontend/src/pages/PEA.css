@@ -111,7 +111,7 @@
 /* Summary stats — always visible */
 .pea-card-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   padding: 0 20px 16px;
   border-top: 1px solid var(--border);

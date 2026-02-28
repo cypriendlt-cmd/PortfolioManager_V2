@@ -280,6 +280,7 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
   // Sort movements chronologically for display
   const movements = [...rawMovements].sort((a, b) => a.date.localeCompare(b.date))
   const prusPerMovement = computeRunningPRU(movements)
+  const currentPRU = prusPerMovement.length > 0 ? prusPerMovement[prusPerMovement.length - 1] : asset.buyPrice
   const borderClass = gain > 0 ? 'crypto-card--positive' : gain < 0 ? 'crypto-card--negative' : 'crypto-card--neutral'
 
   return (
@@ -315,6 +316,10 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">Investi</span>
           <span className="crypto-summary-value">{m(fmt(totalInvested))}</span>
+        </div>
+        <div className="crypto-summary-item">
+          <span className="crypto-summary-label">PRU</span>
+          <span className="crypto-summary-value">{m(fmt(currentPRU))}</span>
         </div>
         <div className="crypto-summary-item">
           <span className="crypto-summary-label">Valeur actuelle</span>
