@@ -9,57 +9,13 @@ const { generateWithFallback } = require('../services/ai')
 
 const COACH_MODEL = 'llama-3.1-8b-instant'
 
-const COACH_SYSTEM_PROMPT = `You are a French personal finance coach AI. You analyze household budgets and provide actionable recommendations.
-
-VALID CATEGORIES for allocation_gap_analysis and recommendations:
-essentiels | loisirs | abonnements | epargne | autre
-
-PROFILE TYPES: prudent | equilibre | offensif
-
-RECOMMENDED ALLOCATIONS (% of monthly income):
-- prudent:    essentiels=50 abonnements=7  loisirs=13 epargne=20 autre=10
-- equilibre:  essentiels=50 abonnements=8  loisirs=17 epargne=15 autre=10
-- offensif:   essentiels=45 abonnements=7  loisirs=13 epargne=10 autre=25
-
-SCORING RULES for financial_health_score (0-100):
-- savings_rate ≥20%: +25pts | ≥10%: +15pts | ≥5%: +7pts | <5%: 0
-- expense_ratio ≤60%: +20pts | ≤70%: +13pts | ≤80%: +8pts | ≤90%: +4pts
-- income_stability (low CV): up to +15pts
-- emergency_fund ≥6 months: +20pts | ≥3: +14pts | ≥1: +7pts
-- active goals progress: up to +20pts
-
-OUTPUT — STRICT JSON ONLY, no markdown, no comments, no text outside JSON:
-{
-  "financial_health_score": 0-100,
-  "score_label": "Excellent|Bon|Correct|À améliorer|Fragile",
-  "allocation_gap_analysis": {
-    "current_allocation": { "essentiels": 0, "loisirs": 0, "abonnements": 0, "epargne": 0, "autre": 0 },
-    "recommended_allocation": { "essentiels": 0, "loisirs": 0, "abonnements": 0, "epargne": 0, "autre": 0 },
-    "main_deviations": [{ "bucket": "", "current_pct": 0, "recommended_pct": 0, "diff": 0, "severity": "high|medium|low" }]
-  },
-  "risk_flags": [{ "type": "", "severity": "high|medium|low", "message": "" }],
-  "recommendations": [
-    {
-      "id": "rec_unique_id",
-      "priority": "high|medium|low",
-      "type": "reduce|increase|optimize",
-      "category": "essentiels|loisirs|abonnements|epargne|autre",
-      "categoryLabel": "",
-      "color": "#hex",
-      "action": "Texte actionnable en français (max 120 chars)",
-      "estimated_monthly_impact": "±XX€/mois",
-      "long_term_impact": "Impact annuel ou pluriannuel en français",
-      "confidence": 0.5-0.95
-    }
-  ]
-}
-
-RULES:
-- Max 5 recommendations, sorted by priority then confidence desc
-- confidence: 0.50–0.95 (never 1.0)
-- All text in French
-- Numbers in euro (€), no dollar sign
-- Do NOT repeat rules already applied by the user`
+// Compact system prompt — ~80 tokens, strict JSON schema
+const COACH_SYSTEM_PROMPT = `French personal finance coach. Output STRICT JSON only — no markdown, no text outside JSON.
+Categories: essentiels|loisirs|abonnements|epargne|autre
+Colors: essentiels=#ef4444 loisirs=#f59e0b abonnements=#8b5cf6 epargne=#10b981 autre=#94a3b8
+JSON schema:
+{"risk_flags":[{"type":"","severity":"high|medium|low","message":""}],"recommendations":[{"id":"","priority":"high|medium|low","type":"reduce|increase|optimize","category":"","categoryLabel":"","color":"#hex","action":"max 100 chars FR","estimated_monthly_impact":"±X€/mois","long_term_impact":"FR","confidence":0.7}]}
+Rules: max 3 recs, confidence 0.5-0.95, all text French, € not $`
 
 router.post('/analyze', async (req, res) => {
   try {
@@ -67,7 +23,6 @@ router.post('/analyze', async (req, res) => {
       monthly_income,
       expenses_by_category,
       savings_rate,
-      investment_rate,
       goals,
       financial_health_score,
       profile_type,
@@ -79,33 +34,33 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'monthly_income requis et > 0' })
     }
 
-    const prompt = `Analyse ce profil financier français et génère des recommandations :
+    // Compact allocations as single line
+    const allocLine = Object.entries(current_allocation || {})
+      .map(([k, v]) => `${k}=${v}%`).join(' ')
 
-PROFIL:
-- Revenus mensuels: ${monthly_income}€
-- Profil investisseur: ${profile_type || 'equilibre'}
-- Taux d'épargne: ${savings_rate?.toFixed(1) || 0}%
-- Score santé financier actuel: ${financial_health_score || 'non calculé'}
+    // Top 5 expense categories only
+    const topExp = Object.entries(expenses_by_category || {})
+      .sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([k, v]) => `${k}:${v}€`).join(' ')
 
-RÉPARTITION ACTUELLE (% des revenus):
-${JSON.stringify(current_allocation || {}, null, 2)}
+    const recentLine = (recent_months || []).slice(-3)
+      .map(m => `${m.month} rev:${m.income}€ dep:${m.expenses}€ ép:${m.savingsRate?.toFixed(0) || 0}%`).join(' | ')
 
-DÉPENSES PAR CATÉGORIE (€/mois, moyenne 3 mois):
-${JSON.stringify(expenses_by_category || {}, null, 2)}
+    const goalLine = (goals || []).slice(0, 3)
+      .map(g => `${g.label}:${g.currentAmount}/${g.targetAmount}€`).join(', ')
 
-OBJECTIFS FINANCIERS:
-${JSON.stringify(goals || [], null, 2)}
-
-HISTORIQUE MENSUEL (3 derniers mois):
-${JSON.stringify(recent_months || [], null, 2)}
-
-Génère une analyse complète avec score, gaps, risques et recommandations actionnables.`
+    const prompt = `Budget FR — profil:${profile_type || 'equilibre'} rev:${monthly_income}€ épargne:${(savings_rate || 0).toFixed(1)}% score:${financial_health_score || '?'}
+Répartition actuelle(%rev): ${allocLine}
+Top dépenses: ${topExp}
+Historique: ${recentLine}
+Objectifs: ${goalLine || 'aucun'}
+→ 3 recommandations actionnables JSON.`
 
     const result = await generateWithFallback(prompt, {
       model:        COACH_MODEL,
       systemPrompt: COACH_SYSTEM_PROMPT,
-      maxTokens:    900,
-      temperature:  0.15,
+      maxTokens:    500,
+      temperature:  0.10,
     })
 
     if (!result.content) {
