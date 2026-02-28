@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Landmark, Upload, Heart, Settings2,
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
-  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles, RotateCcw, History
+  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles, RotateCcw, History,
+  ChevronDown
 } from 'lucide-react'
 import { aiCategorizeLines } from '../services/bankAI'
 import {
@@ -70,6 +71,27 @@ function CategoryBadge({ tx, onCorrect }) {
       {tx.isTransfer && <Repeat size={10} style={{ marginRight: 3 }} />}
       {cat?.label || tx.category}
     </span>
+  )
+}
+
+/* ─── Collapsible card ─── */
+function CollapsibleCard({ title, defaultOpen = true, badge, action, children }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bank-account-card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          onClick={() => setOpen(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', minWidth: 0 }}
+        >
+          <ChevronDown size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, transition: 'transform 0.18s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
+          <h4 style={{ fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>{title}</h4>
+          {badge !== undefined && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{badge}</span>}
+        </button>
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+      </div>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
+    </div>
   )
 }
 
@@ -770,16 +792,21 @@ function ConfirmDeleteModal({ account, txCount, onConfirm, onCancel }) {
 }
 
 /* ─── COMPTE COURANT ─── */
+const TX_PAGE_SIZE = 50
+
 function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAccount, correctCategory, applyAIProposals, m }) {
   const [monthFilter, setMonthFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
   const [balanceInput, setBalanceInput] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [aiProposals, setAiProposals] = useState([])
   const [aiError, setAiError] = useState(null)
+
+  useEffect(() => { setPage(0) }, [monthFilter, catFilter, search])
 
   const courantAccounts = useMemo(() => accountBalances.filter(a => a.type === 'courant'), [accountBalances])
   const courantIds = useMemo(() => new Set(courantAccounts.map(a => a.id)), [courantAccounts])
@@ -925,29 +952,46 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table className="tx-table">
-          <thead>
-            <tr><th>Date</th><th>Libelle</th><th>Categorie</th><th style={{ textAlign: 'right' }}>Montant</th></tr>
-          </thead>
-          <tbody>
-            {txs.slice(0, 200).map(tx => (
-              <tr key={tx.hash} className={tx.isTransfer ? 'tx-transfer' : ''}>
-                <td>{tx.date}</td>
-                <td>{tx.label}</td>
-                <td>
-                  <CategoryBadge tx={tx} onCorrect={correctCategory} />
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <span className={`tx-amount ${tx.amount >= 0 ? 'positive' : 'negative'}`}>{m(fmtD(tx.amount))}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {txs.length > 200 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: 12 }}>Affichage limite a 200 transactions</p>}
-        {txs.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Aucune transaction. Importez un releve bancaire.</p>}
-      </div>
+      {(() => {
+        const totalPages = Math.max(1, Math.ceil(txs.length / TX_PAGE_SIZE))
+        const safePage = Math.min(page, totalPages - 1)
+        const pageTxs = txs.slice(safePage * TX_PAGE_SIZE, (safePage + 1) * TX_PAGE_SIZE)
+        return (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="tx-table">
+                <thead>
+                  <tr><th>Date</th><th>Libelle</th><th>Categorie</th><th style={{ textAlign: 'right' }}>Montant</th></tr>
+                </thead>
+                <tbody>
+                  {pageTxs.map(tx => (
+                    <tr key={tx.hash} className={tx.isTransfer ? 'tx-transfer' : ''}>
+                      <td>{tx.date}</td>
+                      <td>{tx.label}</td>
+                      <td><CategoryBadge tx={tx} onCorrect={correctCategory} /></td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span className={`tx-amount ${tx.amount >= 0 ? 'positive' : 'negative'}`}>{m(fmtD(tx.amount))}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {txs.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Aucune transaction. Importez un releve bancaire.</p>}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '10px 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: '0.78rem' }} disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                  <ArrowLeft size={13} /> Prec
+                </button>
+                <span>Page <strong style={{ color: 'var(--text-primary)' }}>{safePage + 1}</strong> / {totalPages} &nbsp;·&nbsp; {txs.length} transactions</span>
+                <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: '0.78rem' }} disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                  Suiv <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {confirmDelete && (
         <ConfirmDeleteModal
@@ -1160,10 +1204,28 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
     setAiLoading(false)
   }
 
+  const rulesAction = (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <button className="btn btn-ghost" onClick={refreshCategories} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+        Appliquer
+      </button>
+      {!confirmForce ? (
+        <button className="btn btn-ghost" onClick={() => setConfirmForce(true)} style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--warning)' }}>
+          <Zap size={12} /> Tout recategoriser
+        </button>
+      ) : (
+        <span style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.75rem' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Confirmer ?</span>
+          <button className="btn btn-primary" onClick={() => { forceRecategorize(); setConfirmForce(false) }} style={{ fontSize: '0.72rem', padding: '3px 8px', background: 'var(--warning)', borderColor: 'var(--warning)' }}>Oui</button>
+          <button className="btn btn-ghost" onClick={() => setConfirmForce(false)} style={{ fontSize: '0.72rem', padding: '3px 8px' }}>Non</button>
+        </span>
+      )}
+    </div>
+  )
+
   return (
     <>
-      <div className="bank-account-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Ajouter une regle</h4>
+      <CollapsibleCard title="Ajouter une regle" defaultOpen={true}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input placeholder="Pattern (regex)" value={pattern} onChange={e => setPattern(e.target.value)}
             style={{ flex: 1, minWidth: 180, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
@@ -1175,39 +1237,20 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
             style={{ width: 70, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
           <button className="btn btn-primary" onClick={handleAdd} style={{ padding: '6px 14px' }}><Plus size={14} /> Ajouter</button>
         </div>
-
         <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
           <input placeholder="Tester un libelle..." value={testLabel} onChange={e => setTestLabel(e.target.value)}
             style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
           <button className="btn btn-ghost" onClick={handleTest} style={{ padding: '6px 14px', fontSize: '0.82rem' }}>Tester</button>
           {testResult && <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{testResult}</span>}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      <div className="bank-account-card" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h4 style={{ fontSize: '0.85rem', fontWeight: 600 }}>Regles personnalisees</h4>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-ghost" onClick={refreshCategories} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
-              Appliquer les regles
-            </button>
-            {!confirmForce ? (
-              <button className="btn btn-ghost" onClick={() => setConfirmForce(true)} style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--warning)' }}>
-                <Zap size={12} /> Tout recategoriser
-              </button>
-            ) : (
-              <span style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Confirmer ?</span>
-                <button className="btn btn-primary" onClick={() => { forceRecategorize(); setConfirmForce(false) }} style={{ fontSize: '0.72rem', padding: '3px 8px', background: 'var(--warning)', borderColor: 'var(--warning)' }}>
-                  Oui
-                </button>
-                <button className="btn btn-ghost" onClick={() => setConfirmForce(false)} style={{ fontSize: '0.72rem', padding: '3px 8px' }}>
-                  Non
-                </button>
-              </span>
-            )}
-          </div>
-        </div>
+      <CollapsibleCard
+        title="Regles personnalisees"
+        badge={bankHistory.rules.length > 0 ? `(${bankHistory.rules.length})` : undefined}
+        defaultOpen={bankHistory.rules.length > 0}
+        action={rulesAction}
+      >
         {bankHistory.rules.length === 0 ? (
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Aucune regle personnalisee</p>
         ) : (
@@ -1225,13 +1268,13 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
             </tbody>
           </table>
         )}
-      </div>
+      </CollapsibleCard>
 
-      {/* Learned rules section */}
-      <div className="bank-account-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>
-          <Brain size={14} style={{ marginRight: 4 }} /> Regles apprises ({learnedEntries.length})
-        </h4>
+      <CollapsibleCard
+        title={<><Brain size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Regles apprises</>}
+        badge={`(${learnedEntries.length})`}
+        defaultOpen={learnedEntries.length > 0}
+      >
         {learnedEntries.length === 0 ? (
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Corrigez une categorie dans la table pour creer une regle apprise.</p>
         ) : (
@@ -1253,13 +1296,12 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
             </tbody>
           </table>
         )}
-      </div>
+      </CollapsibleCard>
 
-      {/* AI section */}
-      <div className="bank-account-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>
-          <Zap size={14} style={{ marginRight: 4 }} /> Categorisation IA
-        </h4>
+      <CollapsibleCard
+        title={<><Zap size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Categorisation IA</>}
+        defaultOpen={true}
+      >
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={handleAI} disabled={aiLoading || lowConfidenceCount === 0} style={{ padding: '6px 14px' }}>
             {aiLoading ? <Loader2 size={14} className="spin" /> : <Zap size={14} />}
@@ -1272,18 +1314,16 @@ function ReglesTab({ bankHistory, addRule, deleteRule, refreshCategories, forceR
           )}
           {aiResult && <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>{aiResult}</span>}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      <div className="bank-account-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10 }}>Categories par defaut</h4>
+      <CollapsibleCard title="Categories par defaut" defaultOpen={false}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CATEGORIES.map(c => (
             <span key={c.id} className="tx-category" style={{ background: c.color + '18', color: c.color }}>{c.label}</span>
           ))}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      {/* Audit History */}
       <AuditHistorySection corrections={bankHistory.corrections || []} onUndo={undoCorrection} />
     </>
   )
@@ -1295,19 +1335,19 @@ function AuditHistorySection({ corrections, onUndo }) {
   const sorted = [...corrections].sort((a, b) => b.corrected_at.localeCompare(a.corrected_at))
   const visible = showAll ? sorted : sorted.slice(0, 15)
 
-  return (
-    <div className="bank-account-card">
-      <div className="audit-history-header">
-        <h4 style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <History size={14} /> Historique des corrections ({sorted.length})
-        </h4>
-        {sorted.length > 15 && (
-          <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setShowAll(v => !v)}>
-            {showAll ? 'Reduire' : `Voir tout (${sorted.length})`}
-          </button>
-        )}
-      </div>
+  const showAllAction = sorted.length > 15 ? (
+    <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 10px' }} onClick={() => setShowAll(v => !v)}>
+      {showAll ? 'Reduire' : `Voir tout (${sorted.length})`}
+    </button>
+  ) : null
 
+  return (
+    <CollapsibleCard
+      title={<><History size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />Historique des corrections</>}
+      badge={`(${sorted.length})`}
+      defaultOpen={false}
+      action={showAllAction}
+    >
       {sorted.length === 0 ? (
         <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           Aucune correction enregistree. Corrigez une categorie dans Compte Courant pour commencer.
@@ -1347,6 +1387,6 @@ function AuditHistorySection({ corrections, onUndo }) {
           })}
         </div>
       )}
-    </div>
+    </CollapsibleCard>
   )
 }
