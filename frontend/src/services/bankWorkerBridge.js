@@ -74,8 +74,11 @@ export function processInWorker({ transactions, rules, learnedRules, aiCache, ac
       label_norm, merchant_key, payment_type, category, subcategory, confidence, reason, method, transferScore, importedAt,
     }))
 
-    const cleanAccounts = (accounts || []).map(({ id, type, alias, initialBalance, lastBalanceDate }) => ({
+    const cleanAccounts = (accounts || []).map(({ id, type, alias, initialBalance, lastBalanceDate, livretType, customRate, openDate }) => ({
       id, type, alias, initialBalance: initialBalance || 0, lastBalanceDate,
+      ...(livretType != null && { livretType }),
+      ...(customRate != null && { customRate }),
+      ...(openDate != null && { openDate }),
     }))
 
     getWorker().postMessage({
@@ -106,8 +109,11 @@ export function recategorizeInWorker({ transactions, rules, learnedRules, aiCach
       label, amount, date, hash, accountId, isTransfer: isTransfer || false, transferPairHash, label_norm, merchant_key, payment_type, transferScore, importedAt,
     }))
 
-    const cleanAccounts = (accounts || []).map(({ id, type, alias, initialBalance, lastBalanceDate }) => ({
+    const cleanAccounts = (accounts || []).map(({ id, type, alias, initialBalance, lastBalanceDate, livretType, customRate, openDate }) => ({
       id, type, alias, initialBalance: initialBalance || 0, lastBalanceDate,
+      ...(livretType != null && { livretType }),
+      ...(customRate != null && { customRate }),
+      ...(openDate != null && { openDate }),
     }))
 
     getWorker().postMessage({
