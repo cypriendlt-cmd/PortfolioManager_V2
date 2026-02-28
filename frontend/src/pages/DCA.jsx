@@ -123,15 +123,25 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
 
   const chartData = useMemo(() => {
     if (extendedSeries.length === 0) return []
-    // Calcule la tendance (rythme actuel projeté dans le futur)
     const pastRows = extendedSeries.filter(r => !r.future)
     const nPast    = pastRows.length
     const lastReal = nPast > 0 ? pastRows[nPast - 1] : null
-    // Taux moyen : contributions réelles / nombre de périodes passées
     const avgContrib = lastReal && nPast > 0 ? lastReal.cumul_actual / nPast : null
+
+    // Projection avec rendement composé
+    const annualRate = plan.annual_return_estimate || 0
+    const r = annualRate > 0 ? Math.pow(1 + annualRate / 100, 1 / 12) - 1 : 0
+    const monthlyAmount = plan.amount_per_period || 0
+
     let futureIdx = 0
-    return extendedSeries.map(row => {
-      const pt = { name: row.month, Attendu: row.cumul_expected, Réel: row.cumul_actual }
+    return extendedSeries.map((row, i) => {
+      const monthIdx = i + 1
+      const pt = { name: row.month, Investi: row.cumul_expected, Réel: row.cumul_actual }
+      // Projection = valeur projetée avec intérêts composés
+      if (r > 0 && monthIdx > 0) {
+        const projectedValue = monthlyAmount * ((Math.pow(1 + r, monthIdx) - 1) / r) * (1 + r)
+        pt.Projection = Math.round(projectedValue)
+      }
       // Courbe de tendance uniquement pour les mois futurs (si on n'est pas on_track)
       if (row.future && avgContrib !== null && progress?.status !== 'on_track' && progress?.status !== 'pending') {
         futureIdx++
@@ -139,7 +149,7 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
       }
       return pt
     })
-  }, [extendedSeries, progress?.status])
+  }, [extendedSeries, progress?.status, plan])
 
   const tableRows = extendedSeries
 
@@ -254,7 +264,7 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
             <div className="dca-chart-wrap">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Contributions cumulées
+                  Projection DCA ({plan.annual_return_estimate || 0}% /an)
                 </span>
                 <div className="dca-time-range-selector">
                   {CHART_RANGES.map(r => (
@@ -281,6 +291,10 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
                       <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
+                    <linearGradient id="gradProjection" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
@@ -292,8 +306,12 @@ function PlanCard({ plan, progress, asset, onEdit, onDelete, onLink, onUnlink })
                     formatter={(val, name) => [val != null ? fmt(val) : '—', name]}
                   />
                   <Legend iconSize={8} wrapperStyle={{ fontSize: '0.72rem' }} />
-                  <Area type="monotone" dataKey="Attendu" stroke="var(--text-muted)"
-                    fill="url(#gradAttendu)" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
+                  <Area type="monotone" dataKey="Investi" stroke="var(--text-muted)"
+                    fill="url(#gradAttendu)" strokeWidth={1.5} strokeDasharray="4 2" dot={false}
+                    name="Investi" />
+                  <Area type="monotone" dataKey="Projection" stroke="#22c55e"
+                    fill="url(#gradProjection)" strokeWidth={2} dot={false}
+                    name={`Projection (${plan.annual_return_estimate || 0}%)`} />
                   <Area type="monotone" dataKey="Réel" stroke="var(--accent)"
                     fill="url(#gradReel)" strokeWidth={2} dot={false} connectNulls={false} />
                   {(progress?.status === 'ahead' || progress?.status === 'behind') && (
