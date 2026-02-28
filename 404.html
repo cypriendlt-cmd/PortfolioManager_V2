@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Portfolio Manager</title>
+    <script>
+      // With HashRouter, just redirect to the same directory's index.html
+      // The hash fragment (#/route) is never sent to the server,
+      // so GitHub Pages won't 404 on client-side routes.
+      // This 404.html only catches direct access to non-existent files.
+      var loc = window.location;
+      var basePath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/') + 1);
+      loc.replace(basePath + (loc.hash || ''));
+    </script>
+  </head>
+  <body></body>
+</html>
