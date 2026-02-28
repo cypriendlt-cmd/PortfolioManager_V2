@@ -139,13 +139,9 @@ export function computeScheduledDates(plan, asOfDate, futureLookAhead = 3) {
 
 function extractContributions(plan, asset, asOfDate) {
   if (!asset) return []
-  // Tolérance : inclure les mouvements jusqu'à tolerance_days avant la start_date
-  const tol = plan.tolerance_days || 7
-  const startDate = new Date(plan.start_date)
-  startDate.setDate(startDate.getDate() - tol)
-  const minDate = toStr(startDate)
+  // Inclure tous les achats de l'actif jusqu'à asOfDate (pas de filtre start_date)
   return (asset.movements || [])
-    .filter(m => m.type === 'buy' && m.date >= minDate && m.date <= asOfDate)
+    .filter(m => m.type === 'buy' && m.date <= asOfDate)
     .map(m => ({
       date:   m.date,
       amount: Math.round((m.quantity * m.price + (m.fees || 0)) * 100) / 100,
@@ -526,12 +522,33 @@ export function futureLookAheadForRange(rangeKey, endDate) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Récupère l'actif portfolio lié à un plan (depuis asset_link ou auto-match). */
+/**
+ * Récupère l'actif portfolio lié à un plan.
+ * 1) Cherche par portfolio_asset_id exact
+ * 2) Fallback : match par ISIN, coingecko_id, symbol ou nom
+ * Retourne { asset, needsRelink: boolean } ou null
+ */
 export function getLinkedAsset(plan, portfolio) {
   if (!plan.asset_link) return null
   const { portfolio_asset_id, account_type } = plan.asset_link
   const list = account_type === 'crypto' ? portfolio.crypto : portfolio.pea
-  return (list || []).find(a => a.id === portfolio_asset_id) || null
+
+  // 1) Match exact par id
+  const exact = (list || []).find(a => a.id === portfolio_asset_id)
+  if (exact) return exact
+
+  // 2) Fallback : chercher par propriétés de l'asset_target
+  const target = plan.asset_target
+  if (!target) return null
+
+  for (const asset of list || []) {
+    if (target.isin && asset.isin && normId(target.isin) === normId(asset.isin)) return asset
+    if (target.coingecko_id && (asset.coingeckoId || asset.coinId || asset.id_coingecko) === target.coingecko_id) return asset
+    if (target.symbol && asset.symbol && normId(target.symbol) === normId(asset.symbol)) return asset
+    if (target.name && asset.name && normId(target.name) === normId(asset.name)) return asset
+  }
+
+  return null
 }
 
 /** Formate une date YYYY-MM-DD en "5 mars 2026". */

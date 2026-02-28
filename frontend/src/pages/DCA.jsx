@@ -682,6 +682,24 @@ export default function DCA() {
   const [editingId, setEditingId]   = useState(null)   // plan_id en édition
   const [linkingId, setLinkingId]   = useState(null)   // plan_id en cours de liaison
 
+  // Auto-relink : si l'asset_link pointe vers un id obsolète, on re-lie via fallback
+  useEffect(() => {
+    for (const plan of plans) {
+      if (!plan.asset_link) continue
+      const { portfolio_asset_id, account_type } = plan.asset_link
+      const list = account_type === 'crypto' ? portfolio.crypto : portfolio.pea
+      const exactMatch = (list || []).find(a => a.id === portfolio_asset_id)
+      if (exactMatch) continue // lien OK
+      // L'id ne matche plus — chercher par fallback
+      const fallback = getLinkedAsset(plan, portfolio)
+      if (fallback) {
+        // Re-lier avec le bon id
+        linkPlanToAsset(plan.plan_id, fallback.id, account_type, plan.asset_link.match_method || 'auto_relink')
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans, portfolio])
+
   // Calcul progression pour tous les plans (mémoïsé)
   const progressMap = useMemo(() => {
     const map = {}
