@@ -17,8 +17,9 @@ export default function Login() {
   const navigate = useNavigate()
 
   // Handle the redirect callback from Google OAuth (token in URL hash)
+  // Only trigger when the hash actually contains an OAuth token, not a HashRouter path
   useEffect(() => {
-    if (!window.location.hash) return
+    if (!window.location.hash.includes('access_token')) return
     handleOAuthCallback().then(success => {
       if (success) navigate('/', { replace: true })
     })

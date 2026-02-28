@@ -6,6 +6,7 @@ import {
 import { TrendingUp, TrendingDown, Wallet, Activity, Award, AlertTriangle, Sparkles, BarChart3, Shield, Lightbulb, Landmark, CreditCard, Heart } from 'lucide-react'
 import { usePortfolio } from '../context/PortfolioContext'
 import { useBank } from '../context/BankContext'
+import { useAuth } from '../context/AuthContext'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
@@ -218,6 +219,7 @@ function GaugeChart({ value, label }) {
 export default function Dashboard() {
   const { portfolio, totals } = usePortfolio()
   const { accountBalances, aggregates, healthScore, coachInsights } = useBank() || {}
+  const { isGuest } = useAuth()
   const { m, mp } = usePrivacyMask()
   const [fearGreed, setFearGreed] = useState({ crypto: 0, market: 0 })
   const [insight, setInsight] = useState(null)
@@ -225,6 +227,11 @@ export default function Dashboard() {
   const [analysis, setAnalysis] = useState(null)
 
   useEffect(() => {
+    if (isGuest) {
+      setInsightLoading(false)
+      return
+    }
+
     getFearGreed()
       .then(res => {
         const d = res.data
@@ -243,12 +250,12 @@ export default function Dashboard() {
       })
       .catch(() => {})
       .finally(() => setInsightLoading(false))
-  }, [])
+  }, [isGuest])
 
   // Load dashboard-specific compact analysis (independent from Insights page)
   // Use totals.total as stable dependency to avoid infinite loops
   useEffect(() => {
-    if (!portfolio || !totals.total) return
+    if (isGuest || !portfolio || !totals.total) return
     const portfolioData = {
       crypto: portfolio.crypto || [],
       pea: portfolio.pea || [],
