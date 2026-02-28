@@ -5,6 +5,7 @@ import { parseExcelBuffer } from '../services/bankParser'
 import { deduplicateTransactions } from '../services/bankEngine'
 import { processInWorker, recategorizeInWorker, invalidateWorkerCache, terminateWorker } from '../services/bankWorkerBridge'
 import { aiCategorizeBatch } from '../services/bankAI'
+import { computeFinancialHealthScore } from '../services/financialHealthScoring'
 
 const BankContext = createContext(null)
 
@@ -550,9 +551,42 @@ export function BankProvider({ children }) {
 
   // Use worker results for computed values (all computed off main thread)
   const aggregates = useMemo(() => workerResults?.aggregates || [], [workerResults])
-  const healthScore = useMemo(() => workerResults?.healthScore ?? 50, [workerResults])
   const coachInsights = useMemo(() => workerResults?.insights || null, [workerResults])
   const accountBalances = useMemo(() => workerResults?.accountBalances || bankHistory.accounts.map(acc => ({ ...acc, balance: acc.initialBalance || 0, txCount: 0 })), [workerResults, bankHistory.accounts])
+
+  // Enrich transactions early so avgByCategory can use worker-enriched data
+  const enrichedTransactionsRaw = useMemo(
+    () => workerResults?.transactions || bankHistory.transactions,
+    [workerResults, bankHistory.transactions]
+  )
+
+  // Compute avgByCategory from last 3 months of enriched transactions
+  const avgByCategory = useMemo(() => {
+    if (!enrichedTransactionsRaw.length || !aggregates.length) return {}
+    const last3Months = aggregates.slice(-3).map(a => a.month)
+    const nMonths = last3Months.length || 1
+    const sums = {}
+    for (const tx of enrichedTransactionsRaw) {
+      if (tx.amount >= 0 || tx.isTransfer) continue
+      if (!last3Months.includes(tx.date.slice(0, 7))) continue
+      const cat = tx.category || 'autre'
+      sums[cat] = (sums[cat] || 0) + Math.abs(tx.amount)
+    }
+    return Object.fromEntries(Object.entries(sums).map(([k, v]) => [k, v / nMonths]))
+  }, [enrichedTransactionsRaw, aggregates])
+
+  // Rich deterministic health score (0-100) — single source of truth for the whole app
+  const healthData = useMemo(() => {
+    const totalCash = accountBalances.reduce((s, a) => s + (a.balance || 0), 0)
+    return computeFinancialHealthScore({
+      aggregates,
+      totalCash,
+      financialGoals: bankHistory.financialGoals || [],
+      avgByCategory,
+    })
+  }, [aggregates, accountBalances, bankHistory.financialGoals, avgByCategory])
+
+  const healthScore = useMemo(() => healthData.score, [healthData])
 
   // Auto-compute finance profile
   const autoFinanceProfile = useMemo(() => {
@@ -574,16 +608,13 @@ export function BankProvider({ children }) {
   }, [aggregates, bankHistory.financeProfile, accountBalances])
 
   // Enriched transactions from worker (with category, confidence, etc.)
-  const enrichedTransactions = useMemo(
-    () => workerResults?.transactions || bankHistory.transactions,
-    [workerResults, bankHistory.transactions]
-  )
+  const enrichedTransactions = enrichedTransactionsRaw
 
   return (
     <BankContext.Provider value={{
       bankHistory: { ...bankHistory, transactions: enrichedTransactions },
       loading, processing, accountBalances,
-      aggregates, healthScore, coachInsights,
+      aggregates, healthScore, healthData, coachInsights,
       importExcel, addRule, deleteRule,
       markAsTransfer, unmarkTransfer,
       setInitialBalance, updateAccount, deleteAccount, refreshCategories, forceRecategorize,

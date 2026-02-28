@@ -7,7 +7,7 @@
  *   { type: 'correct', merchantKey, newCategory, newSubcategory, transactions, rules, learnedRules, aiCache }
  *
  * Messages OUT:
- *   { type: 'result', transactions, aggregates, healthScore, insights, accountBalances, flaggedTransfers, lowConfidence }
+ *   { type: 'result', transactions, aggregates, insights, accountBalances, flaggedTransfers, lowConfidence }
  *   { type: 'error', message }
  */
 
@@ -1030,14 +1030,6 @@ function computeAll(transactions, accounts) {
     return m
   }).sort((a, b) => a.month.localeCompare(b.month))
 
-  // Health score
-  let healthScore = 50
-  if (aggregates.length > 0) {
-    const last3 = aggregates.slice(-3)
-    const avgRate = last3.reduce((s, m) => s + m.savingsRate, 0) / last3.length
-    healthScore = Math.max(0, Math.min(100, Math.round(50 + avgRate)))
-  }
-
   // Account balances
   const accountBalances = (accounts || []).map(acc => ({
     ...acc,
@@ -1045,7 +1037,7 @@ function computeAll(transactions, accounts) {
     txCount: transactions.filter(t => t.accountId === acc.id).length,
   }))
 
-  return { aggregates, healthScore, accountBalances }
+  return { aggregates, accountBalances }
 }
 
 // ─── Coach Insights (single pass optimized) ─────────────────────────────────
@@ -1155,7 +1147,7 @@ self.onmessage = function(e) {
       }
 
       // Compute aggregates + balances in single pass
-      const { aggregates, healthScore, accountBalances } = computeAll(txs, accounts)
+      const { aggregates, accountBalances } = computeAll(txs, accounts)
 
       // Coach insights
       const insights = txs.length > 0 ? generateInsights(txs, aggregates) : null
@@ -1167,7 +1159,6 @@ self.onmessage = function(e) {
         type: 'result',
         transactions: txs,
         aggregates,
-        healthScore,
         insights,
         accountBalances,
         flaggedTransfers,

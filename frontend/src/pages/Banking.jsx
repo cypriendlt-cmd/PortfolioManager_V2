@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  Landmark, Upload, Heart, Settings2,
+  Landmark, Upload, Settings2,
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
@@ -30,7 +30,6 @@ const TABS = [
   { key: 'synthese', label: 'Synthese', icon: Landmark },
   { key: 'courant', label: 'Compte Courant', icon: CreditCard },
   { key: 'livrets', label: 'Livrets', icon: PiggyBank },
-  { key: 'analyse', label: 'Analyse', icon: Heart },
   { key: 'securite', label: 'Matelas', icon: Shield },
   { key: 'liberte', label: 'Liberte', icon: Sunrise },
   { key: 'investissements', label: 'Allocation', icon: PieChartIcon },
@@ -264,7 +263,6 @@ export default function Banking() {
       {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} m={m} mp={mp} />}
       {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} correctCategory={correctCategory} applyAIProposals={applyAIProposals} m={m} />}
       {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} m={m} />}
-      {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} m={m} />}
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
       {tab === 'liberte' && <FreedomTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
       {tab === 'investissements' && <InvestmentsTab profile={financeProfile} hasProfile={hasProfile} m={m} />}
@@ -1100,75 +1098,6 @@ function LivretsTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
   )
 }
 
-/* ─── ANALYSE IA ─── */
-function AnalyseTab({ healthScore, coachInsights, aggregates, m }) {
-  if (!coachInsights) {
-    return <p style={{ color: 'var(--text-muted)', padding: 20 }}>Importez des transactions pour obtenir une analyse.</p>
-  }
-
-  const scoreColor = healthScore >= 60 ? 'var(--success)' : healthScore >= 40 ? 'var(--warning)' : 'var(--danger)'
-
-  return (
-    <>
-      <div className="health-score-container">
-        <div className="health-score-circle" style={{ background: scoreColor + '18', color: scoreColor }}>
-          {healthScore}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>Score de sante financiere</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-            {healthScore >= 70 ? 'Excellent ! Vos finances sont bien gerees.' :
-             healthScore >= 50 ? 'Correct, mais des ameliorations sont possibles.' :
-             'Attention, votre situation financiere necessite des ajustements.'}
-          </div>
-        </div>
-      </div>
-
-      <div className="bank-insights-grid">
-        <div className="bank-insight-card">
-          <h4><AlertTriangle size={14} style={{ color: 'var(--danger)' }} /> Frais bancaires detectes</h4>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>{m(fmt(coachInsights.fees.total))}</div>
-          {coachInsights.fees.items.slice(0, 5).map((f, i) => (
-            <div key={i} style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{f.label.slice(0, 40)}</span>
-              <span style={{ fontWeight: 600 }}>{fmtD(f.amount)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="bank-insight-card">
-          <h4><Repeat size={14} style={{ color: 'var(--accent)' }} /> Abonnements recurrents</h4>
-          {coachInsights.recurring.slice(0, 6).map((r, i) => (
-            <div key={i} style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-              <span>{r.label.slice(0, 30)}</span>
-              <span style={{ fontWeight: 600 }}>~{fmtD(r.avgAmount)}/mois</span>
-            </div>
-          ))}
-          {coachInsights.recurring.length === 0 && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Aucun abonnement detecte</p>}
-        </div>
-
-        <div className="bank-insight-card">
-          <h4><AlertTriangle size={14} style={{ color: 'var(--warning)' }} /> Anomalies</h4>
-          {coachInsights.anomalies.map((a, i) => (
-            <div key={i} style={{ fontSize: '0.78rem', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
-              <div>{a.label.slice(0, 50)}</div>
-              <div style={{ color: 'var(--danger)', fontWeight: 600 }}>{fmtD(a.amount)}</div>
-            </div>
-          ))}
-          {coachInsights.anomalies.length === 0 && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Aucune anomalie detectee</p>}
-        </div>
-      </div>
-
-      <div className="bank-account-card">
-        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12 }}>Recommandations</h4>
-        {coachInsights.recommendations.map((r, i) => (
-          <div key={i} className="recommendation-item">{r}</div>
-        ))}
-      </div>
-    </>
-  )
-}
-
 /* ─── REGLES & CATEGORIES ─── */
 /* ─── SCORE GAUGE (SVG circulaire) ─── */
 function ScoreGauge({ score, color, label, grade }) {
@@ -1336,8 +1265,8 @@ function CoachTab({ bankHistory, aggregates, accountBalances, financeProfile, up
   )
 
   const healthData = useMemo(() =>
-    computeFinancialHealthScore({ aggregates, totalCash, financialGoals: goals }),
-    [aggregates, totalCash, goals]
+    computeFinancialHealthScore({ aggregates, totalCash, financialGoals: goals, avgByCategory: byCategory }),
+    [aggregates, totalCash, goals, byCategory]
   )
 
   const { recommendations, riskFlags } = useMemo(() =>
@@ -1411,13 +1340,13 @@ function CoachTab({ bankHistory, aggregates, accountBalances, financeProfile, up
           <h4 style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>Santé Financière</h4>
           <ScoreGauge score={healthData.score} color={healthData.color} label={healthData.label} grade={healthData.grade} />
           <div className="coach-breakdown">
-            {Object.entries(healthData.breakdown).map(([k, d]) => (
+            {Object.entries(healthData.subscores).map(([k, d]) => (
               <div key={k} className="coach-breakdown-row">
                 <span className="coach-breakdown-label">{d.label}</span>
                 <div className="coach-breakdown-bar">
-                  <div style={{ width: `${(d.pts / d.max) * 100}%`, background: d.pts / d.max >= 0.7 ? 'var(--success)' : d.pts / d.max >= 0.4 ? 'var(--warning)' : 'var(--danger)', borderRadius: 99, height: '100%' }} />
+                  <div style={{ width: `${(d.pts / d.weight) * 100}%`, background: d.pts / d.weight >= 0.7 ? 'var(--success)' : d.pts / d.weight >= 0.4 ? 'var(--warning)' : 'var(--danger)', borderRadius: 99, height: '100%' }} />
                 </div>
-                <span className="coach-breakdown-pts">{d.pts}/{d.max}</span>
+                <span className="coach-breakdown-pts">{d.pts}/{d.weight}</span>
               </div>
             ))}
           </div>
