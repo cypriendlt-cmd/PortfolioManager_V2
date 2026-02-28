@@ -6109,6 +6109,28 @@ tbody tr:hover {
 }
 .dca-time-range-btn:hover:not(.active) { color: var(--text-primary); }
 
+/* ── Chart line toggles ── */
+.dca-chart-toggles {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;
+}
+.dca-chart-toggle {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; font-size: 0.68rem; font-weight: 600;
+  color: var(--text-muted); transition: all 0.15s; white-space: nowrap;
+}
+.dca-chart-toggle .dca-toggle-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--toggle-color); opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.dca-chart-toggle.active {
+  border-color: var(--toggle-color); color: var(--text-primary);
+  background: color-mix(in srgb, var(--toggle-color) 8%, transparent);
+}
+.dca-chart-toggle.active .dca-toggle-dot { opacity: 1; }
+.dca-chart-toggle:hover { border-color: var(--toggle-color); }
+
 /* ── Dashboard DCA synthèse ── */
 .dca-dashboard-card { margin-bottom: 16px; }
 .dca-dash-stats {
