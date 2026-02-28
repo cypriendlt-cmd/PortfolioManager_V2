@@ -51,56 +51,44 @@ const VALID_CATEGORIES = [
   'epargne', 'impots', 'virement', 'autre',
 ];
 
-// ─── Shared system prompt base ────────────────────────────────────────────────
+// ─── Fast model + compact system prompt (optimized for low-latency inference) ──
+// llama-3.1-8b-instant: 5-10x faster than 70b, sufficient for classification
 
-const CATEGORIZATION_ENGINE = `You are a financial transaction categorization engine specialized in French bank statements.
+const FAST_MODEL = 'llama-3.1-8b-instant'
 
-TAXONOMY — use ONLY these internal category IDs in your output:
-• revenus       → Salaires, revenus freelance, remboursements reçus, allocations CAF/CPAM (positive amounts)
-• loyer         → Loyer, charges copropriété, assurance habitation, EDF/GDF/eau/électricité, box internet, assurance logement
-• alimentation  → Supermarchés, épiceries, drives, marchés, boulangeries (CARREF, ALDI, LIDL, LECLERC, INTERMARCHE, CASINO, MONOPRIX, FRANPRIX, CORA, AUCHAN, NETTO, SPAR, LEADER PRICE, SUPER U, BIOCOOP, PICARD, GRAND FRAIS, METRO, COSTCO...)
-• transport     → Carburant, péages, parking, SNCF, bus/métro/tram, VTC, location voiture (TOTAL, ESSO, BP, SHELL, VINCI, COFIROUTE, OUIGO, BLABLACAR, UBER, G7, RATP, SNCF, FLIXBUS...)
-• abonnements   → Abonnements récurrents : streaming, téléphonie mobile, assurances annuelles, logiciels (NETFLIX, SPOTIFY, CANAL+, DISNEY, AMAZON PRIME, DEEZER, SFR, BOUYGUES, FREE, ORANGE, NRJ MOBILE, APPLE...)
-• achats        → Achats ponctuels : vêtements, électronique, Amazon hors Prime, bricolage, sport, mobilier (AMAZON, FNAC, DARTY, ZARA, H&M, PRIMARK, DECATHLON, LEROY MERLIN, BOULANGER, IKEA, ASOS...)
-• restauration  → Restaurants, fast-food, cafés, bars, livraison repas (MCDONALD, KFC, BURGER KING, SUBWAY, DOMINOS, FIVE GUYS, UBER EATS, DELIVEROO, JUST EAT...)
-• sante         → Pharmacie, médecin, dentiste, opticien, clinique, laboratoire, mutuelle santé (PHARMACIE, DOCTOLIB, MUTUELLE, CHU, CHR, LABO...)
-• loisirs       → Cinéma, voyages, hôtels, musées, sport, concerts, sorties (BOOKING, AIRBNB, UGC, PATHE, MK2, AIR FRANCE, EASYJET, RYANAIR...)
-• frais_bancaires → Frais de tenue de compte, agios, commissions, frais carte, prélèvements bancaires
-• epargne       → Virements vers épargne, assurance-vie, PEL, PEA, livrets (BOURSORAMA, LINXEA, YOMONI, FORTUNEO...)
-• impots        → Impôts revenus, taxe foncière, taxe habitation, amendes, URSSAF, cotisations sociales (DGFIP, TRESOR PUBLIC, URSSAF, AMENDE...)
-• virement      → Virements entre comptes propres, remboursements entre particuliers (Lydia, Sumeria, PayPal entre particuliers)
-• autre         → Inclassable, retraits DAB espèces, divers non identifiés
+const CATEGORIZATION_ENGINE = `You are a financial transaction categorization engine for French bank statements.
 
-MERCHANT EXTRACTION RULES (critical):
-1. Strip payment prefixes entirely: "PAIEMENT PAR CARTE XXXX", "ACHAT CB", "CB*", "CARTE ", "VIR SEPA", "PREL SEPA", "PRELEVEMENT SEPA", "RETRAIT DAB", "RETRAIT CARTE", "AVOIR "
-2. Strip trailing noise: city codes, country codes (FR/DE/GB...), alphanumeric refs (X3718, FRBOI072), dates (14/02, 14FEV), branch codes
-3. Uppercase tokens in the MIDDLE of the label (between prefix and trailing noise) = the merchant
-4. Ignore short tokens (≤2 chars), pure numbers, single letters
-5. For "VIR SEPA [NAME]": if amount < 0 and name looks like a landlord → loyer; else → virement
-6. Amount sign matters: positive → lean toward revenus/remboursement; negative → expense
+CATEGORIES (use ONLY these IDs — no other values allowed):
+revenus | loyer | alimentation | transport | abonnements | achats | restauration | sante | loisirs | frais_bancaires | epargne | impots | virement | autre
 
-MERCHANT DETECTION PATTERNS (examples, not exhaustive):
-• ALDI|LIDL|CARREF|LECLERC|INTERMARCHE|CASINO|MONOPRIX|FRANPRIX|CORA|AUCHAN|NETTO|LEADER PRICE|SUPER U → alimentation / supermarche
-• TOTAL|ESSO|BP|SHELL|TOTAL ENERGIES|STATION → transport / carburant
-• AUTOROUTE|VINCI|COFIROUTE|ESCOTA|SAPN|SANEF|ADELAC|PEAGE → transport / peage
-• SNCF|OUIGO|INOUI|TER|BLABLACAR|FLIXBUS → transport / train
-• RATP|TISSEO|TCL|KEOLIS|TAN|TAM|TRANSDEV|STAR → transport / transports_commun
-• UBER(?! EATS)|G7|HEETCH|LYFT|KAPTEN → transport / vtc
-• NETFLIX|SPOTIFY|CANAL\+|DISNEY\+|AMAZON PRIME|DEEZER|APPLE ONE|MAX|PARAMOUNT → abonnements / streaming
-• SFR|BOUYGUES|FREE MOBILE|ORANGE|B&YOU|RED BY|NRJ MOBILE|SOSH → abonnements / telephonie
-• AMAZON|AMZN(?!.*PRIME) → achats / ecommerce
-• FNAC|DARTY|BOULANGER|CDISCOUNT|LDLC → achats / electronique
-• ZARA|H&M|UNIQLO|PRIMARK|KIABI|JULES|PULL AND BEAR|BERSHKA → achats / vetements
-• DECATHLON|GO SPORT|SPORT 2000 → achats / sport
-• LEROY MERLIN|CASTORAMA|BRICORAMA|IKEA → achats / maison
-• MCDONALD|KFC|BURGER KING|SUBWAY|QUICK|FIVE GUYS|DOMINOS|PIZZA HUT → restauration / fastfood
-• UBER EATS|DELIVEROO|JUST EAT → restauration / livraison
-• PHARMACIE|PHARMA|DOCTOLIB|CABINET DR|CLINIQUE|HOPITAL|CHU|CHR|LABO → sante
-• DGFIP|IMPOT|TRESOR PUBLIC|URSSAF|CPAM|CAF|FRANCE TRAVAIL|POLE EMPLOI → impots (or revenus if positive)
-• BOOKING|AIRBNB|EXPEDIA|ACCOR|IBIS|NOVOTEL|MERCURE → loisirs / hebergement
-• AIR FRANCE|EASYJET|RYANAIR|TRANSAVIA|VUELING|TAP → loisirs / avion
-• UGC|PATHE|MK2|GAUMONT|CGR → loisirs / cinema
-• EDF|ENEDIS|GDF|SUEZ|VEOLIA|ENGIE|ORANGE (box)|FREE (box)|SFR (box)|BOUYGUES (box) → loyer / factures`;
+CATEGORY MEANINGS:
+revenus=salaires/remboursements/aides(positif) | loyer=loyer/charges/EDF/internet/box | alimentation=supermarches/epiceries/drives | transport=carburant/peage/parking/SNCF/bus/VTC | abonnements=streaming/telephone/assurances recurrentes | achats=vetements/electronique/Amazon/sport | restauration=restaurants/fastfood/livraison | sante=pharmacie/medecin/clinique/optique | loisirs=cinema/voyage/hotel/concerts | frais_bancaires=frais de compte/agios | epargne=livrets/PEA/assurance-vie | impots=DGFIP/URSSAF/amendes | virement=virement entre comptes/particuliers | autre=inclassable/DAB
+
+EXTRACTION (mandatory):
+1. Strip prefix: "PAIEMENT PAR CARTE XXXX" "ACHAT CB" "CB*" "VIR SEPA" "PREL SEPA" "RETRAIT DAB" "CARTE "
+2. Strip suffix: city codes, country codes (FR/DE), refs (X3718 FRBOI072), dates (14/02 14FEV)
+3. Uppercase tokens in the MIDDLE = merchant (1-3 words, no noise)
+4. Positive amount = lean revenus/remboursement; negative = expense
+5. VIR SEPA + person name + negative = loyer or virement
+
+PATTERNS:
+ALDI|LIDL|CARREF|LECLERC|INTERMARCHE|CASINO|MONOPRIX|AUCHAN|NETTO → alimentation/supermarche
+TOTAL|ESSO|BP|SHELL → transport/carburant
+VINCI|COFIROUTE|SANEF|PEAGE → transport/peage
+SNCF|OUIGO|BLABLACAR|FLIXBUS → transport/train
+RATP|TISSEO|TCL|KEOLIS → transport/transports_commun
+UBER(?!EATS)|G7|HEETCH → transport/vtc
+NETFLIX|SPOTIFY|CANAL+|DISNEY+|AMAZON PRIME|DEEZER|APPLE → abonnements/streaming
+SFR|BOUYGUES|FREE|ORANGE|NRJ MOBILE → abonnements/telephone
+AMAZON|AMZN → achats/enligne (unless PRIME → abonnements)
+FNAC|DARTY|BOULANGER → achats/electronique
+DECATHLON|ZARA|H&M|PRIMARK|KIABI → achats/vetements
+MCDONALD|KFC|BURGER KING|DOMINOS|UBER EATS|DELIVEROO → restauration/fastfood
+PHARMACIE|DOCTOLIB|CLINIQUE|HOPITAL → sante
+DGFIP|TRESOR PUBLIC|URSSAF|CPAM|CAF → impots (revenus if positive)
+BOOKING|AIRBNB|AIR FRANCE|EASYJET|RYANAIR → loisirs
+UGC|PATHE|MK2 → loisirs/cinema
+EDF|ENGIE|VEOLIA → loyer/electricite`;
 
 // ─── POST /categorize (merchant-level) ────────────────────────────────────────
 
@@ -141,8 +129,9 @@ Rules:
     const prompt = `Categorize these French bank merchants:\n${merchantList}`;
 
     const result = await generateWithFallback(prompt, {
+      model: FAST_MODEL,
       systemPrompt,
-      maxTokens: 1200,
+      maxTokens: 600,    // ~30 tokens/merchant × 20 merchants max
       temperature: 0.05,
     });
 
@@ -196,13 +185,13 @@ router.post('/categorize-lines', async (req, res) => {
       return res.status(400).json({ error: 'transactions must be an array of 1-50 items' });
     }
 
-    // Serve cached lines; only send uncached to Groq
+    // Serve cached lines; only send uncached to Groq (max 15 per call to stay within timeout)
     const cachedLines = [], uncachedTxs = [], indexMap = new Map()
     for (const tx of transactions) {
       const ckey = lineCacheKey(tx.label, tx.amount >= 0 ? '+' : '-')
       const hit = lineResultsCache.get(ckey)
       if (hit) cachedLines.push({ ...hit, hash: tx.hash })
-      else { indexMap.set(uncachedTxs.length, tx); uncachedTxs.push(tx) }
+      else if (uncachedTxs.length < 15) { indexMap.set(uncachedTxs.length, tx); uncachedTxs.push(tx) }
     }
     if (uncachedTxs.length === 0) return res.json({ results: cachedLines, provider: 'cache' })
 
@@ -228,8 +217,9 @@ Rules:
     const prompt = `Analyze and categorize these French bank transaction lines:\n${txList}`;
 
     const result = await generateWithFallback(prompt, {
+      model: FAST_MODEL,
       systemPrompt,
-      maxTokens: 2500,
+      maxTokens: 700,    // ~45 tokens/tx × 15 tx max = 675 tokens
       temperature: 0.05,
     });
 

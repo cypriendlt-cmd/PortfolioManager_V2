@@ -49,7 +49,7 @@ export async function aiCategorizeBatch(merchants) {
  */
 export async function aiCategorizeLines(transactions) {
   const results = []
-  const LINES_BATCH = 30
+  const LINES_BATCH = 15   // reduced: backend caps at 15 uncached, 8b model is fast enough
 
   // Send at most one batch of LINES_BATCH lines
   const batch = transactions.slice(0, LINES_BATCH)

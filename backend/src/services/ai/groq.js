@@ -22,20 +22,20 @@ class GroqProvider extends AIProvider {
     const response = await axios.post(
       this.apiUrl,
       {
-        model: this.model,
+        model: options.model || this.model,   // allow per-call model override
         messages: [
           { role: 'system', content: options.systemPrompt || '' },
           { role: 'user', content: prompt },
         ],
         max_tokens: options.maxTokens || 800,
-        temperature: options.temperature || 0.7,
+        temperature: options.temperature ?? 0.7,
       },
       {
         headers: {
           Authorization: `Bearer ${config.ai.groqApiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 30000,
+        timeout: 45000,   // 45s — categorization prompts can be large
       }
     );
 
