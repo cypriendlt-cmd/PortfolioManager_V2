@@ -18,10 +18,13 @@ const STOPWORDS_FR = new Set([
   'ce', 'ces', 'par', 'sur', 'pour', 'avec', 'dans', 'qui', 'que', 'son', 'ses',
 ])
 
-const PAYMENT_PREFIXES = /^(CB\s*\*?|CARTE\s+|VIR(EMENT)?\s+(SEPA\s+)?|PRLV\s+(SEPA\s+)?|CHQ\s*N?\s*\d*\s*|RET\s*DAB\s*|SEPA\s+DD\s+)/i
+// Payment method prefixes (all common French bank label formats)
+const PAYMENT_PREFIXES = /^(PAIEMENT\s+(PAR\s+)?(CARTE|CB)\s*[A-Z0-9]*\s*|CB\s*[\*]?\s*|CARTE\s+|PAIEMENT\s+CB\s*[A-Z0-9]*\s*|VIR(EMENT)?\s+(SEPA\s+)?|PREL(EVEMENT)?\s+(SEPA\s+)?|PRLV\s+(SEPA\s+)?|CHQ\s*N?\.?\s*\d*\s*|RETRAIT\s*(DAB|CB|ESPECES)?\s*[A-Z0-9]*\s*|RET\s*DAB\s*|SEPA\s+DD\s+)/i
 const DATE_REFS = /\b\d{2}[\/.\-]\d{2}([\/.\-]\d{2,4})?\b/g
 const CARD_NUMBERS = /\b\d{4}\s?\*{4,}\s?\d{0,4}\b|\bX{4,}\d{4}\b|\b\d{16}\b/g
 const REF_PATTERNS = /\b(REF|N[°O]?|NR|ID)\s*[:\s]?\s*[\w\-]+/gi
+// Alphanumeric reference codes: X3718, FRBOI072, FR12345, AB1234C
+const CODE_TOKENS = /\b([A-Z]{1,4}\d{3,}[A-Z0-9]*|[A-Z]{2,8}\d{2,}[A-Z0-9]*)\b/g
 const MULTI_SPACE = /\s{2,}/g
 
 function normalizeLabel(label) {
@@ -33,9 +36,17 @@ function normalizeLabel(label) {
 
 function extractMerchantKey(labelNorm) {
   if (!labelNorm) return ''
-  let key = labelNorm.replace(PAYMENT_PREFIXES, '').replace(/\b\d{4,}\b/g, '')
-    .replace(/\b[A-Z]{0,2}\d{3,}\b/g, '').replace(MULTI_SPACE, ' ').trim()
-  return key.split(/\s+/).filter(w => w.length > 1).slice(0, 3).join(' ')
+  let key = labelNorm
+    .replace(PAYMENT_PREFIXES, '')   // Remove payment prefix (+ card ref)
+    .replace(CODE_TOKENS, ' ')       // Remove reference codes (FRBOI072, X3718…)
+    .replace(/\b\d{3,}\b/g, ' ')    // Remove standalone numbers
+    .replace(MULTI_SPACE, ' ')
+    .trim()
+  const words = key.split(/\s+/).filter(w => w.length >= 2)
+  if (!words.length) return labelNorm.slice(0, 15)
+  // Short first word (≤3 chars) → take first two words for specificity (e.g. "H M", "BP CARBURANT")
+  if (words[0].length <= 3 && words.length > 1) return words.slice(0, 2).join(' ')
+  return words[0]
 }
 
 function detectPaymentType(labelNorm) {
@@ -321,9 +332,12 @@ self.onmessage = function(e) {
         catch { return null }
       }).filter(Boolean)
 
-      // Enrich with derived fields (only new ones without label_norm)
+      // Enrich with derived fields.
+      // If merchant_key is already stored (persisted from a previous run),
+      // keep it — it may have been corrected or AI-learned.
+      // Only recompute when merchant_key is missing.
       const txs = rawTxs.map(tx => {
-        if (tx.label_norm) return tx
+        if (tx.merchant_key) return { ...tx, label_norm: tx.label_norm || normalizeLabel(tx.label) }
         return { ...tx, ...deriveFields(tx.label) }
       })
 

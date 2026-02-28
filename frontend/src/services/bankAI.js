@@ -66,6 +66,7 @@ export async function aiCategorizeLines(transactions) {
           if (item.hash && item.category) {
             results.push({
               hash: item.hash,
+              merchantName: item.merchant_name || null,
               category: item.category,
               subcategory: item.subcategory || null,
               confidence: typeof item.confidence === 'number'

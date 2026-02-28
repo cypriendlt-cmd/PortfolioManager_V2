@@ -50,9 +50,11 @@ const EMPTY_PROFILE = {
   riskTolerance: 'modere',
 }
 
-// Strip derived fields before saving to Drive (they're recomputed by worker)
+// Strip heavy derived fields before saving to Drive.
+// merchant_key IS kept — it's needed by correctCategory and the worker preserves it
+// when re-running so manual/AI corrections aren't overwritten.
 function stripDerived(transactions) {
-  return transactions.map(({ label_norm, merchant_key, payment_type, tokens, ...rest }) => rest)
+  return transactions.map(({ label_norm, tokens, ...rest }) => rest)
 }
 
 // Migrate v1 → v2
@@ -255,30 +257,47 @@ export function BankProvider({ children }) {
   }, [updateAndSave])
 
   // Correct a category → learn from merchant_key
+  // Uses enriched transactions (workerResults) to get the reliable merchant_key.
   const correctCategory = useCallback((hash, newCategory, newSubcategory) => {
+    // Prefer merchant_key from enriched worker output (more accurate extraction)
+    const enrichedMap = workerResults?.transactions
+      ? new Map(workerResults.transactions.map(t => [t.hash, t.merchant_key]))
+      : null
+
     updateAndSave(prev => {
       const tx = prev.transactions.find(t => t.hash === hash)
       if (!tx) return prev
 
-      const merchantKey = tx.merchant_key || tx.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
+      // merchant_key: enriched (worker computed) > stored > raw label fallback
+      const merchantKey = (enrichedMap?.get(hash)) || tx.merchant_key
+        || tx.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
 
       const learnedRules = {
         ...prev.learnedRules,
         [merchantKey]: { category: newCategory, subcategory: newSubcategory || null, learnedAt: new Date().toISOString() },
       }
 
-      // Apply to all transactions with same merchant_key
+      // Apply to all transactions with same merchant_key + update stored merchant_key
       const transactions = prev.transactions.map(t => {
-        const mk = t.merchant_key || t.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
+        const mk = (enrichedMap?.get(t.hash)) || t.merchant_key
+          || t.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
         if (mk === merchantKey) {
-          return { ...t, category: newCategory, subcategory: newSubcategory || null, confidence: 0.95, reason: `Règle apprise: ${merchantKey}`, method: 'user_learned' }
+          return {
+            ...t,
+            merchant_key: mk,  // persist enriched key
+            category: newCategory,
+            subcategory: newSubcategory || null,
+            confidence: 0.95,
+            reason: `Règle apprise: ${merchantKey}`,
+            method: 'user_learned',
+          }
         }
         return t
       })
 
       return { ...prev, transactions, learnedRules }
     })
-  }, [updateAndSave])
+  }, [workerResults, updateAndSave])
 
   const deleteLearnedRule = useCallback((merchantKey) => {
     updateAndSave(prev => {
@@ -288,26 +307,52 @@ export function BankProvider({ children }) {
     })
   }, [updateAndSave])
 
-  // Apply a batch of AI-accepted category corrections (no learned rule creation)
+  // Apply a batch of AI-accepted category corrections.
+  // Saves to learnedRules so the worker persists them across re-runs.
   const applyAIProposals = useCallback((corrections) => {
-    // corrections: [{ hash, category, subcategory }]
+    // corrections: [{ hash, category, subcategory, merchantName? }]
+    const enrichedMap = workerResults?.transactions
+      ? new Map(workerResults.transactions.map(t => [t.hash, t.merchant_key]))
+      : null
+
     updateAndSave(prev => {
       const correctionMap = new Map(corrections.map(c => [c.hash, c]))
+      const now = new Date().toISOString()
+      const newLearnedRules = { ...prev.learnedRules }
+
       const transactions = prev.transactions.map(t => {
         const correction = correctionMap.get(t.hash)
         if (!correction) return t
+
+        // Save merchant → category as learned rule so worker applies it persistently
+        const merchantKey = correction.merchantName
+          || (enrichedMap?.get(t.hash))
+          || t.merchant_key
+          || t.label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 30)
+
+        if (merchantKey) {
+          newLearnedRules[merchantKey] = {
+            category: correction.category,
+            subcategory: correction.subcategory || null,
+            learnedAt: now,
+            source: 'ai_accepted',
+          }
+        }
+
         return {
           ...t,
+          merchant_key: merchantKey || t.merchant_key,  // persist enriched key
           category: correction.category,
           subcategory: correction.subcategory || null,
           confidence: 0.92,
-          reason: 'Catégorisation IA acceptée',
+          reason: `IA acceptée: ${merchantKey}`,
           method: 'ai_accepted',
         }
       })
-      return { ...prev, transactions }
+
+      return { ...prev, transactions, learnedRules: newLearnedRules }
     })
-  }, [updateAndSave])
+  }, [workerResults, updateAndSave])
 
   const clearAICache = useCallback(() => {
     updateAndSave(prev => ({ ...prev, aiCache: {} }))

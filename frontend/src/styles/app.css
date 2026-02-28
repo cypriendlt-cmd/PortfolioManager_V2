@@ -3571,6 +3571,19 @@ tbody tr:hover {
   flex-shrink: 0;
   background: var(--bg-card);
 }
+.ai-merchant-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
 
 /* ─── Responsive AI panel ─── */
 @media (max-width: 640px) {

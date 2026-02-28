@@ -88,7 +88,12 @@ function AICategorizePanel({ proposals, onClose, onApply }) {
   const handleApply = () => {
     const corrections = proposals
       .filter(p => selected.has(p.hash))
-      .map(p => ({ hash: p.hash, category: p.proposedCategory, subcategory: p.proposedSubcategory }))
+      .map(p => ({
+        hash: p.hash,
+        category: p.proposedCategory,
+        subcategory: p.proposedSubcategory,
+        merchantName: p.merchantName,   // for auto-learning
+      }))
     onApply(corrections)
   }
 
@@ -139,6 +144,11 @@ function AICategorizePanel({ proposals, onClose, onApply }) {
                     <span className={`tx-amount ${p.amount >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '0.75rem', marginLeft: 8 }}>
                       {fmtD(p.amount)}
                     </span>
+                    {p.merchantName && (
+                      <span className="ai-merchant-tag" title="Nom marchand extrait — sera appris automatiquement">
+                        {p.merchantName}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="ai-proposal-cats">
@@ -159,8 +169,8 @@ function AICategorizePanel({ proposals, onClose, onApply }) {
         <div className="ai-panel-footer">
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>
             {selected.size === 0
-              ? 'Aucune ligne sélectionnée'
-              : `${selected.size} correction${selected.size > 1 ? 's' : ''} à appliquer`}
+              ? 'Sélectionnez les lignes à corriger'
+              : <><Brain size={12} style={{ marginRight: 4, color: 'var(--accent)' }} />{selected.size} correction{selected.size > 1 ? 's' : ''} — les marchands seront mémorisés pour vos prochaines transactions</>}
           </span>
           <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
           <button
@@ -803,6 +813,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
             currentCat: tx.category || 'autre',
             proposedCategory: r.category,
             proposedSubcategory: r.subcategory,
+            merchantName: r.merchantName,
             confidence: r.confidence,
           }
         })
@@ -822,6 +833,7 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
   }
 
   const handleApplyProposals = (corrections) => {
+    // corrections include merchantName for auto-learning
     applyAIProposals(corrections)
     setAiPanelOpen(false)
     setAiProposals([])

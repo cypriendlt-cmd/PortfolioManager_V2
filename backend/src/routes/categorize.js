@@ -91,13 +91,17 @@ router.post('/categorize-lines', async (req, res) => {
       .map((t, i) => `${i + 1}. [${t.date || '?'}] ${t.label} (${t.amount >= 0 ? '+' : ''}${Number(t.amount).toFixed(2)}€)`)
       .join('\n');
 
-    const prompt = `Catégorise ces transactions bancaires françaises:\n${txList}`;
+    const prompt = `Analyse ces transactions bancaires françaises:\n${txList}`;
 
     const systemPrompt = `Tu es un expert en catégorisation de transactions bancaires françaises.
-Catégorise chaque transaction dans UNE des catégories: ${VALID_CATEGORIES.join(', ')}.
-Utilise le libellé ET le montant (+= revenu, -= dépense) pour décider.
+Pour chaque transaction:
+1. Extrais le NOM DU MARCHAND ou de l'organisme (ex: "ALDI", "NETFLIX", "DGFIP") — ignore les codes, numéros de carte et références bancaires.
+2. Catégorise dans UNE des catégories: ${VALID_CATEGORIES.join(', ')}.
+3. Utilise le libellé ET le montant (+= revenu, -= dépense) pour décider.
+
 Réponds UNIQUEMENT en JSON strict, sans markdown, sans commentaire:
-[{"index":1,"category":"...","subcategory":"...","confidence":0.85}]
+[{"index":1,"merchant_name":"ALDI","category":"alimentation","subcategory":"supermarche","confidence":0.90}]
+merchant_name: nom court et propre du marchand (1-3 mots max, en majuscules).
 confidence entre 0.5 et 0.95. Ne dépasse jamais 0.95.`;
 
     const result = await generateWithFallback(prompt, {
@@ -129,6 +133,7 @@ confidence entre 0.5 et 0.95. Ne dépasse jamais 0.95.`;
         if (!tx) return null;
         return {
           hash: tx.hash,
+          merchant_name: item.merchant_name ? String(item.merchant_name).trim().toUpperCase().slice(0, 40) : null,
           category: item.category,
           subcategory: item.subcategory || null,
           confidence: typeof item.confidence === 'number'
