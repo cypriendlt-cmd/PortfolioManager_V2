@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
-import './Login.css'
 
 const THEME_META = {
   crimson: { label: 'Crimson', accent: '#dc2626' },

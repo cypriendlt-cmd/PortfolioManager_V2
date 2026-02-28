@@ -14,7 +14,6 @@ import { usePortfolio } from '../context/PortfolioContext'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { CATEGORIES, TAXONOMY } from '../services/bankTaxonomy'
 import BankImportModal from '../components/BankImportModal'
-import './Banking.css'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const fmtD = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)

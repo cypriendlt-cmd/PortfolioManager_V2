@@ -6,9 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { PortfolioProvider } from './context/PortfolioContext'
 import { PrivacyProvider } from './context/PrivacyContext'
-import './styles/themes.css'
-import './styles/global.css'
-
+import './styles/app.css'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HashRouter>

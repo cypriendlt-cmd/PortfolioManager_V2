@@ -1,7 +1,6 @@
 import React from 'react';
 import { useBeta } from '../../context/BetaContext';
 import { Wallet, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
-import './beta.css';
 
 const fmt = v => v.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
 

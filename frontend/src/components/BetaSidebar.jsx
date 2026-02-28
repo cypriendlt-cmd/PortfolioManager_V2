@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useBeta } from '../context/BetaContext'
-import './Sidebar.css'
 
 const BETA_NAV_ITEMS = [
   { path: '/beta', icon: LayoutDashboard, label: 'Synthèse' },

@@ -12,7 +12,6 @@ import { usePortfolio } from '../context/PortfolioContext'
 import { usePriceRefresh } from '../hooks/usePriceRefresh'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { searchISIN } from '../services/priceService'
-import './PEA.css'
 
 const fmt = (n) => n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n) : '\u2014'
 const fmtPct = (n) => n != null ? `${n >= 0 ? '+' : ''}${n.toFixed(2)}%` : '\u2014'

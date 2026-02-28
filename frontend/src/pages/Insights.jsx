@@ -5,7 +5,6 @@ import { getInsights, refreshInsights, analyzePortfolio, getProviders } from '..
 import { usePortfolio } from '../context/PortfolioContext'
 import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
-import './Insights.css'
 
 function GaugeMeter({ value, label }) {
   const getColor = (v) => {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useBeta } from '../../context/BetaContext';
 import { User, Wallet, Shield, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react';
-import './beta.css';
 
 const STEPS = [
   { key: 'income', label: 'Revenus & Depenses', icon: Wallet },

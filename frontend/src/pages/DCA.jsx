@@ -15,7 +15,6 @@ import {
   requestPermission, testNotification, checkAndNotifyDueReminders
 } from '../services/pushNotifications'
 import { usePortfolio } from '../context/PortfolioContext'
-import './DCA.css'
 
 const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
 const fmtPct = (v) => new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v)

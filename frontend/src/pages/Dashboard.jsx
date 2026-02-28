@@ -11,7 +11,6 @@ import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { getInsights, getDashboardSummary } from '../services/insights'
 import { getFearGreed } from '../services/market'
 import { Link } from 'react-router-dom'
-import './Dashboard.css'
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`

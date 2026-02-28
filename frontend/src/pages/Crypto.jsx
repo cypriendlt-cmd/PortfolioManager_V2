@@ -13,7 +13,6 @@ import { usePriceRefresh } from '../hooks/usePriceRefresh'
 import { usePrivacyMask } from '../hooks/usePrivacyMask'
 import { searchCoinGecko, fetchCryptoPrices } from '../services/priceService'
 import { syncBinanceToPortfolio } from '../services/binanceService'
-import './Crypto.css'
 
 const fmt = (n) => n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n) : '—'
 const fmtQty = (n) => n != null ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 6 }).format(n) : '—'

@@ -10,7 +10,6 @@ import {
   requestPermission, testNotification
 } from '../services/pushNotifications'
 import { sendBugReport } from '../services/emailService'
-import './Settings.css'
 
 const BINANCE_KEY_STORAGE = 'pm_binance_api_key'
 const BINANCE_SECRET_STORAGE = 'pm_binance_api_secret'

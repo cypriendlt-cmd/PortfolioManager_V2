@@ -4,7 +4,6 @@ import { usePortfolio } from '../../context/PortfolioContext';
 import {
   Activity, Wallet, Shield, PieChart, AlertTriangle, CheckCircle, TrendingUp,
 } from 'lucide-react';
-import './beta.css';
 
 const fmt = v => v.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
 

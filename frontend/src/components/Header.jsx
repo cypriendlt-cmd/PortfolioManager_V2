@@ -4,7 +4,6 @@ import { Menu, Sun, Moon, Bell, Search, Check, Eye, EyeOff } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { usePrivacy } from '../context/PrivacyContext'
 import { getDueNotifications, markNotificationDone } from '../services/notifications'
-import './Header.css'
 
 const PAGE_TITLES = {
   '/': 'Dashboard',
