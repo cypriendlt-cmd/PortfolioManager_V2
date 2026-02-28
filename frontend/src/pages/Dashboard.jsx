@@ -308,7 +308,7 @@ export default function Dashboard() {
   const peaGainPct = peaInvested > 0 ? ((totals.pea - peaInvested) / peaInvested) * 100 : 0
 
   // Bank data
-  const bankTotal = (accountBalances || []).reduce((s, a) => s + a.balance, 0)
+  const bankTotal = (accountBalances || []).filter(a => a.type === 'courant').reduce((s, a) => s + a.balance, 0)
   const lastAgg = aggregates?.[aggregates.length - 1]
   const monthIncome = lastAgg?.income || 0
   const monthExpenses = lastAgg?.expenses || 0
@@ -406,7 +406,7 @@ export default function Dashboard() {
               <span className="dash-stat-label">Solde bancaire</span>
             </div>
             <div className="dash-stat-value">{m(fmt(bankTotal))}</div>
-            <div className="dash-stat-sub text-muted">{(accountBalances || []).length} compte(s)</div>
+            <div className="dash-stat-sub text-muted">{(accountBalances || []).filter(a => a.type === 'courant').length} compte(s)</div>
           </div>
 
           <div className="dash-stat" style={{ '--stat-accent': '#dc2626' }}>
