@@ -139,8 +139,13 @@ export function computeScheduledDates(plan, asOfDate, futureLookAhead = 3) {
 
 function extractContributions(plan, asset, asOfDate) {
   if (!asset) return []
+  // Tolérance : inclure les mouvements jusqu'à tolerance_days avant la start_date
+  const tol = plan.tolerance_days || 7
+  const startDate = new Date(plan.start_date)
+  startDate.setDate(startDate.getDate() - tol)
+  const minDate = toStr(startDate)
   return (asset.movements || [])
-    .filter(m => m.type === 'buy' && m.date >= plan.start_date && m.date <= asOfDate)
+    .filter(m => m.type === 'buy' && m.date >= minDate && m.date <= asOfDate)
     .map(m => ({
       date:   m.date,
       amount: Math.round((m.quantity * m.price + (m.fees || 0)) * 100) / 100,
