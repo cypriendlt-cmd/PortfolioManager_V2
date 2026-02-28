@@ -685,16 +685,26 @@ export default function DCA() {
   // Auto-relink : si l'asset_link pointe vers un id obsolète, on re-lie via fallback
   useEffect(() => {
     for (const plan of plans) {
-      if (!plan.asset_link) continue
+      if (!plan.asset_link) {
+        console.log(`[DCA] Plan "${plan.label}" — pas de asset_link`)
+        continue
+      }
       const { portfolio_asset_id, account_type } = plan.asset_link
       const list = account_type === 'crypto' ? portfolio.crypto : portfolio.pea
+      console.log(`[DCA] Plan "${plan.label}" — asset_link.id=${portfolio_asset_id}, account_type=${account_type}`)
+      console.log(`[DCA] IDs disponibles dans ${account_type}:`, (list || []).map(a => ({ id: a.id, name: a.name, movements: (a.movements || []).length })))
       const exactMatch = (list || []).find(a => a.id === portfolio_asset_id)
-      if (exactMatch) continue // lien OK
-      // L'id ne matche plus — chercher par fallback
+      if (exactMatch) {
+        console.log(`[DCA] ✅ Lien OK — actif trouvé: "${exactMatch.name}", movements:`, exactMatch.movements)
+        continue
+      }
+      console.log(`[DCA] ❌ ID "${portfolio_asset_id}" introuvable — tentative fallback...`)
       const fallback = getLinkedAsset(plan, portfolio)
       if (fallback) {
-        // Re-lier avec le bon id
+        console.log(`[DCA] 🔄 Fallback trouvé: "${fallback.name}" (id=${fallback.id}) — re-link`)
         linkPlanToAsset(plan.plan_id, fallback.id, account_type, plan.asset_link.match_method || 'auto_relink')
+      } else {
+        console.log(`[DCA] ⚠️ Aucun fallback trouvé, asset_target:`, plan.asset_target)
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -706,7 +716,10 @@ export default function DCA() {
     const t = today()
     for (const plan of plans) {
       const asset = getLinkedAsset(plan, portfolio)
-      map[plan.plan_id] = computeDcaProgress(plan, asset, t)
+      console.log(`[DCA progress] Plan "${plan.label}" — asset:`, asset ? `"${asset.name}" (${(asset.movements||[]).length} mvts)` : 'NULL')
+      const progress = computeDcaProgress(plan, asset, t)
+      console.log(`[DCA progress] → actual=${progress.actual_contribution}, expected=${progress.expected_contribution}, status=${progress.status}`)
+      map[plan.plan_id] = progress
     }
     return map
   }, [plans, portfolio])
