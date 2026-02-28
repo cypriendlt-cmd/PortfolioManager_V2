@@ -42,6 +42,45 @@ export async function aiCategorizeBatch(merchants) {
   return results
 }
 
+/**
+ * Categorize individual transaction lines (not grouped by merchant).
+ * @param {Array<{ hash, label, amount, date }>} transactions
+ * @returns {Promise<Array<{ hash, category, subcategory, confidence }>>}
+ */
+export async function aiCategorizeLines(transactions) {
+  const results = []
+  const LINES_BATCH = 30
+
+  // Send at most one batch of LINES_BATCH lines
+  const batch = transactions.slice(0, LINES_BATCH)
+  try {
+    const res = await fetch(`${API_BASE}/api/bank/categorize-lines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: batch }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (Array.isArray(data.results)) {
+        for (const item of data.results) {
+          if (item.hash && item.category) {
+            results.push({
+              hash: item.hash,
+              category: item.category,
+              subcategory: item.subcategory || null,
+              confidence: typeof item.confidence === 'number'
+                ? Math.min(1, Math.max(0, item.confidence))
+                : 0.75,
+            })
+          }
+        }
+      }
+    }
+  } catch { /* network error */ }
+
+  return results
+}
+
 export async function isAIAvailable() {
   try {
     const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) })

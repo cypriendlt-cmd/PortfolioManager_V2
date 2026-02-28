@@ -288,6 +288,27 @@ export function BankProvider({ children }) {
     })
   }, [updateAndSave])
 
+  // Apply a batch of AI-accepted category corrections (no learned rule creation)
+  const applyAIProposals = useCallback((corrections) => {
+    // corrections: [{ hash, category, subcategory }]
+    updateAndSave(prev => {
+      const correctionMap = new Map(corrections.map(c => [c.hash, c]))
+      const transactions = prev.transactions.map(t => {
+        const correction = correctionMap.get(t.hash)
+        if (!correction) return t
+        return {
+          ...t,
+          category: correction.category,
+          subcategory: correction.subcategory || null,
+          confidence: 0.92,
+          reason: 'Catégorisation IA acceptée',
+          method: 'ai_accepted',
+        }
+      })
+      return { ...prev, transactions }
+    })
+  }, [updateAndSave])
+
   const clearAICache = useCallback(() => {
     updateAndSave(prev => ({ ...prev, aiCache: {} }))
   }, [updateAndSave])
@@ -364,7 +385,7 @@ export function BankProvider({ children }) {
       financeProfile: autoFinanceProfile,
       updateFinanceProfile,
       correctCategory, deleteLearnedRule, clearAICache,
-      requestAICategorization,
+      requestAICategorization, applyAIProposals,
       flaggedTransfers: workerResults?.flaggedTransfers || [],
       lowConfidenceCount: workerResults?.lowConfidence?.length || 0,
     }}>

@@ -4,8 +4,9 @@ import {
   AlertTriangle, TrendingUp, TrendingDown, CreditCard, PiggyBank,
   Repeat, Trash2, Plus, Search, Shield, Target, Sunrise,
   PieChart as PieChartIcon, CheckCircle, User, Wallet,
-  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X
+  ArrowRight, ArrowLeft, Zap, Brain, Loader2, X, Sparkles
 } from 'lucide-react'
+import { aiCategorizeLines } from '../services/bankAI'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts'
@@ -72,6 +73,110 @@ function CategoryBadge({ tx, onCorrect }) {
   )
 }
 
+/* ─── AI Categorize Panel ─── */
+function AICategorizePanel({ proposals, onClose, onApply }) {
+  const [selected, setSelected] = useState(() => new Set(proposals.map(p => p.hash)))
+
+  const allSelected = selected.size === proposals.length
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(proposals.map(p => p.hash)))
+  const toggle = (hash) => {
+    const next = new Set(selected)
+    next.has(hash) ? next.delete(hash) : next.add(hash)
+    setSelected(next)
+  }
+
+  const handleApply = () => {
+    const corrections = proposals
+      .filter(p => selected.has(p.hash))
+      .map(p => ({ hash: p.hash, category: p.proposedCategory, subcategory: p.proposedSubcategory }))
+    onApply(corrections)
+  }
+
+  return (
+    <div className="ai-panel-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="ai-panel">
+        <div className="ai-panel-header">
+          <div className="ai-panel-title">
+            <Sparkles size={18} style={{ color: 'var(--accent)' }} />
+            <h3>Propositions IA — Compte Courant</h3>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="ai-panel-badge">{selected.size}/{proposals.length} sélectionnées</span>
+            <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
+          </div>
+        </div>
+
+        <div className="ai-panel-toolbar">
+          <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 12px' }} onClick={toggleAll}>
+            {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+          </button>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            {proposals.length} transaction{proposals.length > 1 ? 's' : ''} analysée{proposals.length > 1 ? 's' : ''} — cliquez pour sélectionner
+          </span>
+        </div>
+
+        <div className="ai-panel-list">
+          {proposals.map(p => {
+            const currentCat = catMap[p.currentCat] || catMap.autre
+            const proposedCat = catMap[p.proposedCategory] || catMap.autre
+            const isChecked = selected.has(p.hash)
+            return (
+              <div
+                key={p.hash}
+                className={`ai-proposal-row ${isChecked ? 'selected' : ''}`}
+                onClick={() => toggle(p.hash)}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggle(p.hash)}
+                  onClick={e => e.stopPropagation()}
+                />
+                <div className="ai-proposal-info">
+                  <div className="ai-proposal-label" title={p.label}>{p.label}</div>
+                  <div className="ai-proposal-meta">
+                    {p.date}
+                    <span className={`tx-amount ${p.amount >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '0.75rem', marginLeft: 8 }}>
+                      {fmtD(p.amount)}
+                    </span>
+                  </div>
+                </div>
+                <div className="ai-proposal-cats">
+                  <span className="tx-category" style={{ background: currentCat.color + '18', color: currentCat.color }}>
+                    {currentCat.label}
+                  </span>
+                  <ArrowRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <span className="tx-category ai-proposed" style={{ background: proposedCat.color + '22', color: proposedCat.color, border: `1px solid ${proposedCat.color}44` }}>
+                    <ConfidenceDot confidence={p.confidence} />
+                    {proposedCat.label}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="ai-panel-footer">
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>
+            {selected.size === 0
+              ? 'Aucune ligne sélectionnée'
+              : `${selected.size} correction${selected.size > 1 ? 's' : ''} à appliquer`}
+          </span>
+          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+          <button
+            className="btn btn-primary"
+            disabled={selected.size === 0}
+            onClick={handleApply}
+          >
+            <CheckCircle size={14} />
+            Appliquer {selected.size > 0 ? `(${selected.size})` : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Banking() {
   const {
     bankHistory, loading, processing, accountBalances,
@@ -80,7 +185,7 @@ export default function Banking() {
     setInitialBalance, updateAccount, deleteAccount, refreshCategories,
     financeProfile, updateFinanceProfile,
     correctCategory, deleteLearnedRule, clearAICache,
-    requestAICategorization, lowConfidenceCount,
+    requestAICategorization, lowConfidenceCount, applyAIProposals,
   } = useBank()
   const { m, mp } = usePrivacyMask()
   const [tab, setTab] = useState('synthese')
@@ -113,7 +218,7 @@ export default function Banking() {
       </div>
 
       {tab === 'synthese' && <SyntheseTab accountBalances={accountBalances} aggregates={aggregates} healthScore={healthScore} coachInsights={coachInsights} m={m} mp={mp} />}
-      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} correctCategory={correctCategory} m={m} />}
+      {tab === 'courant' && <CourantTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} correctCategory={correctCategory} applyAIProposals={applyAIProposals} m={m} />}
       {tab === 'livrets' && <LivretsTab bankHistory={bankHistory} accountBalances={accountBalances} setInitialBalance={setInitialBalance} deleteAccount={deleteAccount} m={m} />}
       {tab === 'analyse' && <AnalyseTab healthScore={healthScore} coachInsights={coachInsights} aggregates={aggregates} m={m} />}
       {tab === 'securite' && <SecurityTab profile={financeProfile} hasProfile={hasProfile} updateProfile={updateFinanceProfile} m={m} onSetup={() => setTab('profil')} />}
@@ -650,15 +755,77 @@ function ConfirmDeleteModal({ account, txCount, onConfirm, onCancel }) {
 }
 
 /* ─── COMPTE COURANT ─── */
-function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAccount, correctCategory, m }) {
+function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAccount, correctCategory, applyAIProposals, m }) {
   const [monthFilter, setMonthFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [search, setSearch] = useState('')
   const [balanceInput, setBalanceInput] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
+  const [aiProposals, setAiProposals] = useState([])
+  const [aiError, setAiError] = useState(null)
 
   const courantAccounts = useMemo(() => accountBalances.filter(a => a.type === 'courant'), [accountBalances])
   const courantIds = useMemo(() => new Set(courantAccounts.map(a => a.id)), [courantAccounts])
+
+  const handleAIAnalyze = async () => {
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      // Select uncategorized or low-confidence courant transactions
+      const toAnalyze = bankHistory.transactions
+        .filter(t => courantIds.has(t.accountId))
+        .filter(t => !t.category || t.category === 'autre' || (t.confidence || 0) < 0.6)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 30)
+        .map(t => ({ hash: t.hash, label: t.label, amount: t.amount, date: t.date }))
+
+      if (toAnalyze.length === 0) {
+        setAiError('Toutes les transactions ont déjà une catégorie fiable.')
+        setAiLoading(false)
+        return
+      }
+
+      const results = await aiCategorizeLines(toAnalyze)
+
+      const proposals = results
+        .map(r => {
+          const tx = bankHistory.transactions.find(t => t.hash === r.hash)
+          if (!tx) return null
+          // Only show if AI proposes a different category
+          if (r.category === tx.category) return null
+          return {
+            hash: r.hash,
+            label: tx.label,
+            date: tx.date,
+            amount: tx.amount,
+            currentCat: tx.category || 'autre',
+            proposedCategory: r.category,
+            proposedSubcategory: r.subcategory,
+            confidence: r.confidence,
+          }
+        })
+        .filter(Boolean)
+
+      if (proposals.length === 0) {
+        setAiError("L'IA n'a pas de nouvelles propositions à faire.")
+      } else {
+        setAiProposals(proposals)
+        setAiPanelOpen(true)
+      }
+    } catch {
+      setAiError("Erreur lors de l'analyse IA. Vérifiez que le backend est démarré.")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleApplyProposals = (corrections) => {
+    applyAIProposals(corrections)
+    setAiPanelOpen(false)
+    setAiProposals([])
+  }
 
   const txs = useMemo(() => {
     let list = bankHistory.transactions.filter(t => courantIds.has(t.accountId))
@@ -718,7 +885,27 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
           <option value="">Toutes categories</option>
           {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
+        <button
+          className="btn btn-primary ai-analyze-btn"
+          onClick={handleAIAnalyze}
+          disabled={aiLoading || bankHistory.transactions.filter(t => courantIds.has(t.accountId)).length === 0}
+          title="Analyser les transactions non catégorisées avec l'IA Groq"
+        >
+          {aiLoading
+            ? <Loader2 size={14} className="spin" />
+            : <Sparkles size={14} />}
+          {aiLoading ? 'Analyse...' : 'IA Groq'}
+        </button>
       </div>
+
+      {aiError && (
+        <div className="alert-banner info" style={{ marginBottom: 12, fontSize: '0.82rem' }}>
+          <Brain size={14} /> {aiError}
+          <button style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }} onClick={() => setAiError(null)}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <div style={{ overflowX: 'auto' }}>
         <table className="tx-table">
@@ -750,6 +937,14 @@ function CourantTab({ bankHistory, accountBalances, setInitialBalance, deleteAcc
           txCount={bankHistory.transactions.filter(t => t.accountId === confirmDelete.id).length}
           onConfirm={() => { deleteAccount(confirmDelete.id); setConfirmDelete(null) }}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {aiPanelOpen && (
+        <AICategorizePanel
+          proposals={aiProposals}
+          onClose={() => { setAiPanelOpen(false); setAiProposals([]) }}
+          onApply={handleApplyProposals}
         />
       )}
     </>

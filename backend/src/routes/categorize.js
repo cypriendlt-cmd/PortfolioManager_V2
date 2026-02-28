@@ -75,4 +75,74 @@ confidence entre 0.5 et 0.95. Ne dépasse jamais 0.95.`;
   }
 });
 
+/**
+ * POST /api/bank/categorize-lines
+ * AI-powered categorization of individual transaction lines.
+ * Accepts raw lines (hash + label + amount + date), returns per-hash proposals.
+ */
+router.post('/categorize-lines', async (req, res) => {
+  try {
+    const { transactions } = req.body;
+    if (!Array.isArray(transactions) || transactions.length === 0 || transactions.length > 50) {
+      return res.status(400).json({ error: 'transactions must be an array of 1-50 items' });
+    }
+
+    const txList = transactions
+      .map((t, i) => `${i + 1}. [${t.date || '?'}] ${t.label} (${t.amount >= 0 ? '+' : ''}${Number(t.amount).toFixed(2)}€)`)
+      .join('\n');
+
+    const prompt = `Catégorise ces transactions bancaires françaises:\n${txList}`;
+
+    const systemPrompt = `Tu es un expert en catégorisation de transactions bancaires françaises.
+Catégorise chaque transaction dans UNE des catégories: ${VALID_CATEGORIES.join(', ')}.
+Utilise le libellé ET le montant (+= revenu, -= dépense) pour décider.
+Réponds UNIQUEMENT en JSON strict, sans markdown, sans commentaire:
+[{"index":1,"category":"...","subcategory":"...","confidence":0.85}]
+confidence entre 0.5 et 0.95. Ne dépasse jamais 0.95.`;
+
+    const result = await generateWithFallback(prompt, {
+      systemPrompt,
+      maxTokens: 2000,
+      temperature: 0.1,
+    });
+
+    if (!result.content) {
+      return res.status(502).json({ error: 'AI unavailable', details: result.error });
+    }
+
+    let parsed;
+    try {
+      const clean = result.content.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      return res.status(502).json({ error: 'AI returned invalid JSON' });
+    }
+
+    if (!Array.isArray(parsed)) {
+      return res.status(502).json({ error: 'AI returned non-array' });
+    }
+
+    const results = parsed
+      .filter(item => Number.isInteger(item.index) && item.index >= 1 && item.index <= transactions.length && VALID_CATEGORIES.includes(item.category))
+      .map(item => {
+        const tx = transactions[item.index - 1];
+        if (!tx) return null;
+        return {
+          hash: tx.hash,
+          category: item.category,
+          subcategory: item.subcategory || null,
+          confidence: typeof item.confidence === 'number'
+            ? Math.min(0.95, Math.max(0.5, item.confidence))
+            : 0.75,
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ results, provider: result.provider });
+  } catch (err) {
+    console.error('[Categorize Lines] Error:', err.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 module.exports = router;
