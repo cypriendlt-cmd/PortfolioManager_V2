@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext'
 import { loadPortfolioFromDrive, savePortfolioToDrive, loadFileFromDrive, saveFileToDrive } from '../services/googleDrive'
 import { GUEST_DEMO_PORTFOLIO } from '../data/guestDemoData'
 import { getAllCurrentRates } from '../services/rateProvider'
+import { migrateLegacyConfig, matchPlanToAsset } from '../services/dcaEngine'
 
 const PortfolioContext = createContext(null)
 
@@ -28,9 +29,11 @@ export function PortfolioProvider({ children }) {
 
   // Insights + DCA Drive persistence
   const [insightsData, setInsightsData] = useState(null)
-  const [dcaConfig, setDcaConfig] = useState(null)
+  const [dcaConfig, setDcaConfig] = useState(null)        // legacy (lecture seule après migration)
+  const [dcaPlans, setDcaPlans]   = useState(null)        // nouveau format { version, plans }
   const insightsSaveTimer = useRef(null)
-  const dcaSaveTimer = useRef(null)
+  const dcaSaveTimer      = useRef(null)
+  const dcaPlansSaveTimer = useRef(null)
 
   const rates = useMemo(() => getAllCurrentRates(), [])
 
@@ -87,11 +90,51 @@ export function PortfolioProvider({ children }) {
     }
   }, [user, accessToken, gapiReady])
 
+  // Charge dca_plans.json ; si absent, migre depuis dca-config.json (une seule fois).
+  const fetchDcaPlansFromDrive = useCallback(async (portfolioSnapshot) => {
+    if (!user || !accessToken || !gapiReady) return
+    try {
+      const data = await loadFileFromDrive('dca_plans.json')
+      if (data && data.version) {
+        setDcaPlans(data)
+        localStorage.setItem('pm_dca_plans_cache', JSON.stringify(data))
+        return
+      }
+    } catch { /* fichier absent */ }
+
+    // Pas trouvé → migration depuis dca-config.json
+    try {
+      const legacy = await loadFileFromDrive('dca-config.json')
+      if (legacy && (legacy.simulations?.length || legacy.notifications?.length)) {
+        const migrated = migrateLegacyConfig(legacy, portfolioSnapshot)
+        setDcaPlans(migrated)
+        localStorage.setItem('pm_dca_plans_cache', JSON.stringify(migrated))
+        // Persister le nouveau fichier sur Drive
+        try { await saveFileToDrive('dca_plans.json', migrated) } catch {}
+        return
+      }
+    } catch {}
+
+    // Fallback local cache
+    try {
+      const cached = localStorage.getItem('pm_dca_plans_cache')
+      if (cached) { setDcaPlans(JSON.parse(cached)); return }
+    } catch {}
+
+    // Tout vide
+    const empty = { version: 1, plans: [] }
+    setDcaPlans(empty)
+  }, [user, accessToken, gapiReady])
+
   useEffect(() => {
     if (user && accessToken && gapiReady) {
       fetchPortfolio()
       fetchInsightsFromDrive()
       fetchDcaConfigFromDrive()
+      // On passe portfolio directement pour l'auto-link lors de la migration
+      // Note: portfolioSnapshot peut être null au premier appel si les données ne sont pas encore chargées.
+      // fetchDcaPlansFromDrive sera rappelé avec le portfolio une fois chargé (voir effet ci-dessous).
+      fetchDcaPlansFromDrive(null)
     } else {
       if (isGuest) {
         setPortfolio(GUEST_DEMO_PORTFOLIO)
@@ -101,8 +144,9 @@ export function PortfolioProvider({ children }) {
       setDriveConnected(false)
       setInsightsData(null)
       setDcaConfig(null)
+      setDcaPlans(null)
     }
-  }, [user, accessToken, gapiReady, isGuest, fetchPortfolio, fetchInsightsFromDrive, fetchDcaConfigFromDrive])
+  }, [user, accessToken, gapiReady, isGuest, fetchPortfolio, fetchInsightsFromDrive, fetchDcaConfigFromDrive, fetchDcaPlansFromDrive])
 
   // Debounced save to Drive
   const saveToDrive = useCallback((data) => {
@@ -139,6 +183,100 @@ export function PortfolioProvider({ children }) {
       try { await saveFileToDrive('dca-config.json', data) } catch (e) { console.warn('Drive DCA save error:', e) }
     }, 1500)
   }, [user, accessToken, gapiReady])
+
+  // ── DCA Plans CRUD ────────────────────────────────────────────────────────────
+
+  const saveDcaPlansData = useCallback((data) => {
+    setDcaPlans(data)
+    localStorage.setItem('pm_dca_plans_cache', JSON.stringify(data))
+    if (!user || !accessToken || !gapiReady) return
+    if (dcaPlansSaveTimer.current) clearTimeout(dcaPlansSaveTimer.current)
+    dcaPlansSaveTimer.current = setTimeout(async () => {
+      try { await saveFileToDrive('dca_plans.json', data) } catch (e) { console.warn('Drive DCA plans save error:', e) }
+    }, 1500)
+  }, [user, accessToken, gapiReady])
+
+  const updateDcaPlansState = useCallback((updater) => {
+    setDcaPlans(prev => {
+      const current = prev || { version: 1, plans: [] }
+      const updated = updater(current)
+      localStorage.setItem('pm_dca_plans_cache', JSON.stringify(updated))
+      if (user && accessToken && gapiReady) {
+        if (dcaPlansSaveTimer.current) clearTimeout(dcaPlansSaveTimer.current)
+        dcaPlansSaveTimer.current = setTimeout(async () => {
+          try { await saveFileToDrive('dca_plans.json', updated) } catch {}
+        }, 1500)
+      }
+      return updated
+    })
+  }, [user, accessToken, gapiReady])
+
+  const createDcaPlan = useCallback((planData) => {
+    const plan_id = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const plan = {
+      plan_id,
+      label:                  planData.label || 'Plan DCA',
+      enabled:                true,
+      account_type:           planData.account_type || 'pea',
+      asset_target: {
+        isin:         planData.asset_target?.isin        || null,
+        symbol:       planData.asset_target?.symbol      || null,
+        name:         planData.asset_target?.name        || null,
+        coingecko_id: planData.asset_target?.coingecko_id || null,
+      },
+      asset_link:             planData.asset_link || null,
+      cadence:                planData.cadence || 'monthly',
+      day_of_month:           planData.day_of_month || 1,
+      amount_per_period:      planData.amount_per_period || 0,
+      currency:               'EUR',
+      start_date:             planData.start_date || new Date().toISOString().slice(0, 10),
+      end_date:               planData.end_date || null,
+      tolerance_days:         planData.tolerance_days || 7,
+      annual_return_estimate: planData.annual_return_estimate ?? 8,
+      notes:                  planData.notes || '',
+      created_at:             new Date().toISOString(),
+      migrated_from:          null,
+    }
+    updateDcaPlansState(prev => ({ ...prev, plans: [...prev.plans, plan] }))
+    return plan_id
+  }, [updateDcaPlansState])
+
+  const updateDcaPlan = useCallback((plan_id, data) => {
+    updateDcaPlansState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => p.plan_id === plan_id ? { ...p, ...data } : p),
+    }))
+  }, [updateDcaPlansState])
+
+  const deleteDcaPlan = useCallback((plan_id) => {
+    updateDcaPlansState(prev => ({
+      ...prev,
+      plans: prev.plans.filter(p => p.plan_id !== plan_id),
+    }))
+  }, [updateDcaPlansState])
+
+  const linkPlanToAsset = useCallback((plan_id, asset_id, account_type, match_method = 'manual') => {
+    updateDcaPlansState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => p.plan_id !== plan_id ? p : {
+        ...p,
+        asset_link: {
+          portfolio_asset_id: asset_id,
+          account_type,
+          match_method,
+          match_score: 1.0,
+          auto_linked: false,
+        },
+      }),
+    }))
+  }, [updateDcaPlansState])
+
+  const unlinkPlan = useCallback((plan_id) => {
+    updateDcaPlansState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => p.plan_id !== plan_id ? p : { ...p, asset_link: null }),
+    }))
+  }, [updateDcaPlansState])
 
   const updateAndSave = useCallback((updater) => {
     setPortfolio(prev => {
@@ -380,6 +518,8 @@ export function PortfolioProvider({ children }) {
       fetchPortfolio,
       insightsData, saveInsights,
       dcaConfig, saveDcaConfig,
+      dcaPlans: dcaPlans || { version: 1, plans: [] },
+      createDcaPlan, updateDcaPlan, deleteDcaPlan, linkPlanToAsset, unlinkPlan,
       updatePrices, pricesLastUpdated,
       isRefreshingPrices, setIsRefreshingPrices,
       priceRefreshError, setPriceRefreshError,

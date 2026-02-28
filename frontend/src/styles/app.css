@@ -5920,3 +5920,182 @@ tbody tr:hover {
   box-sizing: border-box;
 }
 .coach-input:focus { outline: none; border-color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════════
+   DCA PLANS — styles v2
+   ═══════════════════════════════════════════════════════ */
+
+.dca-page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 20px; gap: 12px; flex-wrap: wrap;
+}
+.dca-page-header h2 { font-size: 1.25rem; font-weight: 700; margin: 0; }
+
+/* ── Résumé global ── */
+.dca-global-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px; margin-bottom: 20px;
+}
+.dca-gstat {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px;
+}
+.dca-gstat-label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; }
+.dca-gstat-value { font-size: 1rem; font-weight: 700; }
+
+/* ── Grille des plans ── */
+.dca-plans-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+/* ── Carte plan ── */
+.dca-plan-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 0;
+  transition: box-shadow 0.15s;
+}
+.dca-plan-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.dca-plan-card--paused { opacity: 0.65; }
+
+.dca-plan-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 4px;
+}
+.dca-plan-header-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.dca-plan-header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dca-plan-name { font-weight: 700; font-size: 0.92rem; }
+.dca-plan-amount { font-size: 0.82rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+/* ── Badge statut ── */
+.dca-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 99px; font-size: 0.72rem; font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Lien actif manquant ── */
+.dca-link-prompt {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--warning-light, #fef3c740); border: 1px solid #f59e0b40;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+}
+
+/* ── Barre de progression ── */
+.dca-progress-wrap {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.dca-progress-track {
+  flex: 1; height: 7px; border-radius: 99px;
+  background: var(--border); overflow: hidden;
+}
+.dca-progress-bar {
+  height: 100%; background: var(--accent); border-radius: 99px;
+  transition: width 0.5s ease;
+}
+.dca-progress-pct { font-size: 0.72rem; font-weight: 700; min-width: 36px; text-align: right; }
+
+/* ── Stats row ── */
+.dca-stats-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.dca-stat { flex: 1; min-width: 60px; }
+.dca-stat-label { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 2px; }
+.dca-stat-value { font-size: 0.82rem; font-weight: 700; }
+
+/* ── Discipline bar ── */
+.dca-discipline-wrap {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.dca-discipline-track {
+  flex: 1; height: 5px; border-radius: 99px; background: var(--border); overflow: hidden;
+}
+
+/* ── Prochaines dates ── */
+.dca-upcoming {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.dca-upcoming-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 99px;
+  background: var(--accent)18; color: var(--accent);
+  font-size: 0.70rem; font-weight: 600;
+}
+
+/* ── Détails expandés ── */
+.dca-expanded { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.dca-chart-wrap { margin-bottom: 10px; }
+
+/* ── Tableau lignes ── */
+.dca-lines-table-scroll { overflow-x: auto; }
+.dca-lines-table {
+  width: 100%; border-collapse: collapse; font-size: 0.76rem;
+}
+.dca-lines-table th {
+  padding: 5px 8px; text-align: left; font-weight: 600;
+  color: var(--text-muted); border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dca-lines-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.dca-lines-table tr.dca-row-future td { color: var(--text-muted); font-style: italic; }
+
+.dca-row-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 99px; font-size: 0.68rem; font-weight: 600;
+}
+.dca-row-chip--ok     { background: #22c55e20; color: #22c55e; }
+.dca-row-chip--miss   { background: #ef444420; color: #ef4444; }
+.dca-row-chip--future { background: var(--accent)18; color: var(--accent); }
+
+/* ── Actions carte ── */
+.dca-plan-actions {
+  display: flex; gap: 6px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+
+/* ── Asset picker ── */
+.dca-asset-picker {
+  background: var(--bg-secondary, var(--bg-card)); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; margin-top: 8px;
+}
+.dca-asset-picker-title {
+  font-size: 0.78rem; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);
+}
+.dca-asset-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+.dca-asset-picker-item {
+  display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-card); cursor: pointer; text-align: left;
+  transition: background 0.12s;
+}
+.dca-asset-picker-item:hover { background: var(--accent)15; }
+
+/* ── Formulaire nouveau plan ── */
+.dca-plan-form { }
+.dca-form-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+.dca-form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.dca-form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+.dca-form-group.full-width { flex: 0 0 100%; }
+.dca-form-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+.dca-form-group input, .dca-form-group select {
+  padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-primary); font-size: 0.82rem;
+  box-sizing: border-box; width: 100%;
+}
+.dca-form-group input:focus, .dca-form-group select:focus {
+  outline: none; border-color: var(--accent);
+}
+
+/* ── État vide ── */
+.dca-empty-state {
+  text-align: center; padding: 48px 24px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .dca-plans-grid { grid-template-columns: 1fr; }
+  .dca-stats-row { gap: 6px; }
+  .dca-stat { min-width: 50px; }
+}
