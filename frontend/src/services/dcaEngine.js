@@ -297,10 +297,28 @@ export function computeDisciplineScore(plan, expectedDates, contributions) {
 export function computeDcaProgress(plan, asset, asOfDate) {
   const today   = asOfDate || new Date().toISOString().slice(0, 10)
   const { past: expectedDates, upcoming: upcomingDates } =
-    computeScheduledDates(plan, today, 3)
+    computeScheduledDates(plan, today, 6)
 
   const contributions  = extractContributions(plan, asset, today)
-  const expected_total = expectedDates.length * plan.amount_per_period
+  const tol = plan.tolerance_days || 7
+
+  // Compter les dates passées + les dates futures déjà couvertes par un versement
+  const coveredUpcoming = []
+  const trueUpcoming = []
+  for (const d of upcomingDates) {
+    const month = d.slice(0, 7)
+    const hasByMonth = contributions.some(c => c.date.startsWith(month))
+    const hasByTol   = contributions.some(c => daysBetween(d, c.date) <= tol)
+    if (hasByMonth || hasByTol) {
+      coveredUpcoming.push(d)
+    } else {
+      trueUpcoming.push(d)
+    }
+  }
+
+  // Dates effectives = passées + futures déjà couvertes
+  const allCoveredDates = [...expectedDates, ...coveredUpcoming]
+  const expected_total = allCoveredDates.length * plan.amount_per_period
   const actual_total   = contributions.reduce((s, c) => s + c.amount, 0)
   const gap            = actual_total - expected_total
   const on_track       = Math.abs(gap) <= plan.amount_per_period * 1.0
@@ -311,15 +329,15 @@ export function computeDcaProgress(plan, asset, asOfDate) {
   const pnl_eur       = current_value - actual_total
   const pnl_pct       = actual_total > 0 ? (pnl_eur / actual_total) * 100 : 0
 
-  const discipline_score = computeDisciplineScore(plan, expectedDates, contributions)
+  const discipline_score = computeDisciplineScore(plan, allCoveredDates, contributions)
   const monthly_series   = buildMonthlySeries(plan, contributions, today, 3)
 
   // Status
   let status
-  if (!plan.enabled)               status = 'paused'
-  else if (expectedDates.length === 0) status = 'pending'
-  else if (on_track)               status = 'on_track'
-  else if (gap < 0)                status = 'behind'
+  if (!plan.enabled)                    status = 'paused'
+  else if (allCoveredDates.length === 0) status = 'pending'
+  else if (on_track)                    status = 'on_track'
+  else if (gap < 0)                     status = 'behind'
   else                             status = 'ahead'
 
   return {
@@ -330,9 +348,9 @@ export function computeDcaProgress(plan, asset, asOfDate) {
     contribution_gap:      Math.round(gap),
     on_track,
     status,
-    periods_expected:     expectedDates.length,
+    periods_expected:     allCoveredDates.length,
     periods_executed:     contributions.length,
-    upcoming_dates:       upcomingDates,
+    upcoming_dates:       trueUpcoming.slice(0, 3),
     current_value:        Math.round(current_value),
     current_qty,
     pnl_eur:              Math.round(pnl_eur),
