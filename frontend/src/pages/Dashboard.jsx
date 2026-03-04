@@ -414,18 +414,18 @@ export default function Dashboard() {
           {(() => {
             let pct
             if (peaPeriod === 'max') { pct = peaGainPct }
-            else {
+            else if (peaPeriod === '24h') {
               const sum = portfolio.pea.reduce((acc, p) => {
                 const prev = p.previousClose; if (prev == null) return acc
                 return acc + ((p.currentPrice || p.buyPrice) - prev) * p.quantity
               }, 0)
               pct = totals.pea > 0 ? (sum / totals.pea) * 100 : null
-            }
+            } else { pct = null }
             return (
               <>
                 <div className={`dash-stat-sub ${(pct ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}>{pct != null ? mp(fmtPct(pct)) : '—'}</div>
                 <div className="change-period-selector change-period-selector--compact">
-                  {[{ key: 'day', label: 'J-1' }, { key: 'max', label: 'Max' }].map(p => (
+                  {[{ key: '1h', label: '1h' },{ key: '24h', label: '24h' },{ key: '7d', label: '7j' },{ key: '30d', label: '30j' },{ key: '1y', label: '1a' },{ key: 'max', label: 'Max' }].map(p => (
                     <button key={p.key} className={`change-period-btn${peaPeriod === p.key ? ' active' : ''}`}
                       onClick={() => setPeaPeriod(p.key)}>{p.label}</button>
                   ))}

@@ -210,9 +210,25 @@ function PerformanceChart({ asset }) {
 
 /* ===== Accordion Card ===== */
 const PEA_PERIODS = [
-  { key: 'day', label: 'J-1' },
+  { key: '1h', label: '1h' },
+  { key: '24h', label: '24h' },
+  { key: '7d', label: '7j' },
+  { key: '30d', label: '30j' },
+  { key: '1y', label: '1a' },
   { key: 'max', label: 'Max' },
 ]
+
+function getPeaChange(asset, period, gain, gainPct) {
+  if (period === 'max') return { eur: gain, pct: gainPct }
+  // Only J-1 (24h) is available via previousClose
+  if (period === '24h' && asset.previousClose != null) {
+    const cur = asset.currentPrice || asset.buyPrice
+    const eur = (cur - asset.previousClose) * asset.quantity
+    const pct = asset.previousClose > 0 ? ((cur - asset.previousClose) / asset.previousClose) * 100 : 0
+    return { eur, pct }
+  }
+  return { eur: null, pct: null }
+}
 
 function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDeleteMovement }) {
   const { m, mp } = usePrivacyMask()
@@ -290,21 +306,11 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
             ))}
           </div>
           {(() => {
-            if (changePeriod === 'max') {
-              return (
-                <span className={`pea-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {m(`${gain >= 0 ? '+' : ''}${fmt(gain)}`)} ({mp(fmtPct(gainPct))})
-                </span>
-              )
-            }
-            // J-1
-            const prev = asset.previousClose
-            if (prev == null) return <span className="pea-summary-value">—</span>
-            const dayChange = (current - prev) * asset.quantity
-            const dayPct = prev > 0 ? ((current - prev) / prev) * 100 : 0
+            const { eur, pct } = getPeaChange(asset, changePeriod, gain, gainPct)
+            if (pct == null) return <span className="pea-summary-value">—</span>
             return (
-              <span className={`pea-summary-value font-semibold ${dayChange >= 0 ? 'text-success' : 'text-danger'}`}>
-                {m(`${dayChange >= 0 ? '+' : ''}${fmt(dayChange)}`)} ({mp(fmtPct(dayPct))})
+              <span className={`pea-summary-value font-semibold ${pct >= 0 ? 'text-success' : 'text-danger'}`}>
+                {m(`${eur >= 0 ? '+' : ''}${fmt(eur)}`)} ({mp(fmtPct(pct))})
               </span>
             )
           })()}
@@ -431,20 +437,21 @@ export default function PEA() {
                 let aggEur, aggPct
                 if (headerPeriod === 'max') {
                   aggEur = totalGain; aggPct = totalGainPct
-                } else {
-                  // J-1 aggregate
+                } else if (headerPeriod === '24h') {
                   aggEur = portfolio.pea.reduce((sum, p) => {
                     const prev = p.previousClose
                     if (prev == null) return sum
                     return sum + ((p.currentPrice || p.buyPrice) - prev) * p.quantity
                   }, 0)
                   aggPct = totals.pea > 0 ? (aggEur / totals.pea) * 100 : 0
+                } else {
+                  aggEur = null; aggPct = null
                 }
                 return (
                   <>
-                    <span className={`badge ${aggPct >= 0 ? 'badge-success' : 'badge-danger'}`}>
-                      {aggPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {m(fmt(aggEur))} ({mp(fmtPct(aggPct))})
+                    <span className={`badge ${(aggPct ?? 0) >= 0 ? 'badge-success' : 'badge-danger'}`}>
+                      {(aggPct ?? 0) >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {aggEur != null ? `${m(fmt(aggEur))} (${mp(fmtPct(aggPct))})` : '—'}
                     </span>
                     <div className="change-period-selector">
                       {PEA_PERIODS.map(p => (
