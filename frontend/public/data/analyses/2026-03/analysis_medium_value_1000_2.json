@@ -1,0 +1,287 @@
+{
+  "month": "2026-03",
+  "id": "analysis_medium_value_1000_2",
+  "profile": {
+    "riskTolerance": "medium",
+    "amount": 1000,
+    "horizon": "3-5 years",
+    "style": "value",
+    "sectors": [
+      "technology",
+      "healthcare"
+    ],
+    "geography": "global",
+    "esg": "light"
+  },
+  "summary": {
+    "strategy": "Moderate value approach across technology and healthcare seeking overlooked quality at reasonable prices. Focus on companies with strong free cash flow yields and improving fundamental trajectories in both sectors.",
+    "marketContext": "Select technology and healthcare value names offering compelling risk-reward after sector-wide volatility. Earnings revision breadth improving for undervalued names. Quality-value factor showing positive momentum.",
+    "keyRisks": [
+      "Value stocks may continue to lag growth leadership",
+      "Sector-specific headwinds in both technology and healthcare regulation",
+      "Medium horizon may not capture full value realization"
+    ]
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "company": "Merck & Co.",
+      "ticker": "MRK",
+      "sector": "healthcare",
+      "pe": {
+        "value": 14.2,
+        "sectorAvg": 22.3,
+        "comment": "Deep discount reflects Keytruda patent cliff concerns"
+      },
+      "revenueGrowth5y": "9.8% CAGR",
+      "debtToEquity": 0.85,
+      "dividendYield": 2.85,
+      "moat": "moderate",
+      "priceTargetBull": 125,
+      "priceTargetBear": 82,
+      "riskScore": 5,
+      "entryZone": "$92–$102",
+      "stopLoss": "$80"
+    },
+    {
+      "rank": 2,
+      "company": "Johnson & Johnson",
+      "ticker": "JNJ",
+      "sector": "healthcare",
+      "pe": {
+        "value": 15.2,
+        "sectorAvg": 22.3,
+        "comment": "Below average due to litigation overhang; strong MedTech offsets"
+      },
+      "revenueGrowth5y": "5.1% CAGR",
+      "debtToEquity": 0.44,
+      "dividendYield": 3.15,
+      "moat": "strong",
+      "priceTargetBull": 185,
+      "priceTargetBear": 140,
+      "riskScore": 3,
+      "entryZone": "$150–$160",
+      "stopLoss": "$138"
+    },
+    {
+      "rank": 3,
+      "company": "AbbVie Inc.",
+      "ticker": "ABBV",
+      "sector": "healthcare",
+      "pe": {
+        "value": 17.5,
+        "sectorAvg": 22.3,
+        "comment": "Humira cliff priced in; Skyrizi/Rinvoq recovery underway"
+      },
+      "revenueGrowth5y": "8.2% CAGR",
+      "debtToEquity": 4.15,
+      "dividendYield": 3.45,
+      "moat": "moderate",
+      "priceTargetBull": 215,
+      "priceTargetBear": 160,
+      "riskScore": 5,
+      "entryZone": "$172–$185",
+      "stopLoss": "$155"
+    },
+    {
+      "rank": 4,
+      "company": "UnitedHealth Group",
+      "ticker": "UNH",
+      "sector": "healthcare",
+      "pe": {
+        "value": 19.8,
+        "sectorAvg": 22.3,
+        "comment": "Discount reflects regulatory overhang despite Optum growth"
+      },
+      "revenueGrowth5y": "12.5% CAGR",
+      "debtToEquity": 0.75,
+      "dividendYield": 1.45,
+      "moat": "strong",
+      "priceTargetBull": 620,
+      "priceTargetBear": 470,
+      "riskScore": 4,
+      "entryZone": "$500–$525",
+      "stopLoss": "$460"
+    },
+    {
+      "rank": 5,
+      "company": "Amgen Inc.",
+      "ticker": "AMGN",
+      "sector": "healthcare",
+      "pe": {
+        "value": 20.1,
+        "sectorAvg": 22.3,
+        "comment": "Slight discount; biosimilar portfolio diversifies beyond Enbrel"
+      },
+      "revenueGrowth5y": "6.5% CAGR",
+      "debtToEquity": 5.25,
+      "dividendYield": 2.95,
+      "moat": "moderate",
+      "priceTargetBull": 340,
+      "priceTargetBear": 255,
+      "riskScore": 5,
+      "entryZone": "$275–$295",
+      "stopLoss": "$250"
+    },
+    {
+      "rank": 6,
+      "company": "Taiwan Semiconductor",
+      "ticker": "TSM",
+      "sector": "technology",
+      "pe": {
+        "value": 22.4,
+        "sectorAvg": 28.5,
+        "comment": "Discount reflects geopolitical risk despite foundry monopoly"
+      },
+      "revenueGrowth5y": "20.1% CAGR",
+      "debtToEquity": 0.24,
+      "dividendYield": 1.15,
+      "moat": "strong",
+      "priceTargetBull": 215,
+      "priceTargetBear": 150,
+      "riskScore": 6,
+      "entryZone": "$165–$178",
+      "stopLoss": "$145"
+    },
+    {
+      "rank": 7,
+      "company": "Alphabet Inc.",
+      "ticker": "GOOGL",
+      "sector": "technology",
+      "pe": {
+        "value": 23.1,
+        "sectorAvg": 28.5,
+        "comment": "Discount to sector despite dominant ad and cloud franchise"
+      },
+      "revenueGrowth5y": "16.8% CAGR",
+      "debtToEquity": 0.08,
+      "dividendYield": 0.45,
+      "moat": "strong",
+      "priceTargetBull": 210,
+      "priceTargetBear": 155,
+      "riskScore": 4,
+      "entryZone": "$168–$178",
+      "stopLoss": "$150"
+    },
+    {
+      "rank": 8,
+      "company": "Meta Platforms Inc.",
+      "ticker": "META",
+      "sector": "technology",
+      "pe": {
+        "value": 25.4,
+        "sectorAvg": 28.5,
+        "comment": "Below sector average; monetization efficiency offsets Reality Labs drag"
+      },
+      "revenueGrowth5y": "15.7% CAGR",
+      "debtToEquity": 0.22,
+      "dividendYield": 0.35,
+      "moat": "strong",
+      "priceTargetBull": 680,
+      "priceTargetBear": 480,
+      "riskScore": 5,
+      "entryZone": "$530–$560",
+      "stopLoss": "$470"
+    },
+    {
+      "rank": 9,
+      "company": "Thermo Fisher Scientific",
+      "ticker": "TMO",
+      "sector": "healthcare",
+      "pe": {
+        "value": 27.8,
+        "sectorAvg": 22.3,
+        "comment": "Premium for life sciences tools monopoly position"
+      },
+      "revenueGrowth5y": "10.5% CAGR",
+      "debtToEquity": 0.65,
+      "dividendYield": 0.22,
+      "moat": "strong",
+      "priceTargetBull": 640,
+      "priceTargetBear": 480,
+      "riskScore": 4,
+      "entryZone": "$520–$550",
+      "stopLoss": "$470"
+    },
+    {
+      "rank": 10,
+      "company": "Danaher Corp.",
+      "ticker": "DHR",
+      "sector": "healthcare",
+      "pe": {
+        "value": 28.5,
+        "sectorAvg": 22.3,
+        "comment": "Premium for Danaher Business System and recurring bioprocessing revenue"
+      },
+      "revenueGrowth5y": "7.8% CAGR",
+      "debtToEquity": 0.32,
+      "dividendYield": 0.42,
+      "moat": "strong",
+      "priceTargetBull": 290,
+      "priceTargetBear": 210,
+      "riskScore": 4,
+      "entryZone": "$230–$248",
+      "stopLoss": "$205"
+    }
+  ],
+  "portfolioAllocation": [
+    {
+      "company": "Merck & Co.",
+      "weightPct": 15.5,
+      "amount": 155.0
+    },
+    {
+      "company": "Johnson & Johnson",
+      "weightPct": 14.3,
+      "amount": 143.0
+    },
+    {
+      "company": "AbbVie Inc.",
+      "weightPct": 13.0,
+      "amount": 130.0
+    },
+    {
+      "company": "UnitedHealth Group",
+      "weightPct": 11.8,
+      "amount": 118.0
+    },
+    {
+      "company": "Amgen Inc.",
+      "weightPct": 10.5,
+      "amount": 105.0
+    },
+    {
+      "company": "Taiwan Semiconductor",
+      "weightPct": 9.3,
+      "amount": 93.0
+    },
+    {
+      "company": "Alphabet Inc.",
+      "weightPct": 8.1,
+      "amount": 81.0
+    },
+    {
+      "company": "Meta Platforms Inc.",
+      "weightPct": 6.8,
+      "amount": 68.0
+    },
+    {
+      "company": "Thermo Fisher Scientific",
+      "weightPct": 5.6,
+      "amount": 56.0
+    },
+    {
+      "company": "Danaher Corp.",
+      "weightPct": 5.2,
+      "amount": 52.0
+    }
+  ],
+  "globalRisks": [
+    "Federal Reserve policy uncertainty and interest rate trajectory",
+    "Geopolitical tensions affecting global supply chains and trade flows",
+    "Inflation persistence impacting corporate margins and consumer spending",
+    "Potential US recession risk with leading indicators showing mixed signals",
+    "Currency volatility in global portfolios affecting returns"
+  ],
+  "disclaimer": "Educational analysis. Not financial advice."
+}

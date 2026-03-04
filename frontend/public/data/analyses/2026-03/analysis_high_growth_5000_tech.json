@@ -1,0 +1,286 @@
+{
+  "month": "2026-03",
+  "id": "analysis_high_growth_5000_tech",
+  "profile": {
+    "riskTolerance": "high",
+    "amount": 5000,
+    "horizon": "5+ years",
+    "style": "growth",
+    "sectors": [
+      "technology"
+    ],
+    "geography": "US",
+    "esg": "none"
+  },
+  "summary": {
+    "strategy": "Maximum growth allocation in technology sector leaders with highest revenue growth trajectories and market share expansion potential. Leveraging larger investment base for concentrated high-conviction positions in AI infrastructure and platform companies.",
+    "marketContext": "Generative AI spending entering second wave with enterprise adoption accelerating. Semiconductor demand outpacing supply additions. Cloud hyperscalers guiding for sustained capital expenditure growth through 2027.",
+    "keyRisks": [
+      "Extreme valuation multiples vulnerable to sentiment shifts",
+      "Regulatory intervention in AI development or deployment",
+      "Technology spending cycle peak risk as corporate budgets tighten"
+    ]
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "company": "NVIDIA Corp.",
+      "ticker": "NVDA",
+      "sector": "technology",
+      "pe": {
+        "value": 42.5,
+        "sectorAvg": 28.5,
+        "comment": "Elevated PE driven by AI accelerator demand cycle"
+      },
+      "revenueGrowth5y": "52.3% CAGR",
+      "debtToEquity": 0.41,
+      "dividendYield": 0.03,
+      "moat": "strong",
+      "priceTargetBull": 175,
+      "priceTargetBear": 105,
+      "riskScore": 7,
+      "entryZone": "$118–$128",
+      "stopLoss": "$100"
+    },
+    {
+      "rank": 2,
+      "company": "Palantir Technologies",
+      "ticker": "PLTR",
+      "sector": "technology",
+      "pe": {
+        "value": 120.5,
+        "sectorAvg": 28.5,
+        "comment": "Extreme premium pricing in government and enterprise AI analytics"
+      },
+      "revenueGrowth5y": "30.2% CAGR",
+      "debtToEquity": 0.0,
+      "dividendYield": 0.0,
+      "moat": "moderate",
+      "priceTargetBull": 105,
+      "priceTargetBear": 50,
+      "riskScore": 9,
+      "entryZone": "$65–$75",
+      "stopLoss": "$48"
+    },
+    {
+      "rank": 3,
+      "company": "Advanced Micro Devices",
+      "ticker": "AMD",
+      "sector": "technology",
+      "pe": {
+        "value": 45.2,
+        "sectorAvg": 28.5,
+        "comment": "Premium reflects AI GPU share gains from NVIDIA"
+      },
+      "revenueGrowth5y": "28.6% CAGR",
+      "debtToEquity": 0.04,
+      "dividendYield": 0.0,
+      "moat": "moderate",
+      "priceTargetBull": 185,
+      "priceTargetBear": 110,
+      "riskScore": 7,
+      "entryZone": "$125–$140",
+      "stopLoss": "$108"
+    },
+    {
+      "rank": 4,
+      "company": "ServiceNow Inc.",
+      "ticker": "NOW",
+      "sector": "technology",
+      "pe": {
+        "value": 55.3,
+        "sectorAvg": 28.5,
+        "comment": "High PE justified by 20%+ revenue growth and IT workflow dominance"
+      },
+      "revenueGrowth5y": "24.1% CAGR",
+      "debtToEquity": 0.28,
+      "dividendYield": 0.0,
+      "moat": "strong",
+      "priceTargetBull": 1050,
+      "priceTargetBear": 750,
+      "riskScore": 5,
+      "entryZone": "$830–$880",
+      "stopLoss": "$740"
+    },
+    {
+      "rank": 5,
+      "company": "Amazon.com Inc.",
+      "ticker": "AMZN",
+      "sector": "technology",
+      "pe": {
+        "value": 38.6,
+        "sectorAvg": 28.5,
+        "comment": "AWS margin expansion supports premium valuation"
+      },
+      "revenueGrowth5y": "21.5% CAGR",
+      "debtToEquity": 0.55,
+      "dividendYield": 0.0,
+      "moat": "strong",
+      "priceTargetBull": 240,
+      "priceTargetBear": 170,
+      "riskScore": 5,
+      "entryZone": "$192–$205",
+      "stopLoss": "$175"
+    },
+    {
+      "rank": 6,
+      "company": "Taiwan Semiconductor",
+      "ticker": "TSM",
+      "sector": "technology",
+      "pe": {
+        "value": 22.4,
+        "sectorAvg": 28.5,
+        "comment": "Discount reflects geopolitical risk despite foundry monopoly"
+      },
+      "revenueGrowth5y": "20.1% CAGR",
+      "debtToEquity": 0.24,
+      "dividendYield": 1.15,
+      "moat": "strong",
+      "priceTargetBull": 215,
+      "priceTargetBear": 150,
+      "riskScore": 6,
+      "entryZone": "$165–$178",
+      "stopLoss": "$145"
+    },
+    {
+      "rank": 7,
+      "company": "Broadcom Inc.",
+      "ticker": "AVGO",
+      "sector": "technology",
+      "pe": {
+        "value": 29.8,
+        "sectorAvg": 28.5,
+        "comment": "In-line with sector; VMware integration adds recurring revenue"
+      },
+      "revenueGrowth5y": "18.9% CAGR",
+      "debtToEquity": 1.02,
+      "dividendYield": 1.25,
+      "moat": "strong",
+      "priceTargetBull": 230,
+      "priceTargetBear": 165,
+      "riskScore": 5,
+      "entryZone": "$178–$190",
+      "stopLoss": "$160"
+    },
+    {
+      "rank": 8,
+      "company": "Salesforce Inc.",
+      "ticker": "CRM",
+      "sector": "technology",
+      "pe": {
+        "value": 28.9,
+        "sectorAvg": 28.5,
+        "comment": "At sector average; margin expansion story intact"
+      },
+      "revenueGrowth5y": "17.8% CAGR",
+      "debtToEquity": 0.18,
+      "dividendYield": 0.55,
+      "moat": "moderate",
+      "priceTargetBull": 360,
+      "priceTargetBear": 260,
+      "riskScore": 5,
+      "entryZone": "$285–$300",
+      "stopLoss": "$255"
+    },
+    {
+      "rank": 9,
+      "company": "Alphabet Inc.",
+      "ticker": "GOOGL",
+      "sector": "technology",
+      "pe": {
+        "value": 23.1,
+        "sectorAvg": 28.5,
+        "comment": "Discount to sector despite dominant ad and cloud franchise"
+      },
+      "revenueGrowth5y": "16.8% CAGR",
+      "debtToEquity": 0.08,
+      "dividendYield": 0.45,
+      "moat": "strong",
+      "priceTargetBull": 210,
+      "priceTargetBear": 155,
+      "riskScore": 4,
+      "entryZone": "$168–$178",
+      "stopLoss": "$150"
+    },
+    {
+      "rank": 10,
+      "company": "Meta Platforms Inc.",
+      "ticker": "META",
+      "sector": "technology",
+      "pe": {
+        "value": 25.4,
+        "sectorAvg": 28.5,
+        "comment": "Below sector average; monetization efficiency offsets Reality Labs drag"
+      },
+      "revenueGrowth5y": "15.7% CAGR",
+      "debtToEquity": 0.22,
+      "dividendYield": 0.35,
+      "moat": "strong",
+      "priceTargetBull": 680,
+      "priceTargetBear": 480,
+      "riskScore": 5,
+      "entryZone": "$530–$560",
+      "stopLoss": "$470"
+    }
+  ],
+  "portfolioAllocation": [
+    {
+      "company": "NVIDIA Corp.",
+      "weightPct": 15.5,
+      "amount": 775.0
+    },
+    {
+      "company": "Palantir Technologies",
+      "weightPct": 14.3,
+      "amount": 715.0
+    },
+    {
+      "company": "Advanced Micro Devices",
+      "weightPct": 13.0,
+      "amount": 650.0
+    },
+    {
+      "company": "ServiceNow Inc.",
+      "weightPct": 11.8,
+      "amount": 590.0
+    },
+    {
+      "company": "Amazon.com Inc.",
+      "weightPct": 10.5,
+      "amount": 525.0
+    },
+    {
+      "company": "Taiwan Semiconductor",
+      "weightPct": 9.3,
+      "amount": 465.0
+    },
+    {
+      "company": "Broadcom Inc.",
+      "weightPct": 8.1,
+      "amount": 405.0
+    },
+    {
+      "company": "Salesforce Inc.",
+      "weightPct": 6.8,
+      "amount": 340.0
+    },
+    {
+      "company": "Alphabet Inc.",
+      "weightPct": 5.6,
+      "amount": 280.0
+    },
+    {
+      "company": "Meta Platforms Inc.",
+      "weightPct": 5.2,
+      "amount": 260.0
+    }
+  ],
+  "globalRisks": [
+    "Federal Reserve policy uncertainty and interest rate trajectory",
+    "Geopolitical tensions affecting global supply chains and trade flows",
+    "Inflation persistence impacting corporate margins and consumer spending",
+    "Potential US recession risk with leading indicators showing mixed signals",
+    "Currency volatility in global portfolios affecting returns"
+  ],
+  "disclaimer": "Educational analysis. Not financial advice."
+}

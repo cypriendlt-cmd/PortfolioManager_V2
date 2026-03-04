@@ -1,0 +1,314 @@
+{
+  "month": "2026-03",
+  "generatedAt": "2026-03-04T20:09:41.038Z",
+  "analyses": [
+    {
+      "file": "analysis_high_blend_2000.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "blend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_growth_1000_tech.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_growth_2000.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_growth_2000_tech.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_growth_5000_tech.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_value_1000.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_high_value_5000.json",
+      "profile": {
+        "riskTolerance": "high",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_low_blend_2000.json",
+      "profile": {
+        "riskTolerance": "low",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "blend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "strict"
+      }
+    },
+    {
+      "file": "analysis_low_dividend_1000.json",
+      "profile": {
+        "riskTolerance": "low",
+        "investmentAmount": 1000,
+        "horizon": "1-2 years",
+        "style": "dividend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_low_dividend_2000.json",
+      "profile": {
+        "riskTolerance": "low",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "dividend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_low_dividend_5000.json",
+      "profile": {
+        "riskTolerance": "low",
+        "investmentAmount": 5000,
+        "horizon": "long",
+        "style": "dividend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "europe",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_low_value_2000_heal.json",
+      "profile": {
+        "riskTolerance": "low",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "strict"
+      }
+    },
+    {
+      "file": "analysis_medium_blend_1000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "blend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_medium_blend_5000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "blend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_medium_dividend_1000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "dividend",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_medium_growth_1000_tech.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "none"
+      }
+    },
+    {
+      "file": "analysis_medium_growth_2000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "growth",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_medium_value_1000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_medium_value_1000_2.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_medium_value_2000_heal.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "3-5 years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "US",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_medium_value_5000.json",
+      "profile": {
+        "riskTolerance": "medium",
+        "investmentAmount": 1000,
+        "horizon": "5+ years",
+        "style": "value",
+        "preferredSectors": [
+          "diversified"
+        ],
+        "geography": "global",
+        "esg": "light"
+      }
+    },
+    {
+      "file": "analysis_moderate_growth_1000.json",
+      "profile": {
+        "riskTolerance": "moderate",
+        "investmentAmount": 1000,
+        "horizon": "medium",
+        "style": "growth",
+        "preferredSectors": [
+          "technology"
+        ],
+        "geography": "global",
+        "esg": "none"
+      }
+    }
+  ]
+}

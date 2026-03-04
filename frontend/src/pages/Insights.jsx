@@ -118,6 +118,12 @@ const ANALYSIS_GEO_OPTIONS = [
   { value: 'global', label: 'Global' },
 ]
 
+const ANALYSIS_ESG_OPTIONS = [
+  { value: 'none', label: 'Aucune' },
+  { value: 'light', label: 'ESG léger' },
+  { value: 'strict', label: 'ESG strict' },
+]
+
 function getRiskColor(score) {
   if (score <= 3) return '#10b981'
   if (score <= 5) return '#f59e0b'
@@ -136,6 +142,35 @@ function formatMonthLabel(monthKey) {
   return `${MONTH_LABELS[month] || month} ${year}`
 }
 
+/**
+ * Compute a match score between user profile and an analysis profile from the manifest.
+ * Higher score = better match. Each matching field adds points, weighted by importance.
+ */
+function computeMatchScore(userProfile, analysisProfile) {
+  let score = 0
+  // Risk tolerance — most important (weight 4)
+  if (userProfile.risk === analysisProfile.riskTolerance) score += 4
+  // Style — very important (weight 3)
+  if (userProfile.style === analysisProfile.style) score += 3
+  // Amount — important (weight 2), also reward closest amount
+  if (userProfile.amount === analysisProfile.investmentAmount) {
+    score += 2
+  } else {
+    const ratio = Math.min(userProfile.amount, analysisProfile.investmentAmount) / Math.max(userProfile.amount, analysisProfile.investmentAmount)
+    score += ratio // 0 to 1 partial credit
+  }
+  // Horizon (weight 2)
+  if (userProfile.horizon === analysisProfile.horizon) score += 2
+  // Sector (weight 2)
+  const analysisSectors = analysisProfile.preferredSectors || []
+  if (analysisSectors.includes(userProfile.sector)) score += 2
+  // Geography (weight 1.5)
+  if (userProfile.geo === analysisProfile.geography) score += 1.5
+  // ESG (weight 1)
+  if (userProfile.esg === analysisProfile.esg) score += 1
+  return score
+}
+
 // ─── Monthly Analysis Component ─────────────────────────────────────────────
 
 function MonthlyAnalysis() {
@@ -146,12 +181,15 @@ function MonthlyAnalysis() {
     style: 'growth',
     sector: 'technology',
     geo: 'global',
+    esg: 'none',
   })
   const [availableMonths, setAvailableMonths] = useState([])
   const [selectedMonth, setSelectedMonth] = useState('')
+  const [manifest, setManifest] = useState(null)
   const [analysisData, setAnalysisData] = useState(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
+  const [matchInfo, setMatchInfo] = useState(null) // info about the best match
   const [expandedStock, setExpandedStock] = useState(null)
 
   // Load available months on mount
@@ -159,11 +197,11 @@ function MonthlyAnalysis() {
     fetch('./data/analyses/index.json')
       .then(r => r.ok ? r.json() : Promise.reject('Index introuvable'))
       .then(data => {
-        setAvailableMonths(data.months || [])
-        setSelectedMonth(data.latest || data.months?.[0] || '')
+        const months = data.months || []
+        setAvailableMonths(months)
+        setSelectedMonth(data.latest || months[0] || '')
       })
       .catch(() => {
-        // Fallback: use current month
         const now = new Date()
         const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
         setAvailableMonths([current])
@@ -171,46 +209,85 @@ function MonthlyAnalysis() {
       })
   }, [])
 
+  // Load manifest whenever selectedMonth changes
+  useEffect(() => {
+    if (!selectedMonth) return
+    fetch(`./data/analyses/${selectedMonth}/manifest.json`)
+      .then(r => r.ok ? r.json() : Promise.reject('no manifest'))
+      .then(data => setManifest(data))
+      .catch(() => setManifest(null))
+  }, [selectedMonth])
+
   const updateProfile = (key, value) => {
     setProfile(prev => ({ ...prev, [key]: value }))
-    // Clear previous result when profile changes
     setAnalysisData(null)
     setAnalysisError(null)
+    setMatchInfo(null)
   }
 
-  const buildFileName = useCallback(() => {
-    return `risk_${profile.risk}_style_${profile.style}_amount_${profile.amount}_horizon_${profile.horizon}_sector_${profile.sector}_geo_${profile.geo}.json`
-  }, [profile])
-
-  const handleLoadAnalysis = async () => {
+  const handleLoadAnalysis = useCallback(async () => {
     if (!selectedMonth) return
     setAnalysisLoading(true)
     setAnalysisError(null)
     setAnalysisData(null)
     setExpandedStock(null)
+    setMatchInfo(null)
+
     try {
-      const fileName = buildFileName()
+      // If we have a manifest, use best-match logic
+      if (manifest?.analyses?.length > 0) {
+        let bestMatch = null
+        let bestScore = -1
+        for (const entry of manifest.analyses) {
+          const score = computeMatchScore(profile, entry.profile)
+          if (score > bestScore) {
+            bestScore = score
+            bestMatch = entry
+          }
+        }
+
+        if (bestMatch) {
+          const url = `./data/analyses/${selectedMonth}/${bestMatch.file}`
+          const res = await fetch(url)
+          if (res.ok) {
+            const data = await res.json()
+            setAnalysisData(data)
+            // Compute max possible score for match quality display
+            const maxScore = 4 + 3 + 2 + 2 + 2 + 1.5 + 1 // 15.5
+            const matchPct = Math.round((bestScore / maxScore) * 100)
+            const isExact = matchPct >= 95
+            setMatchInfo({ file: bestMatch.file, score: bestScore, pct: matchPct, isExact })
+            return
+          }
+        }
+      }
+
+      // Fallback: no manifest, try direct file name convention
+      const fileName = `analysis_${profile.risk}_${profile.style}_${profile.amount}.json`
       const url = `./data/analyses/${selectedMonth}/${fileName}`
       const res = await fetch(url)
-      if (!res.ok) {
-        throw new Error('not_found')
-      }
+      if (!res.ok) throw new Error('not_found')
       const data = await res.json()
       setAnalysisData(data)
+      setMatchInfo({ file: fileName, pct: 100, isExact: true })
     } catch {
-      setAnalysisError('Aucune analyse disponible pour ce profil ce mois-ci. Les analyses sont mises à jour régulièrement.')
+      setAnalysisError('Aucune analyse disponible pour ce profil ce mois-ci. Les analyses sont mises à jour régulièrement par l\'administrateur.')
     } finally {
       setAnalysisLoading(false)
     }
-  }
+  }, [selectedMonth, manifest, profile])
 
   const handleDownloadPdf = () => {
     if (!analysisData?.reportFile) return
     window.open(analysisData.reportFile, '_blank')
   }
 
+  // Resolve label from profile data
+  const profileLabel = (options, val) => options.find(o => o.value === val)?.label || val
+
   return (
     <div className="monthly-analysis-section">
+      {/* Header */}
       <div className="monthly-analysis-header">
         <div className="monthly-analysis-header-left">
           <div className="monthly-analysis-icon">
@@ -221,16 +298,21 @@ function MonthlyAnalysis() {
             <p className="monthly-analysis-subtitle">Rapports d'investissement pré-générés selon votre profil</p>
           </div>
         </div>
-        {availableMonths.length > 1 && (
-          <select className="screener-select" value={selectedMonth} onChange={e => { setSelectedMonth(e.target.value); setAnalysisData(null); setAnalysisError(null) }} style={{ width: 'auto', minWidth: 160 }}>
+        {availableMonths.length > 1 ? (
+          <select
+            className="screener-select"
+            value={selectedMonth}
+            onChange={e => { setSelectedMonth(e.target.value); setAnalysisData(null); setAnalysisError(null); setMatchInfo(null) }}
+            style={{ width: 'auto', minWidth: 160 }}
+          >
             {availableMonths.map(m => <option key={m} value={m}>{formatMonthLabel(m)}</option>)}
           </select>
-        )}
-        {availableMonths.length === 1 && selectedMonth && (
+        ) : selectedMonth ? (
           <span className="monthly-analysis-month-badge">{formatMonthLabel(selectedMonth)}</span>
-        )}
+        ) : null}
       </div>
 
+      {/* Profile form */}
       <div className="screener-form">
         <div className="screener-form-grid">
           <div className="screener-field">
@@ -269,14 +351,23 @@ function MonthlyAnalysis() {
               {ANALYSIS_GEO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
+          <div className="screener-field">
+            <label className="screener-label">Contraintes ESG</label>
+            <select className="screener-select" value={profile.esg} onChange={e => updateProfile('esg', e.target.value)}>
+              {ANALYSIS_ESG_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
         </div>
         <div className="screener-actions">
           <button className="btn btn-primary screener-analyze-btn" onClick={handleLoadAnalysis} disabled={analysisLoading || !selectedMonth}>
-            {analysisLoading ? (<><RefreshCw size={16} className="animate-pulse" /> Chargement...</>) : (<><Search size={16} /> Voir l'analyse</>)}
+            {analysisLoading
+              ? (<><RefreshCw size={16} className="animate-pulse" /> Chargement...</>)
+              : (<><Search size={16} /> Voir l'analyse</>)}
           </button>
         </div>
       </div>
 
+      {/* Error state */}
       {analysisError && (
         <div className="card mt-16" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'var(--warning)' }}>
           <div className="flex items-center gap-12">
@@ -286,55 +377,56 @@ function MonthlyAnalysis() {
         </div>
       )}
 
+      {/* Match info banner */}
+      {matchInfo && !matchInfo.isExact && analysisData && (
+        <div className="monthly-analysis-match-banner">
+          <AlertCircle size={14} />
+          <span>Meilleure correspondance trouvée ({matchInfo.pct}% de match). Le rapport affiché est le plus proche de votre profil.</span>
+        </div>
+      )}
+
+      {/* Results */}
       {analysisData && !analysisLoading && (
         <div className="monthly-analysis-results">
-          {/* Profile summary */}
+
+          {/* ── Profil investisseur ── */}
           <div className="monthly-analysis-profile-card">
             <div className="flex items-center gap-10 mb-12">
               <Target size={18} style={{ color: 'var(--accent)' }} />
               <h3 style={{ margin: 0 }}>Profil investisseur</h3>
             </div>
             <div className="monthly-analysis-profile-grid">
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Risque</span>
-                <span className="monthly-analysis-profile-tag-value">{ANALYSIS_RISK_OPTIONS.find(o => o.value === analysisData.profile?.riskTolerance)?.label || profile.risk}</span>
-              </div>
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Montant</span>
-                <span className="monthly-analysis-profile-tag-value">{analysisData.profile?.investmentAmount?.toLocaleString('fr-FR')}€</span>
-              </div>
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Horizon</span>
-                <span className="monthly-analysis-profile-tag-value">{ANALYSIS_HORIZON_OPTIONS.find(o => o.value === analysisData.profile?.horizon)?.label || profile.horizon}</span>
-              </div>
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Style</span>
-                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'capitalize' }}>{analysisData.profile?.style || profile.style}</span>
-              </div>
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Secteur</span>
-                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'capitalize' }}>{analysisData.profile?.sector || profile.sector}</span>
-              </div>
-              <div className="monthly-analysis-profile-tag">
-                <span className="monthly-analysis-profile-tag-label">Zone</span>
-                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'uppercase' }}>{analysisData.profile?.geography || profile.geo}</span>
-              </div>
+              {[
+                { label: 'Risque', value: profileLabel(ANALYSIS_RISK_OPTIONS, analysisData.profile?.riskTolerance) },
+                { label: 'Montant', value: `${(analysisData.profile?.investmentAmount || 0).toLocaleString('fr-FR')}€` },
+                { label: 'Horizon', value: profileLabel(ANALYSIS_HORIZON_OPTIONS, analysisData.profile?.horizon) },
+                { label: 'Style', value: profileLabel(ANALYSIS_STYLE_OPTIONS, analysisData.profile?.style), capitalize: true },
+                { label: 'Secteurs', value: (analysisData.profile?.preferredSectors || []).map(s => profileLabel(ANALYSIS_SECTOR_OPTIONS, s)).join(', ') || '—', capitalize: true },
+                { label: 'Zone', value: profileLabel(ANALYSIS_GEO_OPTIONS, analysisData.profile?.geography), uppercase: true },
+                { label: 'ESG', value: profileLabel(ANALYSIS_ESG_OPTIONS, analysisData.profile?.esg) },
+              ].map((tag, i) => (
+                <div key={i} className="monthly-analysis-profile-tag">
+                  <span className="monthly-analysis-profile-tag-label">{tag.label}</span>
+                  <span
+                    className="monthly-analysis-profile-tag-value"
+                    style={{ textTransform: tag.uppercase ? 'uppercase' : tag.capitalize ? 'capitalize' : 'none' }}
+                  >
+                    {tag.value}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Strategy summary */}
+          {/* ── Résumé stratégie ── */}
           {analysisData.summary && (
             <div className="card monthly-analysis-strategy-card">
               <div className="flex items-center gap-10 mb-12">
                 <Lightbulb size={18} style={{ color: '#f59e0b' }} />
                 <h3 style={{ margin: 0 }}>Résumé stratégie</h3>
               </div>
-              {analysisData.summary.strategy && <p className="monthly-analysis-strategy-text">{analysisData.summary.strategy}</p>}
-              {analysisData.summary.marketOutlook && (
-                <div className="monthly-analysis-outlook">
-                  <TrendingUp size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                  <span>{analysisData.summary.marketOutlook}</span>
-                </div>
+              {analysisData.summary.strategy && (
+                <p className="monthly-analysis-strategy-text">{analysisData.summary.strategy}</p>
               )}
               {analysisData.summary.keyInsight && (
                 <div className="monthly-analysis-key-insight">
@@ -345,7 +437,18 @@ function MonthlyAnalysis() {
             </div>
           )}
 
-          {/* Top 10 table */}
+          {/* ── Contexte de marché ── */}
+          {analysisData.summary?.marketContext && (
+            <div className="card monthly-analysis-context-card">
+              <div className="flex items-center gap-10 mb-12">
+                <TrendingUp size={18} style={{ color: '#3b82f6' }} />
+                <h3 style={{ margin: 0 }}>Contexte de marché</h3>
+              </div>
+              <p className="monthly-analysis-context-text">{analysisData.summary.marketContext}</p>
+            </div>
+          )}
+
+          {/* ── Top 10 table ── */}
           {analysisData.top10?.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-10 mb-16">
@@ -358,29 +461,36 @@ function MonthlyAnalysis() {
                     <tr>
                       <th>#</th>
                       <th>Entreprise</th>
-                      <th>Symbole</th>
+                      <th>Ticker</th>
                       <th>Secteur</th>
                       <th>P/E</th>
                       <th>Dividende</th>
-                      <th>Score risque</th>
+                      <th>Risque</th>
                       <th>Zone d'entrée</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analysisData.top10.map((stock, i) => (
-                      <tr key={i} className="screener-table-row-clickable" onClick={() => setExpandedStock(expandedStock === i ? null : i)}>
+                      <tr
+                        key={i}
+                        className={`screener-table-row-clickable${expandedStock === i ? ' screener-table-row-active' : ''}`}
+                        onClick={() => setExpandedStock(expandedStock === i ? null : i)}
+                      >
                         <td className="font-mono">{stock.rank}</td>
                         <td><strong>{stock.name}</strong></td>
                         <td className="font-mono">{stock.symbol}</td>
-                        <td className="text-muted">{stock.sector}</td>
+                        <td className="text-muted text-sm">{stock.sector}</td>
                         <td className="font-mono">{stock.pe}</td>
                         <td className="font-mono">{stock.dividendYield}</td>
                         <td>
-                          <span className="monthly-analysis-risk-badge" style={{ background: `${getRiskColor(stock.riskScore)}15`, color: getRiskColor(stock.riskScore) }}>
+                          <span
+                            className="monthly-analysis-risk-badge"
+                            style={{ background: `${getRiskColor(stock.riskScore)}15`, color: getRiskColor(stock.riskScore) }}
+                          >
                             {stock.riskScore}/10
                           </span>
                         </td>
-                        <td className="font-mono">{stock.entryZone}</td>
+                        <td className="font-mono text-sm">{stock.entryZone}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -388,13 +498,15 @@ function MonthlyAnalysis() {
               </div>
               {expandedStock != null && analysisData.top10[expandedStock]?.thesis && (
                 <div className="monthly-analysis-thesis-box">
-                  <strong>{analysisData.top10[expandedStock].name}</strong> — {analysisData.top10[expandedStock].thesis}
+                  <strong>{analysisData.top10[expandedStock].symbol}</strong>
+                  <span style={{ margin: '0 6px', color: 'var(--text-muted)' }}>—</span>
+                  {analysisData.top10[expandedStock].thesis}
                 </div>
               )}
             </div>
           )}
 
-          {/* Allocation */}
+          {/* ── Allocation portefeuille ── */}
           {analysisData.portfolioAllocation?.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-10 mb-16">
@@ -405,10 +517,16 @@ function MonthlyAnalysis() {
                 {analysisData.portfolioAllocation.map((item, i) => (
                   <div key={i} className="monthly-analysis-allocation-item">
                     <div className="monthly-analysis-allocation-bar-bg">
-                      <div className="monthly-analysis-allocation-bar" style={{ width: `${item.pct}%` }} />
+                      <div
+                        className="monthly-analysis-allocation-bar"
+                        style={{ width: `${item.pct}%`, background: item.color || 'var(--accent)' }}
+                      />
                     </div>
                     <div className="monthly-analysis-allocation-info">
-                      <span className="monthly-analysis-allocation-label">{item.label}</span>
+                      <span className="monthly-analysis-allocation-label">
+                        {item.color && <span className="monthly-analysis-alloc-dot" style={{ background: item.color }} />}
+                        {item.label}
+                      </span>
                       <span className="monthly-analysis-allocation-pct font-mono">{item.pct}%</span>
                     </div>
                   </div>
@@ -417,7 +535,7 @@ function MonthlyAnalysis() {
             </div>
           )}
 
-          {/* Global risks */}
+          {/* ── Risques ── */}
           {analysisData.globalRisks?.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-10 mb-16">
@@ -435,7 +553,15 @@ function MonthlyAnalysis() {
             </div>
           )}
 
-          {/* Download PDF */}
+          {/* ── Disclaimer ── */}
+          {analysisData.disclaimer && (
+            <div className="monthly-analysis-disclaimer">
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+              <p>{analysisData.disclaimer}</p>
+            </div>
+          )}
+
+          {/* ── Download PDF ── */}
           {analysisData.reportFile && (
             <div className="monthly-analysis-download">
               <button className="btn btn-primary monthly-analysis-download-btn" onClick={handleDownloadPdf}>

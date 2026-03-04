@@ -1,0 +1,145 @@
+{
+  "month": "2026-03",
+  "id": "analysis_low_dividend_5000",
+  "profile": {
+    "riskTolerance": "low",
+    "investmentAmount": 5000,
+    "horizon": "long",
+    "style": "dividend",
+    "preferredSectors": ["diversified"],
+    "geography": "europe",
+    "esg": "light"
+  },
+  "summary": {
+    "strategy": "Stratégie Dividendes européenne à faible risque, axée sur des entreprises matures versant des dividendes croissants depuis 10+ ans. Portefeuille diversifié multi-sectoriel avec une sensibilité ESG légère pour un horizon long terme.",
+    "marketContext": "Le marché européen offre des rendements dividendes supérieurs au marché US (3.2% vs 1.3% en moyenne). La BCE maintient ses taux à 3.25%, soutenant les valeurs de rendement. L'Euro Stoxx 50 se traite à 13x les bénéfices forward, un discount de 45% vs le S&P 500. Les entreprises européennes affichent des taux de distribution raisonnables (~55%).",
+    "keyInsight": "Le segment des 'Dividend Aristocrats' européens offre un rendement moyen de 3.5% avec une croissance annuelle du dividende de +6%, combinant revenu passif et appréciation du capital sur le long terme."
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "name": "TotalEnergies SE",
+      "symbol": "TTE.PA",
+      "sector": "Énergie",
+      "pe": 8.2,
+      "dividendYield": "5.1%",
+      "riskScore": 4,
+      "entryZone": "€58 – €63",
+      "thesis": "Major pétrolière en transition énergétique. Rendement >5%, buybacks massifs, investissements renouvelables en accélération. Critères ESG en amélioration."
+    },
+    {
+      "rank": 2,
+      "name": "Unilever PLC",
+      "symbol": "ULVR.L",
+      "sector": "Consommation",
+      "pe": 19.4,
+      "dividendYield": "3.4%",
+      "riskScore": 2,
+      "entryZone": "£44 – £47",
+      "thesis": "Portfolio de marques premium (Dove, Ben & Jerry's), pricing power démontré. Dividende en croissance depuis 25+ ans. Excellent profil ESG."
+    },
+    {
+      "rank": 3,
+      "name": "Sanofi SA",
+      "symbol": "SAN.PA",
+      "sector": "Santé / Pharma",
+      "pe": 12.8,
+      "dividendYield": "3.8%",
+      "riskScore": 3,
+      "entryZone": "€92 – €100",
+      "thesis": "Pipeline pharma solide (Dupixent blockbuster), valorisation basse historique. Dividende stable et croissant depuis 30 ans."
+    },
+    {
+      "rank": 4,
+      "name": "Allianz SE",
+      "symbol": "ALV.DE",
+      "sector": "Assurance / Finance",
+      "pe": 10.5,
+      "dividendYield": "4.6%",
+      "riskScore": 3,
+      "entryZone": "€275 – €290",
+      "thesis": "1er assureur européen, PIMCO (gestion d'actifs) comme relais de croissance. Solvabilité exemplaire, dividende en hausse régulière."
+    },
+    {
+      "rank": 5,
+      "name": "Nestlé SA",
+      "symbol": "NESN.SW",
+      "sector": "Alimentation",
+      "pe": 22.1,
+      "dividendYield": "3.1%",
+      "riskScore": 2,
+      "entryZone": "CHF 95 – CHF 102",
+      "thesis": "N°1 mondial alimentation, portfolio premium. 28 ans de dividende croissant. Exposition devises diversifiée, faible volatilité."
+    },
+    {
+      "rank": 6,
+      "name": "Munich Re",
+      "symbol": "MUV2.DE",
+      "sector": "Réassurance",
+      "pe": 11.2,
+      "dividendYield": "3.7%",
+      "riskScore": 3,
+      "entryZone": "€440 – €465",
+      "thesis": "Leader mondial réassurance. Pricing power en hausse grâce au changement climatique. Bénéficiaire net des taux élevés sur le portefeuille obligataire."
+    },
+    {
+      "rank": 7,
+      "name": "Schneider Electric",
+      "symbol": "SU.PA",
+      "sector": "Industrie / Énergie",
+      "pe": 28.5,
+      "dividendYield": "1.7%",
+      "riskScore": 3,
+      "entryZone": "€220 – €235",
+      "thesis": "Leader gestion de l'énergie et automatisation. Bénéficiaire structurel de la transition énergétique et des data centers IA. Excellent profil ESG."
+    },
+    {
+      "rank": 8,
+      "name": "Deutsche Telekom",
+      "symbol": "DTE.DE",
+      "sector": "Télécoms",
+      "pe": 13.4,
+      "dividendYield": "3.3%",
+      "riskScore": 3,
+      "entryZone": "€27 – €29",
+      "thesis": "T-Mobile US comme moteur de croissance. Dividende en hausse de +25% sur 3 ans. Cash flow opérationnel record."
+    },
+    {
+      "rank": 9,
+      "name": "Iberdrola SA",
+      "symbol": "IBE.MC",
+      "sector": "Utilities / Renouvelable",
+      "pe": 16.8,
+      "dividendYield": "4.2%",
+      "riskScore": 2,
+      "entryZone": "€12.5 – €13.5",
+      "thesis": "Leader mondial éolien et réseaux. Visibilité réglementaire, dividende croissant. Parfait pour un profil ESG."
+    },
+    {
+      "rank": 10,
+      "name": "LVMH",
+      "symbol": "MC.PA",
+      "sector": "Luxe",
+      "pe": 23.7,
+      "dividendYield": "1.9%",
+      "riskScore": 4,
+      "entryZone": "€720 – €780",
+      "thesis": "N°1 mondial du luxe, pricing power absolu. Croissance Chine en reprise. Dividende en hausse de +15%/an en moyenne."
+    }
+  ],
+  "portfolioAllocation": [
+    { "label": "Industrie & Énergie", "pct": 25, "color": "#f59e0b" },
+    { "label": "Finance & Assurance", "pct": 20, "color": "#3b82f6" },
+    { "label": "Consommation & Luxe", "pct": 20, "color": "#8b5cf6" },
+    { "label": "Santé", "pct": 15, "color": "#10b981" },
+    { "label": "Utilities & Télécoms", "pct": 20, "color": "#06b6d4" }
+  ],
+  "globalRisks": [
+    "Risque de change : exposition multi-devises (EUR, GBP, CHF) pouvant impacter les rendements en euros",
+    "Risque de récession européenne : ralentissement économique impactant les bénéfices et la capacité de distribution",
+    "Risque de coupe de dividende : même les aristocrates peuvent réduire en cas de crise (cf. 2020)",
+    "Risque de taux : une baisse rapide des taux BCE favoriserait les obligations vs dividendes",
+    "Risque ESG : évolution réglementaire pouvant impacter TotalEnergies et les valeurs énergie"
+  ],
+  "disclaimer": "Ce rapport est généré à titre informatif uniquement et ne constitue en aucun cas un conseil en investissement personnalisé. Les performances passées ne préjugent pas des performances futures. Tout investissement comporte un risque de perte en capital. Consultez un conseiller financier agréé avant toute décision d'investissement."
+}

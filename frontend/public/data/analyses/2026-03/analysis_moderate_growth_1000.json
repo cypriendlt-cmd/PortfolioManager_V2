@@ -1,0 +1,145 @@
+{
+  "month": "2026-03",
+  "id": "analysis_moderate_growth_1000",
+  "profile": {
+    "riskTolerance": "moderate",
+    "investmentAmount": 1000,
+    "horizon": "medium",
+    "style": "growth",
+    "preferredSectors": ["technology"],
+    "geography": "global",
+    "esg": "none"
+  },
+  "summary": {
+    "strategy": "Stratégie Growth équilibrée ciblant les leaders technologiques avec une croissance revenue supérieure à 15% annuel. Horizon moyen terme (3-5 ans) avec une tolérance au risque modérée, privilégiant les entreprises profitables avec un track record établi.",
+    "marketContext": "Le marché growth tech reste porté par l'adoption IA en entreprise. Les multiples se sont normalisés après la correction de fin 2025. Les entreprises SaaS avec des marges >20% et une rétention nette >120% offrent le meilleur profil croissance/risque. Le Nasdaq-100 affiche un P/E forward de 28x, proche de sa moyenne historique.",
+    "keyInsight": "Le segment 'AI infrastructure' (cloud, data, sécurité) offre la meilleure combinaison croissance/profitabilité du moment. Les entreprises avec un ARR >$1B et une croissance >20% se traitent à des multiples raisonnables post-correction."
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "name": "Microsoft Corporation",
+      "symbol": "MSFT",
+      "sector": "Cloud / AI",
+      "pe": 32.5,
+      "dividendYield": "0.8%",
+      "riskScore": 3,
+      "entryZone": "$410 – $430",
+      "thesis": "Leader cloud Azure (+29% YoY), intégration Copilot AI dans l'écosystème Office/GitHub. Moat inégalé en enterprise."
+    },
+    {
+      "rank": 2,
+      "name": "Alphabet Inc",
+      "symbol": "GOOGL",
+      "sector": "Search / Cloud / AI",
+      "pe": 24.1,
+      "dividendYield": "0.5%",
+      "riskScore": 4,
+      "entryZone": "$175 – $185",
+      "thesis": "Google Cloud profitable, Gemini AI en progression, Search reste un cash cow. Valorisation attractive vs MSFT/AAPL."
+    },
+    {
+      "rank": 3,
+      "name": "ASML Holding",
+      "symbol": "ASML",
+      "sector": "Semiconductor Equipment",
+      "pe": 35.2,
+      "dividendYield": "0.7%",
+      "riskScore": 4,
+      "entryZone": "€680 – €720",
+      "thesis": "Monopole de fait sur la lithographie EUV. Carnet de commandes record, indispensable à toute la chaîne semi-conducteur."
+    },
+    {
+      "rank": 4,
+      "name": "ServiceNow",
+      "symbol": "NOW",
+      "sector": "Enterprise SaaS",
+      "pe": 55.8,
+      "dividendYield": "0.0%",
+      "riskScore": 5,
+      "entryZone": "$850 – $900",
+      "thesis": "Leader workflow automation, rétention nette >125%. L'intégration IA dans la plateforme accélère l'upsell."
+    },
+    {
+      "rank": 5,
+      "name": "Palo Alto Networks",
+      "symbol": "PANW",
+      "sector": "Cybersecurity",
+      "pe": 48.3,
+      "dividendYield": "0.0%",
+      "riskScore": 5,
+      "entryZone": "$185 – $200",
+      "thesis": "Consolidation cybersécurité en cours, platformisation réussie. ARR en croissance de +22% avec des marges en expansion."
+    },
+    {
+      "rank": 6,
+      "name": "Amazon.com",
+      "symbol": "AMZN",
+      "sector": "Cloud / E-commerce",
+      "pe": 38.7,
+      "dividendYield": "0.0%",
+      "riskScore": 4,
+      "entryZone": "$195 – $210",
+      "thesis": "AWS reste #1 cloud mondial, segment advertising en hyper-croissance. Marge opérationnelle en amélioration structurelle."
+    },
+    {
+      "rank": 7,
+      "name": "CrowdStrike",
+      "symbol": "CRWD",
+      "sector": "Cybersecurity",
+      "pe": 72.1,
+      "dividendYield": "0.0%",
+      "riskScore": 6,
+      "entryZone": "$340 – $365",
+      "thesis": "Leader endpoint security, expansion vers SIEM et cloud security. Module density en hausse = ARPU croissant."
+    },
+    {
+      "rank": 8,
+      "name": "Datadog",
+      "symbol": "DDOG",
+      "sector": "Observability / DevOps",
+      "pe": 65.4,
+      "dividendYield": "0.0%",
+      "riskScore": 6,
+      "entryZone": "$130 – $145",
+      "thesis": "Plateforme d'observabilité unifiée, bénéficiaire direct de la complexité cloud. 85% des clients utilisent 2+ modules."
+    },
+    {
+      "rank": 9,
+      "name": "TSMC",
+      "symbol": "TSM",
+      "sector": "Semiconductor Foundry",
+      "pe": 22.6,
+      "dividendYield": "1.4%",
+      "riskScore": 5,
+      "entryZone": "$170 – $185",
+      "thesis": "Fondeur incontournable (>55% PDM mondiale), noeud 3nm en montée. Exposition maximale au cycle IA."
+    },
+    {
+      "rank": 10,
+      "name": "Shopify",
+      "symbol": "SHOP",
+      "sector": "E-commerce SaaS",
+      "pe": 58.9,
+      "dividendYield": "0.0%",
+      "riskScore": 6,
+      "entryZone": "$95 – $105",
+      "thesis": "Leader e-commerce SMB, Shopify Plus gagne en enterprise. GMV en croissance de +20%, marge free cash flow positive."
+    }
+  ],
+  "portfolioAllocation": [
+    { "label": "Cloud & Infrastructure", "pct": 35, "color": "#3b82f6" },
+    { "label": "Cybersécurité", "pct": 20, "color": "#ef4444" },
+    { "label": "Semiconducteurs", "pct": 20, "color": "#8b5cf6" },
+    { "label": "SaaS Enterprise", "pct": 15, "color": "#10b981" },
+    { "label": "E-commerce", "pct": 10, "color": "#f59e0b" }
+  ],
+  "globalRisks": [
+    "Risque de compression des multiples : les valeurs growth sont sensibles aux hausses de taux inattendues",
+    "Risque de concentration GAFAM : 30% du portefeuille dépend de Microsoft, Alphabet et Amazon",
+    "Risque de ralentissement IA : si l'adoption enterprise de l'IA déçoit, les valorisations pourraient corriger",
+    "Risque géopolitique TSMC : tension Taiwan-Chine impacterait l'ensemble de la chaîne tech",
+    "Risque de concurrence : disruption possible dans la cybersécurité et l'observabilité (consolidation M&A)"
+  ],
+  "disclaimer": "Ce rapport est généré à titre informatif uniquement et ne constitue en aucun cas un conseil en investissement personnalisé. Les performances passées ne préjugent pas des performances futures. Tout investissement comporte un risque de perte en capital. Consultez un conseiller financier agréé avant toute décision d'investissement."
+}

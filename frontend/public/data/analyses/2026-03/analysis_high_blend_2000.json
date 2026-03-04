@@ -1,0 +1,287 @@
+{
+  "month": "2026-03",
+  "id": "analysis_high_blend_2000",
+  "profile": {
+    "riskTolerance": "high",
+    "amount": 2000,
+    "horizon": "5+ years",
+    "style": "blend",
+    "sectors": [
+      "technology",
+      "healthcare"
+    ],
+    "geography": "global",
+    "esg": "none"
+  },
+  "summary": {
+    "strategy": "Aggressive blend approach in technology and healthcare combining high-growth AI and biotech names with deeply undervalued large-caps. Barbell structure pairs asymmetric upside with margin-of-safety anchor positions.",
+    "marketContext": "Technology and healthcare showing divergent valuations creating blend opportunities. AI-healthcare convergence names emerging as new category. Cross-sector M&A activity accelerating.",
+    "keyRisks": [
+      "Barbell approach may underperform in trending markets",
+      "Correlation between growth and value legs may increase during stress",
+      "Sector-specific regulatory risks compounding across both verticals"
+    ]
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "company": "NVIDIA Corp.",
+      "ticker": "NVDA",
+      "sector": "technology",
+      "pe": {
+        "value": 42.5,
+        "sectorAvg": 28.5,
+        "comment": "Elevated PE driven by AI accelerator demand cycle"
+      },
+      "revenueGrowth5y": "52.3% CAGR",
+      "debtToEquity": 0.41,
+      "dividendYield": 0.03,
+      "moat": "strong",
+      "priceTargetBull": 175,
+      "priceTargetBear": 105,
+      "riskScore": 7,
+      "entryZone": "$118–$128",
+      "stopLoss": "$100"
+    },
+    {
+      "rank": 2,
+      "company": "Taiwan Semiconductor",
+      "ticker": "TSM",
+      "sector": "technology",
+      "pe": {
+        "value": 22.4,
+        "sectorAvg": 28.5,
+        "comment": "Discount reflects geopolitical risk despite foundry monopoly"
+      },
+      "revenueGrowth5y": "20.1% CAGR",
+      "debtToEquity": 0.24,
+      "dividendYield": 1.15,
+      "moat": "strong",
+      "priceTargetBull": 215,
+      "priceTargetBear": 150,
+      "riskScore": 6,
+      "entryZone": "$165–$178",
+      "stopLoss": "$145"
+    },
+    {
+      "rank": 3,
+      "company": "Alphabet Inc.",
+      "ticker": "GOOGL",
+      "sector": "technology",
+      "pe": {
+        "value": 23.1,
+        "sectorAvg": 28.5,
+        "comment": "Discount to sector despite dominant ad and cloud franchise"
+      },
+      "revenueGrowth5y": "16.8% CAGR",
+      "debtToEquity": 0.08,
+      "dividendYield": 0.45,
+      "moat": "strong",
+      "priceTargetBull": 210,
+      "priceTargetBear": 155,
+      "riskScore": 4,
+      "entryZone": "$168–$178",
+      "stopLoss": "$150"
+    },
+    {
+      "rank": 4,
+      "company": "Merck & Co.",
+      "ticker": "MRK",
+      "sector": "healthcare",
+      "pe": {
+        "value": 14.2,
+        "sectorAvg": 22.3,
+        "comment": "Deep discount reflects Keytruda patent cliff concerns"
+      },
+      "revenueGrowth5y": "9.8% CAGR",
+      "debtToEquity": 0.85,
+      "dividendYield": 2.85,
+      "moat": "moderate",
+      "priceTargetBull": 125,
+      "priceTargetBear": 82,
+      "riskScore": 5,
+      "entryZone": "$92–$102",
+      "stopLoss": "$80"
+    },
+    {
+      "rank": 5,
+      "company": "Broadcom Inc.",
+      "ticker": "AVGO",
+      "sector": "technology",
+      "pe": {
+        "value": 29.8,
+        "sectorAvg": 28.5,
+        "comment": "In-line with sector; VMware integration adds recurring revenue"
+      },
+      "revenueGrowth5y": "18.9% CAGR",
+      "debtToEquity": 1.02,
+      "dividendYield": 1.25,
+      "moat": "strong",
+      "priceTargetBull": 230,
+      "priceTargetBear": 165,
+      "riskScore": 5,
+      "entryZone": "$178–$190",
+      "stopLoss": "$160"
+    },
+    {
+      "rank": 6,
+      "company": "Advanced Micro Devices",
+      "ticker": "AMD",
+      "sector": "technology",
+      "pe": {
+        "value": 45.2,
+        "sectorAvg": 28.5,
+        "comment": "Premium reflects AI GPU share gains from NVIDIA"
+      },
+      "revenueGrowth5y": "28.6% CAGR",
+      "debtToEquity": 0.04,
+      "dividendYield": 0.0,
+      "moat": "moderate",
+      "priceTargetBull": 185,
+      "priceTargetBear": 110,
+      "riskScore": 7,
+      "entryZone": "$125–$140",
+      "stopLoss": "$108"
+    },
+    {
+      "rank": 7,
+      "company": "UnitedHealth Group",
+      "ticker": "UNH",
+      "sector": "healthcare",
+      "pe": {
+        "value": 19.8,
+        "sectorAvg": 22.3,
+        "comment": "Discount reflects regulatory overhang despite Optum growth"
+      },
+      "revenueGrowth5y": "12.5% CAGR",
+      "debtToEquity": 0.75,
+      "dividendYield": 1.45,
+      "moat": "strong",
+      "priceTargetBull": 620,
+      "priceTargetBear": 470,
+      "riskScore": 4,
+      "entryZone": "$500–$525",
+      "stopLoss": "$460"
+    },
+    {
+      "rank": 8,
+      "company": "Meta Platforms Inc.",
+      "ticker": "META",
+      "sector": "technology",
+      "pe": {
+        "value": 25.4,
+        "sectorAvg": 28.5,
+        "comment": "Below sector average; monetization efficiency offsets Reality Labs drag"
+      },
+      "revenueGrowth5y": "15.7% CAGR",
+      "debtToEquity": 0.22,
+      "dividendYield": 0.35,
+      "moat": "strong",
+      "priceTargetBull": 680,
+      "priceTargetBear": 480,
+      "riskScore": 5,
+      "entryZone": "$530–$560",
+      "stopLoss": "$470"
+    },
+    {
+      "rank": 9,
+      "company": "Salesforce Inc.",
+      "ticker": "CRM",
+      "sector": "technology",
+      "pe": {
+        "value": 28.9,
+        "sectorAvg": 28.5,
+        "comment": "At sector average; margin expansion story intact"
+      },
+      "revenueGrowth5y": "17.8% CAGR",
+      "debtToEquity": 0.18,
+      "dividendYield": 0.55,
+      "moat": "moderate",
+      "priceTargetBull": 360,
+      "priceTargetBear": 260,
+      "riskScore": 5,
+      "entryZone": "$285–$300",
+      "stopLoss": "$255"
+    },
+    {
+      "rank": 10,
+      "company": "Amazon.com Inc.",
+      "ticker": "AMZN",
+      "sector": "technology",
+      "pe": {
+        "value": 38.6,
+        "sectorAvg": 28.5,
+        "comment": "AWS margin expansion supports premium valuation"
+      },
+      "revenueGrowth5y": "21.5% CAGR",
+      "debtToEquity": 0.55,
+      "dividendYield": 0.0,
+      "moat": "strong",
+      "priceTargetBull": 240,
+      "priceTargetBear": 170,
+      "riskScore": 5,
+      "entryZone": "$192–$205",
+      "stopLoss": "$175"
+    }
+  ],
+  "portfolioAllocation": [
+    {
+      "company": "NVIDIA Corp.",
+      "weightPct": 15.5,
+      "amount": 310.0
+    },
+    {
+      "company": "Taiwan Semiconductor",
+      "weightPct": 14.3,
+      "amount": 286.0
+    },
+    {
+      "company": "Alphabet Inc.",
+      "weightPct": 13.0,
+      "amount": 260.0
+    },
+    {
+      "company": "Merck & Co.",
+      "weightPct": 11.8,
+      "amount": 236.0
+    },
+    {
+      "company": "Broadcom Inc.",
+      "weightPct": 10.5,
+      "amount": 210.0
+    },
+    {
+      "company": "Advanced Micro Devices",
+      "weightPct": 9.3,
+      "amount": 186.0
+    },
+    {
+      "company": "UnitedHealth Group",
+      "weightPct": 8.1,
+      "amount": 162.0
+    },
+    {
+      "company": "Meta Platforms Inc.",
+      "weightPct": 6.8,
+      "amount": 136.0
+    },
+    {
+      "company": "Salesforce Inc.",
+      "weightPct": 5.6,
+      "amount": 112.0
+    },
+    {
+      "company": "Amazon.com Inc.",
+      "weightPct": 5.2,
+      "amount": 104.0
+    }
+  ],
+  "globalRisks": [
+    "Federal Reserve policy uncertainty and interest rate trajectory",
+    "Geopolitical tensions affecting global supply chains and trade flows",
+    "Inflation persistence impacting corporate margins and consumer spending",
+    "Potential US recession risk with leading indicators showing mixed signals",
+    "Currency volatility in global portfolios affecting returns"
+  ],
+  "disclaimer": "Educational analysis. Not financial advice."
+}

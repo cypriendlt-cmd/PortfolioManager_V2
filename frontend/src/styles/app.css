@@ -6379,6 +6379,42 @@ tbody tr:hover {
   padding: 10px 14px; background: var(--bg-secondary); border-radius: 10px;
 }
 
+/* Market context */
+.monthly-analysis-context-card { border-left: 3px solid #3b82f6; }
+.monthly-analysis-context-text {
+  font-size: 0.85rem; line-height: 1.65; color: var(--text-secondary); margin: 0;
+}
+
+/* Allocation dot */
+.monthly-analysis-alloc-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px;
+  vertical-align: middle;
+}
+.monthly-analysis-allocation-label {
+  font-size: 0.82rem; color: var(--text-primary); font-weight: 600;
+  display: flex; align-items: center;
+}
+
+/* Match quality banner */
+.monthly-analysis-match-banner {
+  display: flex; align-items: center; gap: 10px; margin-top: 16px;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08); color: #3b82f6;
+  font-size: 0.78rem; font-weight: 500; line-height: 1.4;
+}
+
+/* Active row in table */
+.screener-table-row-active { background: var(--bg-secondary) !important; }
+
+/* Disclaimer */
+.monthly-analysis-disclaimer {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px; border-radius: 10px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  font-size: 0.75rem; line-height: 1.5; color: var(--text-muted);
+}
+.monthly-analysis-disclaimer p { margin: 0; }
+
 /* Download */
 .monthly-analysis-download { display: flex; justify-content: center; padding-top: 8px; }
 .monthly-analysis-download-btn {

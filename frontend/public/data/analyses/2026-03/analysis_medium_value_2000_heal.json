@@ -1,0 +1,286 @@
+{
+  "month": "2026-03",
+  "id": "analysis_medium_value_2000_heal",
+  "profile": {
+    "riskTolerance": "medium",
+    "amount": 2000,
+    "horizon": "3-5 years",
+    "style": "value",
+    "sectors": [
+      "healthcare"
+    ],
+    "geography": "US",
+    "esg": "light"
+  },
+  "summary": {
+    "strategy": "Healthcare-focused value portfolio targeting established pharmaceutical and life sciences companies trading below intrinsic value with strong pipeline optionality. Emphasis on companies with diversified revenue streams and defensive characteristics.",
+    "marketContext": "Healthcare sector offering compelling value after two years of relative underperformance. Drug pricing reform fears largely priced in. GLP-1 revolution creating winners and losers across the value chain.",
+    "keyRisks": [
+      "Drug pricing legislation could compress margins",
+      "Patent cliff exposure in key pharmaceutical holdings",
+      "Clinical pipeline disappointments in late-stage trials"
+    ]
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "company": "Merck & Co.",
+      "ticker": "MRK",
+      "sector": "healthcare",
+      "pe": {
+        "value": 14.2,
+        "sectorAvg": 22.3,
+        "comment": "Deep discount reflects Keytruda patent cliff concerns"
+      },
+      "revenueGrowth5y": "9.8% CAGR",
+      "debtToEquity": 0.85,
+      "dividendYield": 2.85,
+      "moat": "moderate",
+      "priceTargetBull": 125,
+      "priceTargetBear": 82,
+      "riskScore": 5,
+      "entryZone": "$92–$102",
+      "stopLoss": "$80"
+    },
+    {
+      "rank": 2,
+      "company": "Johnson & Johnson",
+      "ticker": "JNJ",
+      "sector": "healthcare",
+      "pe": {
+        "value": 15.2,
+        "sectorAvg": 22.3,
+        "comment": "Below average due to litigation overhang; strong MedTech offsets"
+      },
+      "revenueGrowth5y": "5.1% CAGR",
+      "debtToEquity": 0.44,
+      "dividendYield": 3.15,
+      "moat": "strong",
+      "priceTargetBull": 185,
+      "priceTargetBear": 140,
+      "riskScore": 3,
+      "entryZone": "$150–$160",
+      "stopLoss": "$138"
+    },
+    {
+      "rank": 3,
+      "company": "AbbVie Inc.",
+      "ticker": "ABBV",
+      "sector": "healthcare",
+      "pe": {
+        "value": 17.5,
+        "sectorAvg": 22.3,
+        "comment": "Humira cliff priced in; Skyrizi/Rinvoq recovery underway"
+      },
+      "revenueGrowth5y": "8.2% CAGR",
+      "debtToEquity": 4.15,
+      "dividendYield": 3.45,
+      "moat": "moderate",
+      "priceTargetBull": 215,
+      "priceTargetBear": 160,
+      "riskScore": 5,
+      "entryZone": "$172–$185",
+      "stopLoss": "$155"
+    },
+    {
+      "rank": 4,
+      "company": "UnitedHealth Group",
+      "ticker": "UNH",
+      "sector": "healthcare",
+      "pe": {
+        "value": 19.8,
+        "sectorAvg": 22.3,
+        "comment": "Discount reflects regulatory overhang despite Optum growth"
+      },
+      "revenueGrowth5y": "12.5% CAGR",
+      "debtToEquity": 0.75,
+      "dividendYield": 1.45,
+      "moat": "strong",
+      "priceTargetBull": 620,
+      "priceTargetBear": 470,
+      "riskScore": 4,
+      "entryZone": "$500–$525",
+      "stopLoss": "$460"
+    },
+    {
+      "rank": 5,
+      "company": "Amgen Inc.",
+      "ticker": "AMGN",
+      "sector": "healthcare",
+      "pe": {
+        "value": 20.1,
+        "sectorAvg": 22.3,
+        "comment": "Slight discount; biosimilar portfolio diversifies beyond Enbrel"
+      },
+      "revenueGrowth5y": "6.5% CAGR",
+      "debtToEquity": 5.25,
+      "dividendYield": 2.95,
+      "moat": "moderate",
+      "priceTargetBull": 340,
+      "priceTargetBear": 255,
+      "riskScore": 5,
+      "entryZone": "$275–$295",
+      "stopLoss": "$250"
+    },
+    {
+      "rank": 6,
+      "company": "Thermo Fisher Scientific",
+      "ticker": "TMO",
+      "sector": "healthcare",
+      "pe": {
+        "value": 27.8,
+        "sectorAvg": 22.3,
+        "comment": "Premium for life sciences tools monopoly position"
+      },
+      "revenueGrowth5y": "10.5% CAGR",
+      "debtToEquity": 0.65,
+      "dividendYield": 0.22,
+      "moat": "strong",
+      "priceTargetBull": 640,
+      "priceTargetBear": 480,
+      "riskScore": 4,
+      "entryZone": "$520–$550",
+      "stopLoss": "$470"
+    },
+    {
+      "rank": 7,
+      "company": "Danaher Corp.",
+      "ticker": "DHR",
+      "sector": "healthcare",
+      "pe": {
+        "value": 28.5,
+        "sectorAvg": 22.3,
+        "comment": "Premium for Danaher Business System and recurring bioprocessing revenue"
+      },
+      "revenueGrowth5y": "7.8% CAGR",
+      "debtToEquity": 0.32,
+      "dividendYield": 0.42,
+      "moat": "strong",
+      "priceTargetBull": 290,
+      "priceTargetBear": 210,
+      "riskScore": 4,
+      "entryZone": "$230–$248",
+      "stopLoss": "$205"
+    },
+    {
+      "rank": 8,
+      "company": "Novo Nordisk A/S",
+      "ticker": "NVO",
+      "sector": "healthcare",
+      "pe": {
+        "value": 35.8,
+        "sectorAvg": 22.3,
+        "comment": "GLP-1 market leader commands growth premium"
+      },
+      "revenueGrowth5y": "19.3% CAGR",
+      "debtToEquity": 0.48,
+      "dividendYield": 1.1,
+      "moat": "strong",
+      "priceTargetBull": 135,
+      "priceTargetBear": 85,
+      "riskScore": 5,
+      "entryZone": "$95–$108",
+      "stopLoss": "$82"
+    },
+    {
+      "rank": 9,
+      "company": "Eli Lilly & Co.",
+      "ticker": "LLY",
+      "sector": "healthcare",
+      "pe": {
+        "value": 62.5,
+        "sectorAvg": 22.3,
+        "comment": "GLP-1 pipeline justifies extreme premium valuation"
+      },
+      "revenueGrowth5y": "14.8% CAGR",
+      "debtToEquity": 1.88,
+      "dividendYield": 0.65,
+      "moat": "strong",
+      "priceTargetBull": 950,
+      "priceTargetBear": 680,
+      "riskScore": 6,
+      "entryZone": "$740–$790",
+      "stopLoss": "$670"
+    },
+    {
+      "rank": 10,
+      "company": "Intuitive Surgical",
+      "ticker": "ISRG",
+      "sector": "healthcare",
+      "pe": {
+        "value": 65.4,
+        "sectorAvg": 22.3,
+        "comment": "Robotic surgery leader with recurring razor-blade model"
+      },
+      "revenueGrowth5y": "16.2% CAGR",
+      "debtToEquity": 0.0,
+      "dividendYield": 0.0,
+      "moat": "strong",
+      "priceTargetBull": 580,
+      "priceTargetBear": 400,
+      "riskScore": 5,
+      "entryZone": "$450–$485",
+      "stopLoss": "$390"
+    }
+  ],
+  "portfolioAllocation": [
+    {
+      "company": "Merck & Co.",
+      "weightPct": 15.5,
+      "amount": 310.0
+    },
+    {
+      "company": "Johnson & Johnson",
+      "weightPct": 14.3,
+      "amount": 286.0
+    },
+    {
+      "company": "AbbVie Inc.",
+      "weightPct": 13.0,
+      "amount": 260.0
+    },
+    {
+      "company": "UnitedHealth Group",
+      "weightPct": 11.8,
+      "amount": 236.0
+    },
+    {
+      "company": "Amgen Inc.",
+      "weightPct": 10.5,
+      "amount": 210.0
+    },
+    {
+      "company": "Thermo Fisher Scientific",
+      "weightPct": 9.3,
+      "amount": 186.0
+    },
+    {
+      "company": "Danaher Corp.",
+      "weightPct": 8.1,
+      "amount": 162.0
+    },
+    {
+      "company": "Novo Nordisk A/S",
+      "weightPct": 6.8,
+      "amount": 136.0
+    },
+    {
+      "company": "Eli Lilly & Co.",
+      "weightPct": 5.6,
+      "amount": 112.0
+    },
+    {
+      "company": "Intuitive Surgical",
+      "weightPct": 5.2,
+      "amount": 104.0
+    }
+  ],
+  "globalRisks": [
+    "Federal Reserve policy uncertainty and interest rate trajectory",
+    "Geopolitical tensions affecting global supply chains and trade flows",
+    "Inflation persistence impacting corporate margins and consumer spending",
+    "Potential US recession risk with leading indicators showing mixed signals",
+    "Currency volatility in global portfolios affecting returns"
+  ],
+  "disclaimer": "Educational analysis. Not financial advice."
+}

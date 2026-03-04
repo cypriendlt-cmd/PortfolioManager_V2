@@ -1,0 +1,286 @@
+{
+  "month": "2026-03",
+  "id": "analysis_medium_value_5000",
+  "profile": {
+    "riskTolerance": "medium",
+    "amount": 5000,
+    "horizon": "5+ years",
+    "style": "value",
+    "sectors": [
+      "diversified"
+    ],
+    "geography": "global",
+    "esg": "light"
+  },
+  "summary": {
+    "strategy": "Diversified value core portfolio leveraging substantial allocation for broad-based exposure to undervalued quality companies globally. Long horizon allows patient approach to value realization across economic cycles.",
+    "marketContext": "Global value spreads remain wide relative to historical averages. International markets offering deeper discounts than US. Multi-sector approach provides natural hedging across economic sensitivity.",
+    "keyRisks": [
+      "Value underperformance cycle may persist longer than expected",
+      "Global macro divergence creating uneven recovery paths",
+      "Currency translation impact on international holdings"
+    ]
+  },
+  "top10": [
+    {
+      "rank": 1,
+      "company": "Berkshire Hathaway",
+      "ticker": "BRK.B",
+      "sector": "financials",
+      "pe": {
+        "value": 11.5,
+        "sectorAvg": 14.2,
+        "comment": "Conglomerate discount despite massive cash position and insurance float"
+      },
+      "revenueGrowth5y": "9.2% CAGR",
+      "debtToEquity": 0.22,
+      "dividendYield": 0.0,
+      "moat": "strong",
+      "priceTargetBull": 520,
+      "priceTargetBear": 390,
+      "riskScore": 3,
+      "entryZone": "$420–$445",
+      "stopLoss": "$385"
+    },
+    {
+      "rank": 2,
+      "company": "JPMorgan Chase",
+      "ticker": "JPM",
+      "sector": "financials",
+      "pe": {
+        "value": 12.8,
+        "sectorAvg": 14.2,
+        "comment": "Below sector average; best-in-class banking franchise undervalued"
+      },
+      "revenueGrowth5y": "10.5% CAGR",
+      "debtToEquity": 1.35,
+      "dividendYield": 2.05,
+      "moat": "strong",
+      "priceTargetBull": 280,
+      "priceTargetBear": 205,
+      "riskScore": 4,
+      "entryZone": "$225–$242",
+      "stopLoss": "$200"
+    },
+    {
+      "rank": 3,
+      "company": "Caterpillar Inc.",
+      "ticker": "CAT",
+      "sector": "industrials",
+      "pe": {
+        "value": 17.5,
+        "sectorAvg": 24.8,
+        "comment": "Cyclical discount; infrastructure spending provides secular tailwind"
+      },
+      "revenueGrowth5y": "9.5% CAGR",
+      "debtToEquity": 1.88,
+      "dividendYield": 1.55,
+      "moat": "moderate",
+      "priceTargetBull": 420,
+      "priceTargetBear": 305,
+      "riskScore": 5,
+      "entryZone": "$335–$358",
+      "stopLoss": "$298"
+    },
+    {
+      "rank": 4,
+      "company": "NextEra Energy",
+      "ticker": "NEE",
+      "sector": "utilities",
+      "pe": {
+        "value": 22.4,
+        "sectorAvg": 18.5,
+        "comment": "Renewable energy leader trades at premium to utility peers"
+      },
+      "revenueGrowth5y": "11.2% CAGR",
+      "debtToEquity": 1.18,
+      "dividendYield": 2.65,
+      "moat": "strong",
+      "priceTargetBull": 88,
+      "priceTargetBear": 62,
+      "riskScore": 3,
+      "entryZone": "$70–$76",
+      "stopLoss": "$60"
+    },
+    {
+      "rank": 5,
+      "company": "Coca-Cola Co.",
+      "ticker": "KO",
+      "sector": "consumer staples",
+      "pe": {
+        "value": 24.2,
+        "sectorAvg": 23.1,
+        "comment": "In line with staples sector; unmatched global distribution moat"
+      },
+      "revenueGrowth5y": "6.8% CAGR",
+      "debtToEquity": 1.52,
+      "dividendYield": 2.85,
+      "moat": "strong",
+      "priceTargetBull": 72,
+      "priceTargetBear": 56,
+      "riskScore": 2,
+      "entryZone": "$59–$64",
+      "stopLoss": "$54"
+    },
+    {
+      "rank": 6,
+      "company": "McDonald's Corp.",
+      "ticker": "MCD",
+      "sector": "consumer discretionary",
+      "pe": {
+        "value": 24.5,
+        "sectorAvg": 25.8,
+        "comment": "Franchise model generates reliable cash flow with minimal capital needs"
+      },
+      "revenueGrowth5y": "4.8% CAGR",
+      "debtToEquity": 0.0,
+      "dividendYield": 2.25,
+      "moat": "strong",
+      "priceTargetBull": 330,
+      "priceTargetBear": 260,
+      "riskScore": 2,
+      "entryZone": "$275–$292",
+      "stopLoss": "$255"
+    },
+    {
+      "rank": 7,
+      "company": "Procter & Gamble",
+      "ticker": "PG",
+      "sector": "consumer staples",
+      "pe": {
+        "value": 25.8,
+        "sectorAvg": 23.1,
+        "comment": "Slight premium for brand portfolio depth and pricing power"
+      },
+      "revenueGrowth5y": "5.4% CAGR",
+      "debtToEquity": 0.68,
+      "dividendYield": 2.35,
+      "moat": "strong",
+      "priceTargetBull": 190,
+      "priceTargetBear": 148,
+      "riskScore": 2,
+      "entryZone": "$158–$168",
+      "stopLoss": "$145"
+    },
+    {
+      "rank": 8,
+      "company": "Linde plc",
+      "ticker": "LIN",
+      "sector": "industrials",
+      "pe": {
+        "value": 28.2,
+        "sectorAvg": 24.8,
+        "comment": "Industrial gas oligopoly warrants premium multiple"
+      },
+      "revenueGrowth5y": "7.2% CAGR",
+      "debtToEquity": 0.28,
+      "dividendYield": 1.22,
+      "moat": "strong",
+      "priceTargetBull": 510,
+      "priceTargetBear": 390,
+      "riskScore": 3,
+      "entryZone": "$420–$445",
+      "stopLoss": "$382"
+    },
+    {
+      "rank": 9,
+      "company": "Visa Inc.",
+      "ticker": "V",
+      "sector": "financials",
+      "pe": {
+        "value": 29.5,
+        "sectorAvg": 14.2,
+        "comment": "Premium reflects payment network duopoly and margin structure"
+      },
+      "revenueGrowth5y": "11.8% CAGR",
+      "debtToEquity": 0.52,
+      "dividendYield": 0.75,
+      "moat": "strong",
+      "priceTargetBull": 350,
+      "priceTargetBear": 270,
+      "riskScore": 3,
+      "entryZone": "$290–$308",
+      "stopLoss": "$265"
+    },
+    {
+      "rank": 10,
+      "company": "Waste Management",
+      "ticker": "WM",
+      "sector": "industrials",
+      "pe": {
+        "value": 30.5,
+        "sectorAvg": 24.8,
+        "comment": "Premium for regulated monopoly dynamics in waste collection"
+      },
+      "revenueGrowth5y": "8.8% CAGR",
+      "debtToEquity": 1.65,
+      "dividendYield": 1.42,
+      "moat": "strong",
+      "priceTargetBull": 240,
+      "priceTargetBear": 185,
+      "riskScore": 2,
+      "entryZone": "$198–$210",
+      "stopLoss": "$180"
+    }
+  ],
+  "portfolioAllocation": [
+    {
+      "company": "Berkshire Hathaway",
+      "weightPct": 15.5,
+      "amount": 775.0
+    },
+    {
+      "company": "JPMorgan Chase",
+      "weightPct": 14.3,
+      "amount": 715.0
+    },
+    {
+      "company": "Caterpillar Inc.",
+      "weightPct": 13.0,
+      "amount": 650.0
+    },
+    {
+      "company": "NextEra Energy",
+      "weightPct": 11.8,
+      "amount": 590.0
+    },
+    {
+      "company": "Coca-Cola Co.",
+      "weightPct": 10.5,
+      "amount": 525.0
+    },
+    {
+      "company": "McDonald's Corp.",
+      "weightPct": 9.3,
+      "amount": 465.0
+    },
+    {
+      "company": "Procter & Gamble",
+      "weightPct": 8.1,
+      "amount": 405.0
+    },
+    {
+      "company": "Linde plc",
+      "weightPct": 6.8,
+      "amount": 340.0
+    },
+    {
+      "company": "Visa Inc.",
+      "weightPct": 5.6,
+      "amount": 280.0
+    },
+    {
+      "company": "Waste Management",
+      "weightPct": 5.2,
+      "amount": 260.0
+    }
+  ],
+  "globalRisks": [
+    "Federal Reserve policy uncertainty and interest rate trajectory",
+    "Geopolitical tensions affecting global supply chains and trade flows",
+    "Inflation persistence impacting corporate margins and consumer spending",
+    "Potential US recession risk with leading indicators showing mixed signals",
+    "Currency volatility in global portfolios affecting returns"
+  ],
+  "disclaimer": "Educational analysis. Not financial advice."
+}
