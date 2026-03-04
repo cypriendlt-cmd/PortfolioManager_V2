@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
-import { Brain, RefreshCw, AlertCircle, TrendingUp, Shield, BarChart3, Lightbulb, Cpu, FlaskConical, Search, ChevronDown, ChevronUp, Target, DollarSign, Gauge, FileText, Key } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Brain, RefreshCw, AlertCircle, TrendingUp, Shield, BarChart3, Lightbulb, Cpu, Search, ChevronDown, ChevronUp, Target, DollarSign, Gauge, FileText, Download, PieChart, AlertTriangle } from 'lucide-react'
 import { getFearGreed } from '../services/market'
-import { getInsights, refreshInsights, analyzePortfolio, getProviders, analyzeStocks } from '../services/insights'
+import { getInsights, refreshInsights, analyzePortfolio, getProviders } from '../services/insights'
 import { usePortfolio } from '../context/PortfolioContext'
 import { useAuth } from '../context/AuthContext'
-import { usePrivacy } from '../context/PrivacyContext'
 import { Link } from 'react-router-dom'
 
 function GaugeMeter({ value, label }) {
@@ -79,325 +78,370 @@ function AnalysisCard({ icon: Icon, title, content, color }) {
   )
 }
 
-// ─── Stock Screener Constants ────────────────────────────────────────────────
+// ─── Monthly Analysis Constants ──────────────────────────────────────────────
 
-const SECTORS_OPTIONS = [
-  { value: 'technology', label: 'Technologie' },
-  { value: 'healthcare', label: 'Santé' },
-  { value: 'energy', label: 'Énergie' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'consumer', label: 'Consommation' },
-  { value: 'industrial', label: 'Industrie' },
-  { value: 'real_estate', label: 'Immobilier' },
-  { value: 'utilities', label: 'Utilities' },
+const ANALYSIS_RISK_OPTIONS = [
+  { value: 'low', label: 'Faible' },
+  { value: 'moderate', label: 'Modéré' },
+  { value: 'high', label: 'Élevé' },
 ]
 
-const DEFAULT_PROFILE = {
-  riskTolerance: 'medium',
-  investmentAmount: 10000,
-  horizon: 'long',
-  preferredSectors: ['technology'],
-  geography: 'global',
-  style: 'growth',
-  esg: 'none',
+const ANALYSIS_AMOUNT_OPTIONS = [
+  { value: 100, label: '100€' },
+  { value: 1000, label: '1 000€' },
+  { value: 2000, label: '2 000€' },
+  { value: 5000, label: '5 000€' },
+]
+
+const ANALYSIS_HORIZON_OPTIONS = [
+  { value: 'short', label: '1-2 ans' },
+  { value: 'medium', label: '3-5 ans' },
+  { value: 'long', label: '5 ans +' },
+]
+
+const ANALYSIS_STYLE_OPTIONS = [
+  { value: 'growth', label: 'Growth' },
+  { value: 'value', label: 'Value' },
+  { value: 'dividend', label: 'Dividend' },
+  { value: 'blend', label: 'Blend' },
+]
+
+const ANALYSIS_SECTOR_OPTIONS = [
+  { value: 'technology', label: 'Technology' },
+  { value: 'healthcare', label: 'Healthcare' },
+  { value: 'diversified', label: 'Diversified' },
+]
+
+const ANALYSIS_GEO_OPTIONS = [
+  { value: 'us', label: 'US' },
+  { value: 'europe', label: 'Europe' },
+  { value: 'global', label: 'Global' },
+]
+
+function getRiskColor(score) {
+  if (score <= 3) return '#10b981'
+  if (score <= 5) return '#f59e0b'
+  if (score <= 7) return '#f97316'
+  return '#ef4444'
 }
 
-// ─── Stock Screener Component ────────────────────────────────────────────────
+const MONTH_LABELS = {
+  '01': 'Janvier', '02': 'Février', '03': 'Mars', '04': 'Avril',
+  '05': 'Mai', '06': 'Juin', '07': 'Juillet', '08': 'Août',
+  '09': 'Septembre', '10': 'Octobre', '11': 'Novembre', '12': 'Décembre',
+}
 
-function StockScreener() {
-  const { hideValues } = usePrivacy()
-  const [anthropicKey, setAnthropicKey] = useState(() => localStorage.getItem('pm_anthropic_api_key') || '')
+function formatMonthLabel(monthKey) {
+  const [year, month] = monthKey.split('-')
+  return `${MONTH_LABELS[month] || month} ${year}`
+}
 
-  useEffect(() => {
-    if (anthropicKey) return
-    import('../services/googleDrive').then(({ loadFileFromDrive }) => {
-      loadFileFromDrive('secrets.json').then(data => {
-        if (data?.anthropicKey) {
-          setAnthropicKey(data.anthropicKey)
-          localStorage.setItem('pm_anthropic_api_key', data.anthropicKey)
-        }
-      }).catch(() => {})
-    })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+// ─── Monthly Analysis Component ─────────────────────────────────────────────
 
-  const [profile, setProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('screener_profile')
-      return saved ? { ...DEFAULT_PROFILE, ...JSON.parse(saved) } : DEFAULT_PROFILE
-    } catch { return DEFAULT_PROFILE }
+function MonthlyAnalysis() {
+  const [profile, setProfile] = useState({
+    risk: 'moderate',
+    amount: 1000,
+    horizon: 'long',
+    style: 'growth',
+    sector: 'technology',
+    geo: 'global',
   })
-  const [screenerLoading, setScreenerLoading] = useState(false)
-  const [screenerError, setScreenerError] = useState(null)
-  const [screenerResult, setScreenerResult] = useState(null)
+  const [availableMonths, setAvailableMonths] = useState([])
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [analysisData, setAnalysisData] = useState(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
   const [expandedStock, setExpandedStock] = useState(null)
-  const [showReport, setShowReport] = useState(false)
+
+  // Load available months on mount
+  useEffect(() => {
+    fetch('./data/analyses/index.json')
+      .then(r => r.ok ? r.json() : Promise.reject('Index introuvable'))
+      .then(data => {
+        setAvailableMonths(data.months || [])
+        setSelectedMonth(data.latest || data.months?.[0] || '')
+      })
+      .catch(() => {
+        // Fallback: use current month
+        const now = new Date()
+        const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        setAvailableMonths([current])
+        setSelectedMonth(current)
+      })
+  }, [])
 
   const updateProfile = (key, value) => {
-    setProfile(prev => {
-      const next = { ...prev, [key]: value }
-      localStorage.setItem('screener_profile', JSON.stringify(next))
-      return next
-    })
+    setProfile(prev => ({ ...prev, [key]: value }))
+    // Clear previous result when profile changes
+    setAnalysisData(null)
+    setAnalysisError(null)
   }
 
-  const toggleSector = (sector) => {
-    setProfile(prev => {
-      const current = prev.preferredSectors || []
-      const next = current.includes(sector)
-        ? current.filter(s => s !== sector)
-        : [...current, sector]
-      const updated = { ...prev, preferredSectors: next }
-      localStorage.setItem('screener_profile', JSON.stringify(updated))
-      return updated
-    })
-  }
+  const buildFileName = useCallback(() => {
+    return `risk_${profile.risk}_style_${profile.style}_amount_${profile.amount}_horizon_${profile.horizon}_sector_${profile.sector}_geo_${profile.geo}.json`
+  }, [profile])
 
-  const handleAnalyze = async () => {
-    if (profile.preferredSectors.length === 0) {
-      setScreenerError('Sélectionnez au moins un secteur.')
-      return
-    }
-    setScreenerLoading(true)
-    setScreenerError(null)
-    setScreenerResult(null)
-    setShowReport(false)
+  const handleLoadAnalysis = async () => {
+    if (!selectedMonth) return
+    setAnalysisLoading(true)
+    setAnalysisError(null)
+    setAnalysisData(null)
     setExpandedStock(null)
     try {
-      const res = await analyzeStocks(profile, anthropicKey)
-      setScreenerResult(res.data)
-    } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.details?.join(', ') || err.message
-      setScreenerError(msg)
+      const fileName = buildFileName()
+      const url = `./data/analyses/${selectedMonth}/${fileName}`
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error('not_found')
+      }
+      const data = await res.json()
+      setAnalysisData(data)
+    } catch {
+      setAnalysisError('Aucune analyse disponible pour ce profil ce mois-ci. Les analyses sont mises à jour régulièrement.')
     } finally {
-      setScreenerLoading(false)
+      setAnalysisLoading(false)
     }
   }
 
-  const formatCurrency = (val, currency = 'EUR') => {
-    if (hideValues) return '••••'
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(val)
-  }
-
-  const getRiskColor = (score) => {
-    if (score <= 3) return '#10b981'
-    if (score <= 5) return '#f59e0b'
-    if (score <= 7) return '#f97316'
-    return '#ef4444'
-  }
-
-  const getAdvantageColor = (adv) => {
-    const lower = (adv || '').toLowerCase()
-    if (lower === 'fort') return '#10b981'
-    if (lower === 'modéré') return '#f59e0b'
-    return '#ef4444'
+  const handleDownloadPdf = () => {
+    if (!analysisData?.reportFile) return
+    window.open(analysisData.reportFile, '_blank')
   }
 
   return (
-    <div className="screener-section">
-      <div className="screener-header">
-        <div className="screener-header-left">
-          <div className="screener-icon">
-            <FlaskConical size={22} />
+    <div className="monthly-analysis-section">
+      <div className="monthly-analysis-header">
+        <div className="monthly-analysis-header-left">
+          <div className="monthly-analysis-icon">
+            <BarChart3 size={22} />
           </div>
           <div>
-            <h2 className="screener-title">Invest LAB</h2>
-            <p className="screener-subtitle">Stock Screener propulsé par Claude AI</p>
+            <h2 className="monthly-analysis-title">Analyses du mois</h2>
+            <p className="monthly-analysis-subtitle">Rapports d'investissement pré-générés selon votre profil</p>
           </div>
         </div>
-        <span className="screener-badge">Claude AI</span>
+        {availableMonths.length > 1 && (
+          <select className="screener-select" value={selectedMonth} onChange={e => { setSelectedMonth(e.target.value); setAnalysisData(null); setAnalysisError(null) }} style={{ width: 'auto', minWidth: 160 }}>
+            {availableMonths.map(m => <option key={m} value={m}>{formatMonthLabel(m)}</option>)}
+          </select>
+        )}
+        {availableMonths.length === 1 && selectedMonth && (
+          <span className="monthly-analysis-month-badge">{formatMonthLabel(selectedMonth)}</span>
+        )}
       </div>
-
-      {!anthropicKey && (
-        <div className="card mb-16" style={{ background: 'var(--accent-light)', borderColor: 'var(--accent)' }}>
-          <div className="flex items-center gap-12">
-            <Key size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-            <p className="text-sm" style={{ margin: 0 }}>
-              Configurez votre clé API Anthropic dans les{' '}
-              <Link to="/settings" style={{ color: 'var(--accent)', fontWeight: 600 }}>Paramètres</Link>{' '}
-              pour utiliser le Stock Screener.
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="screener-form">
         <div className="screener-form-grid">
           <div className="screener-field">
             <label className="screener-label">Tolérance au risque</label>
-            <select className="screener-select" value={profile.riskTolerance} onChange={e => updateProfile('riskTolerance', e.target.value)}>
-              <option value="low">Faible</option>
-              <option value="medium">Modéré</option>
-              <option value="high">Élevé</option>
+            <select className="screener-select" value={profile.risk} onChange={e => updateProfile('risk', e.target.value)}>
+              {ANALYSIS_RISK_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="screener-field">
-            <label className="screener-label">Montant investi (€)</label>
-            <input type="number" className="screener-input" value={profile.investmentAmount} onChange={e => updateProfile('investmentAmount', Number(e.target.value))} min={100} max={100000000} step={100} />
+            <label className="screener-label">Montant investi</label>
+            <select className="screener-select" value={profile.amount} onChange={e => updateProfile('amount', Number(e.target.value))}>
+              {ANALYSIS_AMOUNT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
           <div className="screener-field">
-            <label className="screener-label">Horizon d'investissement</label>
+            <label className="screener-label">Horizon</label>
             <select className="screener-select" value={profile.horizon} onChange={e => updateProfile('horizon', e.target.value)}>
-              <option value="short">Court terme (1-2 ans)</option>
-              <option value="medium">Moyen terme (3-5 ans)</option>
-              <option value="long">Long terme (5+ ans)</option>
-            </select>
-          </div>
-          <div className="screener-field">
-            <label className="screener-label">Zone géographique</label>
-            <select className="screener-select" value={profile.geography} onChange={e => updateProfile('geography', e.target.value)}>
-              <option value="usa">USA</option>
-              <option value="europe">Europe</option>
-              <option value="global">Global</option>
+              {ANALYSIS_HORIZON_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="screener-field">
             <label className="screener-label">Style d'investissement</label>
             <select className="screener-select" value={profile.style} onChange={e => updateProfile('style', e.target.value)}>
-              <option value="growth">Growth</option>
-              <option value="value">Value</option>
-              <option value="dividend">Dividend</option>
-              <option value="blend">Blend</option>
+              {ANALYSIS_STYLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="screener-field">
-            <label className="screener-label">Contraintes ESG</label>
-            <select className="screener-select" value={profile.esg} onChange={e => updateProfile('esg', e.target.value)}>
-              <option value="none">Aucune</option>
-              <option value="light">ESG léger</option>
-              <option value="strict">ESG strict</option>
+            <label className="screener-label">Secteurs</label>
+            <select className="screener-select" value={profile.sector} onChange={e => updateProfile('sector', e.target.value)}>
+              {ANALYSIS_SECTOR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="screener-field">
+            <label className="screener-label">Zone géographique</label>
+            <select className="screener-select" value={profile.geo} onChange={e => updateProfile('geo', e.target.value)}>
+              {ANALYSIS_GEO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
         </div>
-        <div className="screener-field screener-field-full">
-          <label className="screener-label">Secteurs préférés</label>
-          <div className="screener-chips">
-            {SECTORS_OPTIONS.map(s => (
-              <button key={s.value} type="button" className={`screener-chip ${profile.preferredSectors.includes(s.value) ? 'screener-chip-active' : ''}`} onClick={() => toggleSector(s.value)}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="screener-actions">
-          <button className="btn btn-primary screener-analyze-btn" onClick={handleAnalyze} disabled={screenerLoading}>
-            {screenerLoading ? (<><RefreshCw size={16} className="animate-pulse" /> Analyse en cours...</>) : (<><Search size={16} /> Analyser</>)}
+          <button className="btn btn-primary screener-analyze-btn" onClick={handleLoadAnalysis} disabled={analysisLoading || !selectedMonth}>
+            {analysisLoading ? (<><RefreshCw size={16} className="animate-pulse" /> Chargement...</>) : (<><Search size={16} /> Voir l'analyse</>)}
           </button>
         </div>
       </div>
 
-      {screenerError && (
-        <div className="card mt-16" style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'var(--danger)' }}>
+      {analysisError && (
+        <div className="card mt-16" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'var(--warning)' }}>
           <div className="flex items-center gap-12">
-            <AlertCircle size={18} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-            <p className="text-sm" style={{ margin: 0, color: 'var(--text-primary)' }}>{screenerError}</p>
+            <AlertCircle size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+            <p className="text-sm" style={{ margin: 0, color: 'var(--text-primary)' }}>{analysisError}</p>
           </div>
         </div>
       )}
 
-      {screenerLoading && (
-        <div className="screener-loading">
-          <div className="screener-loading-spinner" />
-          <p>Claude AI analyse les marchés selon votre profil...</p>
-          <p className="text-xs text-muted">Cela peut prendre 15 à 30 secondes</p>
-        </div>
-      )}
-
-      {screenerResult && !screenerLoading && (
-        <div className="screener-results">
-          <div className="screener-summary-grid">
-            <div className="screener-summary-card">
+      {analysisData && !analysisLoading && (
+        <div className="monthly-analysis-results">
+          {/* Profile summary */}
+          <div className="monthly-analysis-profile-card">
+            <div className="flex items-center gap-10 mb-12">
               <Target size={18} style={{ color: 'var(--accent)' }} />
-              <div><span className="screener-summary-value">{screenerResult.summary?.totalStocks || 10}</span><span className="screener-summary-label">Actions analysées</span></div>
+              <h3 style={{ margin: 0 }}>Profil investisseur</h3>
             </div>
-            <div className="screener-summary-card">
-              <Gauge size={18} style={{ color: '#f59e0b' }} />
-              <div><span className="screener-summary-value">{screenerResult.summary?.averageRiskScore?.toFixed(1) || '-'}/10</span><span className="screener-summary-label">Risque moyen</span></div>
-            </div>
-            <div className="screener-summary-card">
-              <DollarSign size={18} style={{ color: '#10b981' }} />
-              <div><span className="screener-summary-value">{screenerResult.summary?.averageDividendYield || '-'}</span><span className="screener-summary-label">Div. yield moyen</span></div>
-            </div>
-            <div className="screener-summary-card">
-              <TrendingUp size={18} style={{ color: '#3b82f6' }} />
-              <div><span className="screener-summary-value" style={{ textTransform: 'capitalize' }}>{screenerResult.summary?.marketOutlook || '-'}</span><span className="screener-summary-label">Outlook</span></div>
-            </div>
-          </div>
-
-          {screenerResult.summary?.keyInsight && (
-            <div className="screener-key-insight"><Lightbulb size={16} /><span>{screenerResult.summary.keyInsight}</span></div>
-          )}
-
-          {screenerResult.table && (
-            <div className="screener-table-wrap">
-              <table className="screener-table">
-                <thead><tr>{(screenerResult.table.headers || []).map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {(screenerResult.table.rows || []).map((row, i) => (
-                    <tr key={i} onClick={() => setExpandedStock(expandedStock === i ? null : i)} className="screener-table-row-clickable">
-                      {row.map((cell, j) => <td key={j}>{typeof cell === 'number' && j >= 4 ? (hideValues ? '••••' : cell.toLocaleString('fr-FR')) : (hideValues && j >= 4 ? '••••' : cell)}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <h3 className="mt-24 mb-16">Fiches détaillées</h3>
-          <div className="screener-stocks-grid">
-            {(screenerResult.top10 || []).map((stock, i) => (
-              <div key={i} className="screener-stock-card" onClick={() => setExpandedStock(expandedStock === i ? null : i)}>
-                <div className="screener-stock-header">
-                  <div className="screener-stock-rank">#{stock.rank}</div>
-                  <div className="screener-stock-info"><strong>{stock.symbol}</strong><span className="text-sm text-muted">{stock.name}</span></div>
-                  <div className="screener-stock-right">
-                    <span className="screener-stock-price">{formatCurrency(stock.currentPrice, stock.currency || 'USD')}</span>
-                    <span className="screener-stock-risk" style={{ background: `${getRiskColor(stock.riskScore)}15`, color: getRiskColor(stock.riskScore) }}>Risque {stock.riskScore}/10</span>
-                  </div>
-                  {expandedStock === i ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-                {expandedStock === i && (
-                  <div className="screener-stock-details">
-                    <div className="screener-stock-metrics">
-                      <div className="screener-metric"><span className="screener-metric-label">P/E</span><span className="screener-metric-value">{stock.peRatio}</span><span className="screener-metric-sub">Secteur: {stock.sectorAvgPE}</span></div>
-                      <div className="screener-metric"><span className="screener-metric-label">CA 5 ans</span><span className="screener-metric-value">{stock.revenueGrowth5Y}</span></div>
-                      <div className="screener-metric"><span className="screener-metric-label">Debt/Equity</span><span className="screener-metric-value">{stock.debtToEquity}</span></div>
-                      <div className="screener-metric"><span className="screener-metric-label">Div. Yield</span><span className="screener-metric-value">{stock.dividendYield}</span><span className="screener-metric-sub">{stock.dividendSustainability}</span></div>
-                      <div className="screener-metric"><span className="screener-metric-label">Avantage</span><span className="screener-metric-value" style={{ color: getAdvantageColor(stock.competitiveAdvantage) }}>{stock.competitiveAdvantage}</span></div>
-                    </div>
-                    <div className="screener-stock-targets">
-                      <div className="screener-target"><span className="screener-target-label">Obj. Haussier</span><span className="screener-target-value" style={{ color: '#10b981' }}>{formatCurrency(stock.priceTarget12M?.bull, stock.currency || 'USD')}</span></div>
-                      <div className="screener-target"><span className="screener-target-label">Obj. Baissier</span><span className="screener-target-value" style={{ color: '#ef4444' }}>{formatCurrency(stock.priceTarget12M?.bear, stock.currency || 'USD')}</span></div>
-                      <div className="screener-target"><span className="screener-target-label">Zone d'entrée</span><span className="screener-target-value">{formatCurrency(stock.entryZone?.low, stock.currency || 'USD')} — {formatCurrency(stock.entryZone?.high, stock.currency || 'USD')}</span></div>
-                      <div className="screener-target"><span className="screener-target-label">Stop-Loss</span><span className="screener-target-value" style={{ color: '#ef4444' }}>{formatCurrency(stock.stopLoss, stock.currency || 'USD')}</span></div>
-                    </div>
-                    {stock.thesis && <p className="screener-stock-thesis">{stock.thesis}</p>}
-                    {stock.riskJustification && <p className="screener-stock-risk-text"><Shield size={14} style={{ flexShrink: 0 }} />{stock.riskJustification}</p>}
-                  </div>
-                )}
+            <div className="monthly-analysis-profile-grid">
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Risque</span>
+                <span className="monthly-analysis-profile-tag-value">{ANALYSIS_RISK_OPTIONS.find(o => o.value === analysisData.profile?.riskTolerance)?.label || profile.risk}</span>
               </div>
-            ))}
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Montant</span>
+                <span className="monthly-analysis-profile-tag-value">{analysisData.profile?.investmentAmount?.toLocaleString('fr-FR')}€</span>
+              </div>
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Horizon</span>
+                <span className="monthly-analysis-profile-tag-value">{ANALYSIS_HORIZON_OPTIONS.find(o => o.value === analysisData.profile?.horizon)?.label || profile.horizon}</span>
+              </div>
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Style</span>
+                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'capitalize' }}>{analysisData.profile?.style || profile.style}</span>
+              </div>
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Secteur</span>
+                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'capitalize' }}>{analysisData.profile?.sector || profile.sector}</span>
+              </div>
+              <div className="monthly-analysis-profile-tag">
+                <span className="monthly-analysis-profile-tag-label">Zone</span>
+                <span className="monthly-analysis-profile-tag-value" style={{ textTransform: 'uppercase' }}>{analysisData.profile?.geography || profile.geo}</span>
+              </div>
+            </div>
           </div>
 
-          {screenerResult.reportMarkdown && (
-            <div className="screener-report-section">
-              <button className="btn btn-secondary screener-report-toggle" onClick={() => setShowReport(!showReport)}>
-                <FileText size={16} />{showReport ? 'Masquer le rapport' : 'Voir le rapport complet'}{showReport ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-              {showReport && (
-                <div className="screener-report-content card">
-                  <div className="screener-markdown" dangerouslySetInnerHTML={{
-                    __html: screenerResult.reportMarkdown
-                      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                      .replace(/^- (.*$)/gm, '<li>$1</li>')
-                      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-                      .replace(/\n{2,}/g, '</p><p>')
-                  }} />
+          {/* Strategy summary */}
+          {analysisData.summary && (
+            <div className="card monthly-analysis-strategy-card">
+              <div className="flex items-center gap-10 mb-12">
+                <Lightbulb size={18} style={{ color: '#f59e0b' }} />
+                <h3 style={{ margin: 0 }}>Résumé stratégie</h3>
+              </div>
+              {analysisData.summary.strategy && <p className="monthly-analysis-strategy-text">{analysisData.summary.strategy}</p>}
+              {analysisData.summary.marketOutlook && (
+                <div className="monthly-analysis-outlook">
+                  <TrendingUp size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                  <span>{analysisData.summary.marketOutlook}</span>
                 </div>
               )}
+              {analysisData.summary.keyInsight && (
+                <div className="monthly-analysis-key-insight">
+                  <Lightbulb size={14} style={{ flexShrink: 0 }} />
+                  <span>{analysisData.summary.keyInsight}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Top 10 table */}
+          {analysisData.top10?.length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-10 mb-16">
+                <Target size={18} style={{ color: 'var(--accent)' }} />
+                <h3 style={{ margin: 0 }}>Top 10 actions</h3>
+              </div>
+              <div className="screener-table-wrap">
+                <table className="screener-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Entreprise</th>
+                      <th>Symbole</th>
+                      <th>Secteur</th>
+                      <th>P/E</th>
+                      <th>Dividende</th>
+                      <th>Score risque</th>
+                      <th>Zone d'entrée</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisData.top10.map((stock, i) => (
+                      <tr key={i} className="screener-table-row-clickable" onClick={() => setExpandedStock(expandedStock === i ? null : i)}>
+                        <td className="font-mono">{stock.rank}</td>
+                        <td><strong>{stock.name}</strong></td>
+                        <td className="font-mono">{stock.symbol}</td>
+                        <td className="text-muted">{stock.sector}</td>
+                        <td className="font-mono">{stock.pe}</td>
+                        <td className="font-mono">{stock.dividendYield}</td>
+                        <td>
+                          <span className="monthly-analysis-risk-badge" style={{ background: `${getRiskColor(stock.riskScore)}15`, color: getRiskColor(stock.riskScore) }}>
+                            {stock.riskScore}/10
+                          </span>
+                        </td>
+                        <td className="font-mono">{stock.entryZone}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {expandedStock != null && analysisData.top10[expandedStock]?.thesis && (
+                <div className="monthly-analysis-thesis-box">
+                  <strong>{analysisData.top10[expandedStock].name}</strong> — {analysisData.top10[expandedStock].thesis}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Allocation */}
+          {analysisData.portfolioAllocation?.length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-10 mb-16">
+                <PieChart size={18} style={{ color: '#8b5cf6' }} />
+                <h3 style={{ margin: 0 }}>Allocation portefeuille</h3>
+              </div>
+              <div className="monthly-analysis-allocation-grid">
+                {analysisData.portfolioAllocation.map((item, i) => (
+                  <div key={i} className="monthly-analysis-allocation-item">
+                    <div className="monthly-analysis-allocation-bar-bg">
+                      <div className="monthly-analysis-allocation-bar" style={{ width: `${item.pct}%` }} />
+                    </div>
+                    <div className="monthly-analysis-allocation-info">
+                      <span className="monthly-analysis-allocation-label">{item.label}</span>
+                      <span className="monthly-analysis-allocation-pct font-mono">{item.pct}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Global risks */}
+          {analysisData.globalRisks?.length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-10 mb-16">
+                <AlertTriangle size={18} style={{ color: 'var(--danger)' }} />
+                <h3 style={{ margin: 0 }}>Principaux risques</h3>
+              </div>
+              <ul className="monthly-analysis-risks-list">
+                {analysisData.globalRisks.map((risk, i) => (
+                  <li key={i} className="monthly-analysis-risk-item">
+                    <Shield size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} />
+                    <span>{risk}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Download PDF */}
+          {analysisData.reportFile && (
+            <div className="monthly-analysis-download">
+              <button className="btn btn-primary monthly-analysis-download-btn" onClick={handleDownloadPdf}>
+                <Download size={18} />
+                Télécharger le rapport complet (PDF)
+              </button>
             </div>
           )}
         </div>
@@ -718,14 +762,14 @@ export default function Insights() {
         </div>
       ) : null}
 
-      {/* ─── Invest LAB : Stock Screener ─────────────────────────── */}
+      {/* ─── Analyses du mois ─────────────────────────── */}
       <div className="screener-divider">
         <div className="screener-divider-line" />
-        <span className="screener-divider-label"><FlaskConical size={14} /> Invest LAB</span>
+        <span className="screener-divider-label"><BarChart3 size={14} /> Analyses du mois</span>
         <div className="screener-divider-line" />
       </div>
 
-      <StockScreener />
+      <MonthlyAnalysis />
 
       <div className="card mt-24" style={{ background: 'var(--warning-light)', borderColor: 'var(--warning)' }}>
         <div className="flex items-center gap-12">

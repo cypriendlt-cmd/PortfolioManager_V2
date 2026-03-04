@@ -6290,3 +6290,105 @@ tbody tr:hover {
 .pea-summary-item--change {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
 }
+
+/* ======================================================
+   MONTHLY ANALYSIS (Analyses du mois)
+   ====================================================== */
+.monthly-analysis-section {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; margin-bottom: 24px;
+}
+.monthly-analysis-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+}
+.monthly-analysis-header-left { display: flex; align-items: center; gap: 14px; }
+.monthly-analysis-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--accent-light); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.monthly-analysis-title { font-size: 1.3rem; font-weight: 800; margin: 0; color: var(--text-primary); }
+.monthly-analysis-subtitle { font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0; }
+.monthly-analysis-month-badge {
+  background: var(--accent-light); color: var(--accent); font-weight: 700; font-size: 0.82rem;
+  padding: 6px 14px; border-radius: 8px;
+}
+
+.monthly-analysis-results { display: flex; flex-direction: column; gap: 20px; margin-top: 24px; }
+
+/* Profile card */
+.monthly-analysis-profile-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+}
+.monthly-analysis-profile-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.monthly-analysis-profile-tag {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg-secondary); border-radius: 8px; padding: 8px 14px; min-width: 100px;
+}
+.monthly-analysis-profile-tag-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.monthly-analysis-profile-tag-value { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+
+/* Strategy */
+.monthly-analysis-strategy-card { border-left: 3px solid var(--accent); }
+.monthly-analysis-strategy-text { font-size: 0.88rem; line-height: 1.65; color: var(--text-primary); margin-bottom: 14px; }
+.monthly-analysis-outlook {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--bg-secondary); border-radius: 10px; padding: 12px 14px;
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); margin-bottom: 10px;
+}
+.monthly-analysis-key-insight {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(245, 158, 11, 0.08); border-radius: 10px; padding: 12px 14px;
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-primary); font-weight: 500;
+}
+
+/* Risk badge in table */
+.monthly-analysis-risk-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+}
+
+/* Thesis expandable */
+.monthly-analysis-thesis-box {
+  margin-top: 12px; padding: 14px 16px; background: var(--bg-secondary);
+  border-radius: 10px; font-size: 0.82rem; line-height: 1.55; color: var(--text-secondary);
+  border-left: 3px solid var(--accent);
+}
+
+/* Allocation bars */
+.monthly-analysis-allocation-grid { display: flex; flex-direction: column; gap: 14px; }
+.monthly-analysis-allocation-item { display: flex; flex-direction: column; gap: 6px; }
+.monthly-analysis-allocation-bar-bg {
+  height: 10px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden;
+}
+.monthly-analysis-allocation-bar {
+  height: 100%; background: var(--gradient-accent); border-radius: 5px; transition: width 0.5s ease;
+}
+.monthly-analysis-allocation-info { display: flex; justify-content: space-between; align-items: center; }
+.monthly-analysis-allocation-label { font-size: 0.82rem; color: var(--text-primary); font-weight: 600; }
+.monthly-analysis-allocation-pct { font-size: 0.82rem; color: var(--text-muted); font-weight: 700; }
+
+/* Risks */
+.monthly-analysis-risks-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.monthly-analysis-risk-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary);
+  padding: 10px 14px; background: var(--bg-secondary); border-radius: 10px;
+}
+
+/* Download */
+.monthly-analysis-download { display: flex; justify-content: center; padding-top: 8px; }
+.monthly-analysis-download-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 28px; font-size: 0.95rem; font-weight: 700; border-radius: 12px;
+}
+
+@media (max-width: 600px) {
+  .monthly-analysis-section { padding: 16px; }
+  .monthly-analysis-header { flex-direction: column; align-items: flex-start; }
+  .monthly-analysis-profile-grid { gap: 6px; }
+  .monthly-analysis-profile-tag { min-width: 80px; padding: 6px 10px; }
+}
