@@ -398,10 +398,10 @@ function MonthlyAnalysis() {
             <div className="monthly-analysis-profile-grid">
               {[
                 { label: 'Risque', value: profileLabel(ANALYSIS_RISK_OPTIONS, analysisData.profile?.riskTolerance) },
-                { label: 'Montant', value: `${(analysisData.profile?.investmentAmount || 0).toLocaleString('fr-FR')}€` },
+                { label: 'Montant', value: `${(analysisData.profile?.investmentAmount || analysisData.profile?.amount || 0).toLocaleString('fr-FR')}€` },
                 { label: 'Horizon', value: profileLabel(ANALYSIS_HORIZON_OPTIONS, analysisData.profile?.horizon) },
                 { label: 'Style', value: profileLabel(ANALYSIS_STYLE_OPTIONS, analysisData.profile?.style), capitalize: true },
-                { label: 'Secteurs', value: (analysisData.profile?.preferredSectors || []).map(s => profileLabel(ANALYSIS_SECTOR_OPTIONS, s)).join(', ') || '—', capitalize: true },
+                { label: 'Secteurs', value: (analysisData.profile?.preferredSectors || analysisData.profile?.sectors || []).map(s => profileLabel(ANALYSIS_SECTOR_OPTIONS, s)).join(', ') || '—', capitalize: true },
                 { label: 'Zone', value: profileLabel(ANALYSIS_GEO_OPTIONS, analysisData.profile?.geography), uppercase: true },
                 { label: 'ESG', value: profileLabel(ANALYSIS_ESG_OPTIONS, analysisData.profile?.esg) },
               ].map((tag, i) => (
@@ -477,11 +477,11 @@ function MonthlyAnalysis() {
                         onClick={() => setExpandedStock(expandedStock === i ? null : i)}
                       >
                         <td className="font-mono">{stock.rank}</td>
-                        <td><strong>{stock.name}</strong></td>
-                        <td className="font-mono">{stock.symbol}</td>
+                        <td><strong>{stock.company || stock.name}</strong></td>
+                        <td className="font-mono">{stock.ticker || stock.symbol}</td>
                         <td className="text-muted text-sm">{stock.sector}</td>
-                        <td className="font-mono">{stock.pe}</td>
-                        <td className="font-mono">{stock.dividendYield}</td>
+                        <td className="font-mono">{typeof stock.pe === 'object' ? stock.pe.value : stock.pe}</td>
+                        <td className="font-mono">{typeof stock.dividendYield === 'number' ? stock.dividendYield + '%' : stock.dividendYield}</td>
                         <td>
                           <span
                             className="monthly-analysis-risk-badge"
@@ -496,13 +496,23 @@ function MonthlyAnalysis() {
                   </tbody>
                 </table>
               </div>
-              {expandedStock != null && analysisData.top10[expandedStock]?.thesis && (
-                <div className="monthly-analysis-thesis-box">
-                  <strong>{analysisData.top10[expandedStock].symbol}</strong>
-                  <span style={{ margin: '0 6px', color: 'var(--text-muted)' }}>—</span>
-                  {analysisData.top10[expandedStock].thesis}
-                </div>
-              )}
+              {expandedStock != null && (() => {
+                const s = analysisData.top10[expandedStock]
+                const detail = s.thesis || (typeof s.pe === 'object' ? s.pe.comment : null)
+                if (!detail) return null
+                return (
+                  <div className="monthly-analysis-thesis-box">
+                    <strong>{s.ticker || s.symbol}</strong>
+                    <span style={{ margin: '0 6px', color: 'var(--text-muted)' }}>—</span>
+                    {detail}
+                    {typeof s.pe === 'object' && s.pe.sectorAvg && (
+                      <span className="text-muted text-sm" style={{ display: 'block', marginTop: 4 }}>
+                        P/E secteur moyen : {s.pe.sectorAvg} | Croissance 5a : {s.revenueGrowth5y || '—'} | Stop-loss : {s.stopLoss || '—'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -514,36 +524,40 @@ function MonthlyAnalysis() {
                 <h3 style={{ margin: 0 }}>Allocation portefeuille</h3>
               </div>
               <div className="monthly-analysis-allocation-grid">
-                {analysisData.portfolioAllocation.map((item, i) => (
-                  <div key={i} className="monthly-analysis-allocation-item">
-                    <div className="monthly-analysis-allocation-bar-bg">
-                      <div
-                        className="monthly-analysis-allocation-bar"
-                        style={{ width: `${item.pct}%`, background: item.color || 'var(--accent)' }}
-                      />
+                {analysisData.portfolioAllocation.map((item, i) => {
+                  const pct = item.pct ?? item.weightPct ?? 0
+                  const label = item.label || item.company || '—'
+                  return (
+                    <div key={i} className="monthly-analysis-allocation-item">
+                      <div className="monthly-analysis-allocation-bar-bg">
+                        <div
+                          className="monthly-analysis-allocation-bar"
+                          style={{ width: `${pct}%`, background: item.color || 'var(--accent)' }}
+                        />
+                      </div>
+                      <div className="monthly-analysis-allocation-info">
+                        <span className="monthly-analysis-allocation-label">
+                          {item.color && <span className="monthly-analysis-alloc-dot" style={{ background: item.color }} />}
+                          {label}
+                        </span>
+                        <span className="monthly-analysis-allocation-pct font-mono">{pct}%</span>
+                      </div>
                     </div>
-                    <div className="monthly-analysis-allocation-info">
-                      <span className="monthly-analysis-allocation-label">
-                        {item.color && <span className="monthly-analysis-alloc-dot" style={{ background: item.color }} />}
-                        {item.label}
-                      </span>
-                      <span className="monthly-analysis-allocation-pct font-mono">{item.pct}%</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
 
           {/* ── Risques ── */}
-          {analysisData.globalRisks?.length > 0 && (
+          {(analysisData.globalRisks?.length > 0 || analysisData.summary?.keyRisks?.length > 0) && (
             <div className="card">
               <div className="flex items-center gap-10 mb-16">
                 <AlertTriangle size={18} style={{ color: 'var(--danger)' }} />
                 <h3 style={{ margin: 0 }}>Principaux risques</h3>
               </div>
               <ul className="monthly-analysis-risks-list">
-                {analysisData.globalRisks.map((risk, i) => (
+                {(analysisData.globalRisks || analysisData.summary?.keyRisks || []).map((risk, i) => (
                   <li key={i} className="monthly-analysis-risk-item">
                     <Shield size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} />
                     <span>{risk}</span>

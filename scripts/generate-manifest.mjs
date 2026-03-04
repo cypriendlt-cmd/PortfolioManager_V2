@@ -53,10 +53,10 @@ async function main() {
       file,
       profile: {
         riskTolerance:    data.profile.riskTolerance    || 'moderate',
-        investmentAmount: data.profile.investmentAmount  || 1000,
+        investmentAmount: data.profile.investmentAmount ?? data.profile.amount ?? 1000,
         horizon:          data.profile.horizon           || 'medium',
         style:            data.profile.style             || 'blend',
-        preferredSectors: data.profile.preferredSectors  || ['diversified'],
+        preferredSectors: data.profile.preferredSectors ?? data.profile.sectors ?? ['diversified'],
         geography:        data.profile.geography         || 'global',
         esg:              data.profile.esg               || 'none',
       },
