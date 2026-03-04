@@ -82,7 +82,7 @@ function AnalysisCard({ icon: Icon, title, content, color }) {
 
 const ANALYSIS_RISK_OPTIONS = [
   { value: 'low', label: 'Faible' },
-  { value: 'moderate', label: 'Modéré' },
+  { value: 'medium', label: 'Modéré' },
   { value: 'high', label: 'Élevé' },
 ]
 
@@ -143,31 +143,58 @@ function formatMonthLabel(monthKey) {
 }
 
 /**
+ * Normalize values for fuzzy matching between form values and JSON values.
+ */
+const HORIZON_ALIASES = {
+  'short': ['short', '1-2 years', '1-2 ans', '<2 years'],
+  'medium': ['medium', '3-5 years', '3-5 ans'],
+  'long': ['long', '5+ years', '5 ans +', '5+ ans', '>5 years'],
+}
+const RISK_ALIASES = {
+  'low': ['low', 'faible'],
+  'moderate': ['moderate', 'medium', 'modéré', 'moyen'],
+  'high': ['high', 'élevé', 'aggressive'],
+}
+
+function fuzzyMatch(formValue, jsonValue, aliasMap) {
+  if (!formValue || !jsonValue) return false
+  const fv = formValue.toLowerCase().trim()
+  const jv = jsonValue.toLowerCase().trim()
+  if (fv === jv) return true
+  if (aliasMap) {
+    const aliases = aliasMap[fv]
+    if (aliases && aliases.some(a => a.toLowerCase() === jv)) return true
+  }
+  return false
+}
+
+/**
  * Compute a match score between user profile and an analysis profile from the manifest.
  * Higher score = better match. Each matching field adds points, weighted by importance.
  */
 function computeMatchScore(userProfile, analysisProfile) {
   let score = 0
   // Risk tolerance — most important (weight 4)
-  if (userProfile.risk === analysisProfile.riskTolerance) score += 4
+  if (fuzzyMatch(userProfile.risk, analysisProfile.riskTolerance, RISK_ALIASES)) score += 4
   // Style — very important (weight 3)
-  if (userProfile.style === analysisProfile.style) score += 3
+  if (userProfile.style?.toLowerCase() === analysisProfile.style?.toLowerCase()) score += 3
   // Amount — important (weight 2), also reward closest amount
-  if (userProfile.amount === analysisProfile.investmentAmount) {
+  const analysisAmount = analysisProfile.investmentAmount ?? analysisProfile.amount ?? 1000
+  if (userProfile.amount === analysisAmount) {
     score += 2
   } else {
-    const ratio = Math.min(userProfile.amount, analysisProfile.investmentAmount) / Math.max(userProfile.amount, analysisProfile.investmentAmount)
+    const ratio = Math.min(userProfile.amount, analysisAmount) / Math.max(userProfile.amount, analysisAmount)
     score += ratio // 0 to 1 partial credit
   }
   // Horizon (weight 2)
-  if (userProfile.horizon === analysisProfile.horizon) score += 2
+  if (fuzzyMatch(userProfile.horizon, analysisProfile.horizon, HORIZON_ALIASES)) score += 2
   // Sector (weight 2)
-  const analysisSectors = analysisProfile.preferredSectors || []
-  if (analysisSectors.includes(userProfile.sector)) score += 2
+  const analysisSectors = (analysisProfile.preferredSectors || analysisProfile.sectors || []).map(s => s.toLowerCase())
+  if (analysisSectors.includes(userProfile.sector?.toLowerCase())) score += 2
   // Geography (weight 1.5)
-  if (userProfile.geo === analysisProfile.geography) score += 1.5
+  if (userProfile.geo?.toLowerCase() === analysisProfile.geography?.toLowerCase()) score += 1.5
   // ESG (weight 1)
-  if (userProfile.esg === analysisProfile.esg) score += 1
+  if (userProfile.esg?.toLowerCase() === analysisProfile.esg?.toLowerCase()) score += 1
   return score
 }
 
@@ -175,7 +202,7 @@ function computeMatchScore(userProfile, analysisProfile) {
 
 function MonthlyAnalysis() {
   const [profile, setProfile] = useState({
-    risk: 'moderate',
+    risk: 'medium',
     amount: 1000,
     horizon: 'long',
     style: 'growth',
