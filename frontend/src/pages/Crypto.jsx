@@ -265,8 +265,35 @@ function PerformanceChart({ asset }) {
 }
 
 /* ===== Accordion Card ===== */
+const CRYPTO_PERIODS = [
+  { key: '1h', label: '1h' },
+  { key: '24h', label: '24h' },
+  { key: '7d', label: '7j' },
+  { key: '30d', label: '30j' },
+  { key: '1y', label: '1a' },
+  { key: 'max', label: 'Max' },
+]
+
+function getChangePct(asset, period, gainPct) {
+  if (period === '1h') return asset.change1h
+  if (period === '24h') return asset.change24h
+  if (period === '7d') return asset.change7d
+  if (period === '30d') return asset.change30d
+  if (period === '1y') return asset.change1y
+  if (period === 'max') return gainPct
+  return null
+}
+
+function getChangeEur(asset, period, gain) {
+  if (period === 'max') return gain
+  const pct = getChangePct(asset, period, null)
+  if (pct == null) return null
+  return (pct / 100) * asset.currentPrice * asset.quantity
+}
+
 function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMovement, onDeleteMovement }) {
   const { m, mp } = usePrivacyMask()
+  const [changePeriod, setChangePeriod] = useState('24h')
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
   // Compute totalInvested from movements for accuracy (avoids PRU rounding drift)
@@ -335,6 +362,23 @@ function CryptoCard({ asset, isExpanded, onToggle, onDelete, onEdit, onAddMoveme
           <span className={`crypto-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
             {mp(fmtPct(gainPct))}
           </span>
+        </div>
+        <div className="crypto-summary-item crypto-summary-item--change">
+          <div className="change-period-selector">
+            {CRYPTO_PERIODS.map(p => (
+              <button key={p.key} className={`change-period-btn${changePeriod === p.key ? ' active' : ''}`}
+                onClick={e => { e.stopPropagation(); setChangePeriod(p.key) }}>{p.label}</button>
+            ))}
+          </div>
+          {(() => {
+            const pct = getChangePct(asset, changePeriod, gainPct)
+            const eur = getChangeEur(asset, changePeriod, gain)
+            return (
+              <span className={`crypto-summary-value font-semibold ${pct != null ? (pct >= 0 ? 'text-success' : 'text-danger') : ''}`}>
+                {pct != null ? m(`${eur >= 0 ? '+' : ''}${fmt(eur)}`) + ` (${mp(fmtPct(pct))})` : '—'}
+              </span>
+            )
+          })()}
         </div>
       </div>
 
@@ -458,6 +502,7 @@ export default function Crypto() {
   const totalGain = totals.crypto - totalInvested
   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0
 
+  const [headerPeriod, setHeaderPeriod] = useState('max')
   const [expandedId, setExpandedId] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState(null)
@@ -546,10 +591,37 @@ export default function Crypto() {
             <p className="stat-label">Valeur totale Crypto</p>
             <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{m(fmt(totals.crypto))}</p>
             <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
-              <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
-                {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {m(fmt(totalGain))} ({mp(fmtPct(totalGainPct))})
-              </span>
+              {(() => {
+                // Aggregate change for header based on selected period
+                let aggEur = null, aggPct = null
+                if (headerPeriod === 'max') {
+                  aggEur = totalGain; aggPct = totalGainPct
+                } else {
+                  const sum = portfolio.crypto.reduce((acc, c) => {
+                    const pct = getChangePct(c, headerPeriod, null)
+                    if (pct == null) return acc
+                    return { eur: acc.eur + (pct / 100) * (c.currentPrice || 0) * c.quantity, count: acc.count + 1 }
+                  }, { eur: 0, count: 0 })
+                  if (sum.count > 0) {
+                    aggEur = sum.eur
+                    aggPct = totals.crypto > 0 ? (sum.eur / totals.crypto) * 100 : 0
+                  }
+                }
+                return (
+                  <>
+                    <span className={`badge ${(aggPct ?? 0) >= 0 ? 'badge-success' : 'badge-danger'}`}>
+                      {(aggPct ?? 0) >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {aggEur != null ? `${m(fmt(aggEur))} (${mp(fmtPct(aggPct))})` : '—'}
+                    </span>
+                    <div className="change-period-selector">
+                      {CRYPTO_PERIODS.map(p => (
+                        <button key={p.key} className={`change-period-btn${headerPeriod === p.key ? ' active' : ''}`}
+                          onClick={() => setHeaderPeriod(p.key)}>{p.label}</button>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
               <span className="text-sm text-muted">Investi: {m(fmt(totalInvested))}</span>
             </div>
           </div>

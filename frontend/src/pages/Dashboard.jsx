@@ -271,6 +271,8 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totals.total])
 
+  const [cryptoPeriod, setCryptoPeriod] = useState('max')
+  const [peaPeriod, setPeaPeriod] = useState('max')
   const [timeRange, setTimeRange] = useState('6m')
   const perfData = buildPortfolioHistory(portfolio, totals, timeRange)
   const recentActivities = gatherRecentActivities(portfolio)
@@ -375,7 +377,30 @@ export default function Dashboard() {
             <span className="dash-stat-label">Total Crypto</span>
           </div>
           <div className="dash-stat-value">{m(fmt(totals.crypto))}</div>
-          <div className={`dash-stat-sub ${cryptoGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{mp(fmtPct(cryptoGainPct))}</div>
+          {(() => {
+            const PERIODS = [{ key: '1h', label: '1h' },{ key: '24h', label: '24h' },{ key: '7d', label: '7j' },{ key: '30d', label: '30j' },{ key: '1y', label: '1a' },{ key: 'max', label: 'Max' }]
+            let pct
+            if (cryptoPeriod === 'max') { pct = cryptoGainPct }
+            else {
+              const pKey = { '1h': 'change1h', '24h': 'change24h', '7d': 'change7d', '30d': 'change30d', '1y': 'change1y' }[cryptoPeriod]
+              const sum = portfolio.crypto.reduce((acc, c) => {
+                const v = c[pKey]; if (v == null) return acc
+                return { eur: acc.eur + (v / 100) * (c.currentPrice || 0) * c.quantity, n: acc.n + 1 }
+              }, { eur: 0, n: 0 })
+              pct = sum.n > 0 && totals.crypto > 0 ? (sum.eur / totals.crypto) * 100 : null
+            }
+            return (
+              <>
+                <div className={`dash-stat-sub ${(pct ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}>{pct != null ? mp(fmtPct(pct)) : '—'}</div>
+                <div className="change-period-selector change-period-selector--compact">
+                  {PERIODS.map(p => (
+                    <button key={p.key} className={`change-period-btn${cryptoPeriod === p.key ? ' active' : ''}`}
+                      onClick={() => setCryptoPeriod(p.key)}>{p.label}</button>
+                  ))}
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         <div className="dash-stat" style={{ '--stat-accent': 'var(--success)' }}>
@@ -386,7 +411,28 @@ export default function Dashboard() {
             <span className="dash-stat-label">Total PEA</span>
           </div>
           <div className="dash-stat-value">{m(fmt(totals.pea))}</div>
-          <div className={`dash-stat-sub ${peaGainPct >= 0 ? 'text-success' : 'text-danger'}`}>{mp(fmtPct(peaGainPct))}</div>
+          {(() => {
+            let pct
+            if (peaPeriod === 'max') { pct = peaGainPct }
+            else {
+              const sum = portfolio.pea.reduce((acc, p) => {
+                const prev = p.previousClose; if (prev == null) return acc
+                return acc + ((p.currentPrice || p.buyPrice) - prev) * p.quantity
+              }, 0)
+              pct = totals.pea > 0 ? (sum / totals.pea) * 100 : null
+            }
+            return (
+              <>
+                <div className={`dash-stat-sub ${(pct ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}>{pct != null ? mp(fmtPct(pct)) : '—'}</div>
+                <div className="change-period-selector change-period-selector--compact">
+                  {[{ key: 'day', label: 'J-1' }, { key: 'max', label: 'Max' }].map(p => (
+                    <button key={p.key} className={`change-period-btn${peaPeriod === p.key ? ' active' : ''}`}
+                      onClick={() => setPeaPeriod(p.key)}>{p.label}</button>
+                  ))}
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         <div className="dash-stat" style={{ '--stat-accent': 'var(--warning)' }}>

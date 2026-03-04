@@ -6264,3 +6264,29 @@ tbody tr:hover {
   .dca-stat { min-width: 50px; }
   .dca-dash-stat { min-width: 80px; padding: 8px 10px; }
 }
+
+/* ======================================================
+   CHANGE PERIOD SELECTOR (multi-period pills)
+   ====================================================== */
+.change-period-selector {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--bg-secondary); border-radius: 6px; padding: 2px;
+}
+.change-period-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 2px 7px; border-radius: 4px;
+  font-size: 0.65rem; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted); transition: all 0.15s ease;
+  line-height: 1.4;
+}
+.change-period-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.change-period-btn.active {
+  background: var(--accent); color: #fff;
+}
+.change-period-selector--compact { margin-top: 6px; }
+.change-period-selector--compact .change-period-btn { font-size: 0.6rem; padding: 1px 5px; }
+
+.crypto-summary-item--change,
+.pea-summary-item--change {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+}

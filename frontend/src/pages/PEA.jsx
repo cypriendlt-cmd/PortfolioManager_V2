@@ -209,8 +209,14 @@ function PerformanceChart({ asset }) {
 }
 
 /* ===== Accordion Card ===== */
+const PEA_PERIODS = [
+  { key: 'day', label: 'J-1' },
+  { key: 'max', label: 'Max' },
+]
+
 function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDeleteMovement }) {
   const { m, mp } = usePrivacyMask()
+  const [changePeriod, setChangePeriod] = useState('max')
   const current = asset.currentPrice || asset.buyPrice
   const totalValue = current * asset.quantity
   // Compute totalInvested from movements for accuracy
@@ -275,6 +281,33 @@ function PeaCard({ asset, isExpanded, onToggle, onDelete, onAddMovement, onDelet
           <span className={`pea-summary-value font-semibold ${gainPct >= 0 ? 'text-success' : 'text-danger'}`}>
             {mp(fmtPct(gainPct))}
           </span>
+        </div>
+        <div className="pea-summary-item pea-summary-item--change">
+          <div className="change-period-selector">
+            {PEA_PERIODS.map(p => (
+              <button key={p.key} className={`change-period-btn${changePeriod === p.key ? ' active' : ''}`}
+                onClick={e => { e.stopPropagation(); setChangePeriod(p.key) }}>{p.label}</button>
+            ))}
+          </div>
+          {(() => {
+            if (changePeriod === 'max') {
+              return (
+                <span className={`pea-summary-value font-semibold ${gain >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {m(`${gain >= 0 ? '+' : ''}${fmt(gain)}`)} ({mp(fmtPct(gainPct))})
+                </span>
+              )
+            }
+            // J-1
+            const prev = asset.previousClose
+            if (prev == null) return <span className="pea-summary-value">—</span>
+            const dayChange = (current - prev) * asset.quantity
+            const dayPct = prev > 0 ? ((current - prev) / prev) * 100 : 0
+            return (
+              <span className={`pea-summary-value font-semibold ${dayChange >= 0 ? 'text-success' : 'text-danger'}`}>
+                {m(`${dayChange >= 0 ? '+' : ''}${fmt(dayChange)}`)} ({mp(fmtPct(dayPct))})
+              </span>
+            )
+          })()}
         </div>
       </div>
 
@@ -379,6 +412,7 @@ export default function PEA() {
   const { m, mp } = usePrivacyMask()
   const [showModal, setShowModal] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
+  const [headerPeriod, setHeaderPeriod] = useState('max')
 
   const totalInvested = portfolio.pea.reduce((s, p) => s + p.buyPrice * p.quantity, 0)
   const totalGain = totals.pea - totalInvested
@@ -393,10 +427,34 @@ export default function PEA() {
             <p className="stat-label">Valeur totale PEA</p>
             <p className="stat-value" style={{ fontSize: '2.5rem', marginTop: 4 }}>{m(fmt(totals.pea))}</p>
             <div className="flex items-center gap-12 mt-8" style={{ flexWrap: 'wrap' }}>
-              <span className={`badge ${totalGain >= 0 ? 'badge-success' : 'badge-danger'}`}>
-                {totalGain >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {m(fmt(totalGain))} ({mp(fmtPct(totalGainPct))})
-              </span>
+              {(() => {
+                let aggEur, aggPct
+                if (headerPeriod === 'max') {
+                  aggEur = totalGain; aggPct = totalGainPct
+                } else {
+                  // J-1 aggregate
+                  aggEur = portfolio.pea.reduce((sum, p) => {
+                    const prev = p.previousClose
+                    if (prev == null) return sum
+                    return sum + ((p.currentPrice || p.buyPrice) - prev) * p.quantity
+                  }, 0)
+                  aggPct = totals.pea > 0 ? (aggEur / totals.pea) * 100 : 0
+                }
+                return (
+                  <>
+                    <span className={`badge ${aggPct >= 0 ? 'badge-success' : 'badge-danger'}`}>
+                      {aggPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {m(fmt(aggEur))} ({mp(fmtPct(aggPct))})
+                    </span>
+                    <div className="change-period-selector">
+                      {PEA_PERIODS.map(p => (
+                        <button key={p.key} className={`change-period-btn${headerPeriod === p.key ? ' active' : ''}`}
+                          onClick={() => setHeaderPeriod(p.key)}>{p.label}</button>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
               <span className="text-sm text-muted">Investi: {m(fmt(totalInvested))}</span>
             </div>
           </div>

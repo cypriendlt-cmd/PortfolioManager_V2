@@ -265,7 +265,7 @@ export async function fetchCryptoPrices(coinIds) {
   // Try CoinGecko first for all IDs
   try {
     const ids = coinIds.join(',')
-    const url = `${COINGECKO_BASE}/coins/markets?vs_currency=eur&ids=${encodeURIComponent(ids)}&order=market_cap_desc&per_page=250&sparkline=false&price_change_percentage=24h`
+    const url = `${COINGECKO_BASE}/coins/markets?vs_currency=eur&ids=${encodeURIComponent(ids)}&order=market_cap_desc&per_page=250&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y`
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
 
     if (res.status === 429) {
@@ -276,6 +276,10 @@ export async function fetchCryptoPrices(coinIds) {
         result[coin.id] = {
           currentPrice: coin.current_price,
           change24h: coin.price_change_percentage_24h,
+          change1h: coin.price_change_percentage_1h_in_currency ?? null,
+          change7d: coin.price_change_percentage_7d_in_currency ?? null,
+          change30d: coin.price_change_percentage_30d_in_currency ?? null,
+          change1y: coin.price_change_percentage_1y_in_currency ?? null,
           high24h: coin.high_24h,
           low24h: coin.low_24h,
           marketCap: coin.market_cap,
