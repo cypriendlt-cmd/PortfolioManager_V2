@@ -220,9 +220,6 @@ function MonthlyAnalysis() {
 
   const updateProfile = (key, value) => {
     setProfile(prev => ({ ...prev, [key]: value }))
-    setAnalysisData(null)
-    setAnalysisError(null)
-    setMatchInfo(null)
   }
 
   const handleLoadAnalysis = useCallback(async () => {
@@ -276,6 +273,11 @@ function MonthlyAnalysis() {
       setAnalysisLoading(false)
     }
   }, [selectedMonth, manifest, profile])
+
+  // Auto-load when profile or manifest changes
+  useEffect(() => {
+    if (manifest) handleLoadAnalysis()
+  }, [profile, manifest, handleLoadAnalysis])
 
   const handleDownloadPdf = () => {
     if (!analysisData?.reportFile) return
