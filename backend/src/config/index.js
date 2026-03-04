@@ -47,6 +47,7 @@ const config = {
     groqApiKey: process.env.GROQ_API_KEY || '',
     togetherApiKey: process.env.TOGETHER_API_KEY || '',
     huggingfaceApiKey: process.env.HUGGINGFACE_API_KEY || '',
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   },
 
   coingecko: {

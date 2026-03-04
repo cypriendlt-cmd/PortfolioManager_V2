@@ -13,6 +13,7 @@ import { sendBugReport } from '../services/emailService'
 
 const BINANCE_KEY_STORAGE = 'pm_binance_api_key'
 const BINANCE_SECRET_STORAGE = 'pm_binance_api_secret'
+const ANTHROPIC_KEY_STORAGE = 'pm_anthropic_api_key'
 
 const THEME_META = {
   crimson: { label: 'Crimson', colors: ['#0f1729', '#dc2626', '#f1f5f9'] },
@@ -41,6 +42,8 @@ export default function Settings() {
   const { driveConnected, driveError, portfolio } = usePortfolio()
   const [binanceKey, setBinanceKey] = useState(() => localStorage.getItem(BINANCE_KEY_STORAGE) || '')
   const [binanceSecret, setBinanceSecret] = useState(() => localStorage.getItem(BINANCE_SECRET_STORAGE) || '')
+  const [anthropicKey, setAnthropicKey] = useState(() => localStorage.getItem(ANTHROPIC_KEY_STORAGE) || '')
+  const [anthropicSaved, setAnthropicSaved] = useState(false)
   const [currency, setCurrency] = useState('EUR')
   const [language, setLanguage] = useState('fr')
   const [saved, setSaved] = useState(false)
@@ -63,6 +66,10 @@ export default function Settings() {
       if (data.binanceSecret && !binanceSecret) {
         setBinanceSecret(data.binanceSecret)
         localStorage.setItem(BINANCE_SECRET_STORAGE, data.binanceSecret)
+      }
+      if (data.anthropicKey && !anthropicKey) {
+        setAnthropicKey(data.anthropicKey)
+        localStorage.setItem(ANTHROPIC_KEY_STORAGE, data.anthropicKey)
       }
     }).catch(() => {})
   }, [driveConnected]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -149,6 +156,21 @@ export default function Settings() {
     }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleSaveAnthropic = async () => {
+    const key = anthropicKey.trim()
+    localStorage.setItem(ANTHROPIC_KEY_STORAGE, key)
+    if (driveConnected) {
+      try {
+        const existing = await loadFileFromDrive('secrets.json').catch(() => null)
+        await saveFileToDrive('secrets.json', { ...existing, anthropicKey: key })
+      } catch (e) {
+        console.warn('Failed to save Anthropic key to Drive:', e.message)
+      }
+    }
+    setAnthropicSaved(true)
+    setTimeout(() => setAnthropicSaved(false), 2000)
   }
 
   const handleTestBinance = async () => {
@@ -360,6 +382,29 @@ export default function Settings() {
           {binanceTest === 'error' && (
             <div className="gc-status-item gc-error"><AlertCircle size={16} /><span>{binanceError || 'Echec de la connexion'}</span></div>
           )}
+        </div>
+      </Section>
+
+      {/* Anthropic API (Invest LAB) */}
+      <Section title="Anthropic API (Invest LAB)" icon={Key}>
+        <p className="text-sm text-muted mb-16">
+          Clé API Anthropic pour le Stock Screener (Invest LAB).
+          Obtenez votre clé sur <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>console.anthropic.com</a>.
+        </p>
+        <div className="form-group">
+          <label className="form-label">Clé API Anthropic</label>
+          <input className="form-input" type="password" placeholder="sk-ant-..." value={anthropicKey} onChange={e => setAnthropicKey(e.target.value)} />
+        </div>
+        <div className="gc-actions">
+          <button className="btn btn-primary" onClick={handleSaveAnthropic}>
+            {anthropicSaved ? <><Check size={16} /> Sauvegardé</> : 'Sauvegarder'}
+          </button>
+        </div>
+        <div className="gc-status mt-16">
+          <div className={`gc-status-item ${anthropicKey ? 'gc-ok' : 'gc-warn'}`}>
+            {anthropicKey ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>Clé API {anthropicKey ? 'configurée' : 'non configurée'}</span>
+          </div>
         </div>
       </Section>
 

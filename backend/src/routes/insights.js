@@ -9,6 +9,7 @@ const insightsService = require('../services/insights');
 const marketService = require('../services/market');
 const cryptoService = require('../services/crypto');
 const insightsCache = require('../services/insightsCache');
+const stockScreener = require('../services/stockScreener');
 
 const router = express.Router();
 
@@ -176,6 +177,42 @@ router.post('/analyze', async (req, res) => {
   } catch (error) {
     console.error('[Insights] Analyze error:', error.message);
     res.status(500).json({ error: 'Failed to analyze portfolio', details: error.message });
+  }
+});
+
+// ─── Stock Screener (Claude AI) ──────────────────────────────────────────────
+
+const screenerRateLimit = new Map();
+const SCREENER_COOLDOWN_MS = 30_000;
+
+router.post('/stocks', async (req, res) => {
+  const clientIP = req.ip || req.connection?.remoteAddress || 'unknown';
+  const lastCall = screenerRateLimit.get(clientIP);
+  if (lastCall && Date.now() - lastCall < SCREENER_COOLDOWN_MS) {
+    const waitSec = Math.ceil((SCREENER_COOLDOWN_MS - (Date.now() - lastCall)) / 1000);
+    return res.status(429).json({
+      error: `Veuillez patienter ${waitSec}s avant de relancer une analyse.`,
+    });
+  }
+
+  const { anthropicApiKey, ...profile } = req.body;
+
+  const errors = stockScreener.validateProfile(profile);
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Profil invalide', details: errors });
+  }
+
+  screenerRateLimit.set(clientIP, Date.now());
+
+  try {
+    const result = await stockScreener.analyzeStocks(profile, anthropicApiKey);
+    res.json(result);
+  } catch (error) {
+    console.error('[StockScreener] Error:', error.message);
+    const statusCode = error.message.includes('non configurée') ? 503 : 500;
+    res.status(statusCode).json({
+      error: error.message || 'Erreur lors de l\'analyse stock screener.',
+    });
   }
 });
 

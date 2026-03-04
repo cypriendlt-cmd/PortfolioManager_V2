@@ -11,3 +11,6 @@ export const getProviders = () => api.get('/api/insights/providers')
 
 export const getDashboardSummary = (portfolioData) =>
   api.post('/api/insights/dashboard-summary', { portfolio: portfolioData })
+
+export const analyzeStocks = (investmentProfile, anthropicApiKey) =>
+  api.post('/api/insights/stocks', { ...investmentProfile, anthropicApiKey })

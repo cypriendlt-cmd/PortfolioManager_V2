@@ -163,7 +163,8 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/livrets/rates`);
   console.log(`   POST /api/livrets/calculate`);
   console.log(`   GET  /api/market/fear-greed`);
-  console.log(`   GET  /api/insights\n`);
+  console.log(`   GET  /api/insights`);
+  console.log(`   POST /api/insights/stocks\n`);
 
   // Warn about missing critical env vars
   const warnings = [];
@@ -171,6 +172,7 @@ app.listen(PORT, () => {
   if (!config.google.clientSecret) warnings.push('GOOGLE_CLIENT_SECRET');
   if (config.session.secret.includes('fallback')) warnings.push('SESSION_SECRET (using fallback)');
   if (config.jwt.secret.includes('fallback')) warnings.push('JWT_SECRET (using fallback)');
+  if (!config.ai.anthropicApiKey) warnings.push('ANTHROPIC_API_KEY (Stock Screener disabled)');
 
   if (warnings.length > 0) {
     console.warn('⚠️  Missing or insecure env vars:', warnings.join(', '));
