@@ -11,6 +11,7 @@ const RATE_HISTORY = {
     { rate: 2.4, from: '2025-02-01' },
     { rate: 1.7, from: '2025-08-01' },
     { rate: 1.5, from: '2026-02-01' },
+    { rate: 1.7, from: '2026-08-01' },
   ],
   'ldds': [
     { rate: 0.5, from: '2020-02-01' },
@@ -20,6 +21,7 @@ const RATE_HISTORY = {
     { rate: 2.4, from: '2025-02-01' },
     { rate: 1.7, from: '2025-08-01' },
     { rate: 1.5, from: '2026-02-01' },
+    { rate: 1.7, from: '2026-08-01' },
   ],
   'lep': [
     { rate: 1.0, from: '2020-02-01' },
@@ -38,6 +40,7 @@ const RATE_HISTORY = {
     { rate: 2.0, from: '2023-02-01' },
     { rate: 1.5, from: '2025-02-01' },
     { rate: 1.0, from: '2026-02-01' },
+    { rate: 1.25, from: '2026-08-01' },
   ],
   'pel': [
     { rate: 1.0, from: '2020-01-01' },
